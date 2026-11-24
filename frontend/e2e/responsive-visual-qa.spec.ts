@@ -309,9 +309,11 @@ async function assertPageAtWidth(
     expect(formBox).not.toBeNull();
     expect(ordersBox).not.toBeNull();
     const bookShare = bookBox!.width / (bookBox!.width + formBox!.width);
-    expect(Math.abs(bookShare - 0.55), "Rendered tablet columns must measure 55:45 (order book:order entry).").toBeLessThanOrEqual(0.015);
-    expect(bookBox!.x + bookBox!.width).toBeLessThanOrEqual(formBox!.x + 2);
+    expect(Math.abs(bookShare - 0.5), "Rendered tablet columns must be approximately 50:50.").toBeLessThanOrEqual(0.015);
+    expect(formBox!.x + formBox!.width).toBeLessThanOrEqual(bookBox!.x + 2);
     expect(Math.abs(bookBox!.y - formBox!.y)).toBeLessThanOrEqual(8);
+    if (width < 1024) await expect(page.locator(".trade-drawer-root")).toBeVisible();
+    else await expect(page.locator(".trade-drawer-root")).toHaveCount(0);
     expect(ordersBox!.y).toBeGreaterThanOrEqual(Math.max(bookBox!.y + bookBox!.height, formBox!.y + formBox!.height) - 1);
     await expect(page.locator("#trade-chart-open")).toBeVisible();
   }
@@ -384,7 +386,8 @@ async function assertPageAtWidth(
     expect(formBox!.width, "Phone order entry must retain usable width.").toBeGreaterThan(120);
     expect(bookBox!.width, "Phone order book must retain usable width.").toBeGreaterThan(100);
     const formShare = formBox!.width / (formBox!.width + bookBox!.width);
-    expect(Math.abs(formShare - 0.55), "Rendered phone columns must measure 55:45 (order entry:order book).").toBeLessThanOrEqual(0.015);
+    const expectedFormShare = width < 360 ? 0.55 : 0.5;
+    expect(Math.abs(formShare - expectedFormShare), "Rendered phone columns must be balanced, with a narrow-phone allowance.").toBeLessThanOrEqual(0.015);
     expect(formBox!.x + formBox!.width, "Order entry must occupy the left column.").toBeLessThanOrEqual(bookBox!.x + 2);
     expect(Math.abs(formBox!.y - bookBox!.y), "Order entry and order book must share the same row.").toBeLessThanOrEqual(8);
     expect(
