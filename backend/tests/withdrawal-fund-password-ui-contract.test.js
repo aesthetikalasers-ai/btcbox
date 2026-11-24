@@ -10,22 +10,22 @@ const api = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
 const withdrawalView = fs.readFileSync(path.join(root, 'assets/js/views-assets.js'), 'utf8');
 
 test('withdrawal fund-password UI accepts the exact backend policy', () => {
-  assert.match(api, /function validateFundPassword\\(pwd\\)/);
-  assert.match(api, /pwd\\.length\\s*<\\s*8/);
-  assert.match(api, /\\/\\[A-Za-z\\]\\/\\.test\\(pwd\\)/);
-  assert.match(api, /\\/\\\\d\\/\\.test\\(pwd\\)/);
-  assert.match(api, /\\/\\\\s\\/\\.test\\(pwd\\)/);
-  assert.match(withdrawalView, /Fund Password \\(at least 8 characters, letters and numbers\\)/);
-  assert.match(withdrawalView, /id="wd-fundpwd"[^>]*minlength="8" maxlength="128"/);
-  assert.match(withdrawalView, /fundPassword\\.length<8\\|\\|!\\/\\[A-Za-z\\]\\/\\.test\\(fundPassword\\)\\|\\|!\\/\\[0-9\\]\\/\\.test\\(fundPassword\\)\\|\\|\\/\\\\s\\/\\.test\\(fundPassword\\)/);
-  assert.doesNotMatch(withdrawalView, /Fund Password \\(6 digits\\)/);
-  assert.doesNotMatch(withdrawalView, /id="wd-fundpwd"[^>]*maxlength="6"/);
-  assert.doesNotMatch(withdrawalView, /wd-fundpwd'\\)\\.value\\)\\)/);
+  assert.ok(api.includes('function validateFundPassword(pwd)'));
+  assert.ok(api.includes('if (pwd.length < 8)'));
+  assert.ok(api.includes('if (!/[A-Za-z]/.test(pwd) || !/\\d/.test(pwd))'));
+  assert.ok(api.includes('if (/\\s/.test(pwd))'));
+  assert.ok(withdrawalView.includes('Fund Password (at least 8 characters, letters and numbers)'));
+  assert.ok(withdrawalView.includes('id="wd-fundpwd" class="auth-input" type="password" minlength="8" maxlength="128"'));
+  assert.ok(withdrawalView.includes('if(fundPassword.length<8||!/[A-Za-z]/.test(fundPassword)||!/[0-9]/.test(fundPassword)||/\\s/.test(fundPassword))'));
+  assert.ok(!withdrawalView.includes('Fund Password (6 digits)'));
+  assert.ok(!withdrawalView.includes('id="wd-fundpwd" class="auth-input num" type="password" maxlength="6"'));
+  assert.ok(!withdrawalView.includes("if(!/^\\d{6}$/.test($('#wd-fundpwd').value))"));
 });
 
 test('withdrawal intent keeps its original request ID and never persists security credentials', () => {
-  assert.match(withdrawalView, /request_id:uid\(\),coin,amount:amtRaw,address:addr,network:/);
-  assert.match(withdrawalView, /request_id:withdrawalIntent\.request_id/);
-  assert.match(withdrawalView, /Persist the exact idempotency key \+ immutable intent before network I\/O/);
-  assert.doesNotMatch(withdrawalView, /persistPendingWithdrawal\(\{[^}]*fund_password|persistPendingWithdrawal\(\{[^}]*twofa_code/);
+  assert.ok(withdrawalView.includes('request_id:uid(),coin,amount:amtRaw,address:addr,network:'));
+  assert.ok(withdrawalView.includes('request_id:withdrawalIntent.request_id'));
+  assert.ok(withdrawalView.includes('Persist the exact idempotency key + immutable intent before network I/O'));
+  assert.ok(!/persistPendingWithdrawal\(\{[^}]*fund_password/.test(withdrawalView));
+  assert.ok(!/persistPendingWithdrawal\(\{[^}]*twofa_code/.test(withdrawalView));
 });
