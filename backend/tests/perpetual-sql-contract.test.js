@@ -329,3 +329,40 @@ test('perpetual migration reuses and preserves the canonical BTCBOX asset regist
   assert.ok(sql.includes('public.btcbox_assets(asset_code)'));
   assert.ok(sql.includes('Deliberately do not create the legacy btcbox_asset_seed_wallet_accounts_v1'));
 });
+
+
+const fundingRateSql = fs.readFileSync(path.join(root, 'supabase/sql/0048_perpetual_funding_rate_producer_v1.sql'), 'utf8');
+const fundingRateWorker = fs.readFileSync(path.join(root, 'scripts/perp-funding-rate-worker.js'), 'utf8');
+
+test('fixed funding formula is versioned, database-calculated, bounded and auditable', () => {
+  assert.ok(fundingRateSql.includes("'btcbox-funding-v1'"));
+  assert.ok(fundingRateSql.includes('v_interest constant numeric(12,10) := 0.0001'));
+  assert.ok(fundingRateSql.includes('v_adjustment constant numeric(12,10) := 0.0005'));
+  assert.ok(fundingRateSql.includes('v_absolute_cap constant numeric(12,10) := 0.0075'));
+  assert.ok(fundingRateSql.includes('v_premium := ((v_mid / v_feed.index_price) - 1)'));
+  assert.ok(fundingRateSql.includes('v_interest - v_premium'));
+  assert.ok(fundingRateSql.includes('impact_bid_price'));
+  assert.ok(fundingRateSql.includes('impact_ask_price'));
+  assert.ok(fundingRateSql.includes('calculated_at'));
+  assert.ok(fundingRateSql.includes("status <> 'ok'") === false); // positive status check is explicit below
+  assert.ok(fundingRateSql.includes("v_feed.status <> 'ok'"));
+  assert.ok(fundingRateSql.includes('v_feed.created_at < now()'));
+  assert.ok(fundingRateSql.includes('on conflict (symbol,funding_at) do update'));
+});
+
+test('funding financial operations reject unversioned or stale snapshots', () => {
+  assert.ok(fundingRateSql.includes("v_rate.formula_version is distinct from 'btcbox-funding-v1'"));
+  assert.ok(fundingRateSql.includes("v_rate.interest_rate is distinct from 0.0001::numeric"));
+  assert.ok(fundingRateSql.includes("v_rate.calculated_at < now() - interval '2 minutes'"));
+  assert.ok(fundingRateSql.includes('before insert on public.financial_operations'));
+  assert.ok(fundingRateSql.includes("new.operation_type <> 'perp_funding'"));
+});
+
+test('funding-rate producer is separate from the settlement worker and never changes balances', () => {
+  assert.ok(fundingRateWorker.includes("rpc/perp_record_funding_rate_snapshot"));
+  assert.ok(fundingRateWorker.includes('calculateImpactPrices'));
+  assert.ok(fundingRateWorker.includes('perpetual_orders?select=price,remaining_quantity'));
+  assert.ok(!fundingRateWorker.includes('perp_settle_funding_market'));
+  assert.ok(!fundingRateWorker.includes('financial_accounts'));
+  assert.ok(!fundingRateWorker.includes("method:'PATCH'"));
+});
