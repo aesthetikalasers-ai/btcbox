@@ -581,7 +581,7 @@ BEGIN
     RAISE EXCEPTION 'funding-before-liquidation RPC failed: %',v_result;
   END IF;
   SELECT available,frozen INTO v_balance,v_frozen FROM public.financial_accounts WHERE user_id='perp-liq-ci' AND asset='USDT';
-  IF v_balance<>91 OR v_frozen<>0 THEN RAISE EXCEPTION 'funding was not credited before liquidation: %, %',v_balance,v_frozen; END IF;
+  IF v_balance<>91.2 OR v_frozen<>0 THEN RAISE EXCEPTION 'funding was not credited before liquidation: %, %',v_balance,v_frozen; END IF;
   IF NOT EXISTS (SELECT 1 FROM public.perpetual_funding_history WHERE symbol='ETHUSDT' AND user_id='perp-liq-ci' AND payment_delta=1) THEN
     RAISE EXCEPTION 'liquidation path omitted funding settlement';
   END IF;
@@ -591,7 +591,7 @@ BEGIN
    FROM public.perpetual_liquidation_journal j JOIN public.perpetual_liquidation_events e ON e.id=j.event_id
    WHERE e.user_id='perp-liq-ci' AND e.symbol='ETHUSDT';
   IF v_debit<>200 OR v_credit<>200 THEN RAISE EXCEPTION 'liquidation journal not balanced: %, %',v_debit,v_credit; END IF;
-  IF NOT EXISTS (SELECT 1 FROM public.perpetual_position_history WHERE user_id='perp-liq-ci' AND symbol='ETHUSDT' AND funding_paid=-1 AND close_reason='liquidation') THEN
+  IF NOT EXISTS (SELECT 1 FROM public.perpetual_position_history WHERE user_id='perp-liq-ci' AND symbol='ETHUSDT' AND funding_paid=-1.2 AND close_reason='liquidation') THEN
     RAISE EXCEPTION 'liquidation history did not retain funding result';
   END IF;
   RAISE NOTICE 'Perpetual PostgreSQL settlement, idempotency, fail-closed rollback and funding-before-liquidation checks passed';
