@@ -47,6 +47,26 @@ the exact target project:
    zero-balance platform insurance account `__perp_insurance__ / USDT`; existing
    user balances and existing ledger rows must remain unchanged.
 
+## Runtime readiness (separate from schema migration)
+
+The perpetual worker files are currently one-pass Node scripts, not an active
+scheduler. The repository's Vercel configuration does not register a cron or
+long-running worker process for them. Therefore the engine must remain disabled.
+
+- Mark-price worker: currently defaults to BTCUSDT, ETHUSDT, SOLUSDT and BNBUSDT;
+  each enabled market needs two supported price sources. Additional symbols need
+  an explicit trusted source mapping before they can receive marks.
+- Funding worker: v1 deliberately records a zero funding rate until a validated
+  premium-index calculation is implemented. It is not yet a live funding-rate engine.
+- Liquidation worker: must run continuously at the intended 2–5 second cadence;
+  a once-per-minute schedule is not equivalent.
+
+The API now also requires `FINANCIAL_PERPETUAL_WORKERS_READY=1` in addition to
+`FINANCIAL_PERPETUAL_ENGINE_ENABLED=1` and the existing financial-write gate.
+Do not set the worker-readiness flag until the mark, funding and liquidation
+workers are actually deployed, scheduled, monitored and tested. Schema migration
+alone never sets these environment variables.
+
 ## Prohibited path
 
 Do not run `bootstrap-empty-database.sh`, `run_migrations.sh`, or
