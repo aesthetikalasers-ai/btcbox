@@ -58,10 +58,10 @@ scheduler. The repository's Vercel configuration does not register a cron or
 long-running worker process for them. Therefore the engine must remain disabled.
 
 - Mark-price worker: discovers enabled perpetual markets from Supabase and
-  includes built-in Binance/CoinGecko mappings for the registered BTCBOX assets
-  ADA, AVAX, BNB, BTC, DOGE, ETH, SOL and XRP. Other symbols require an explicit
-  trusted CoinGecko ID in `PERP_COINGECKO_IDS`; every market still requires two
-  successful sources before a mark is recorded.
+  aggregates Binance + OKX, with a third CoinGecko source mapped for the registered
+  BTCBOX assets ADA, AVAX, BNB, BTC, DOGE, ETH, SOL and XRP. Other symbols can add
+  a trusted CoinGecko ID through `PERP_COINGECKO_IDS`. At least two fresh, distinct
+  providers are required; three agreeing sources are needed for an `ok` feed status.
 - Funding worker: v1 deliberately records a zero funding rate until a validated
   premium-index calculation is implemented. It is not yet a live funding-rate engine.
 - Liquidation worker: must run continuously at the intended 2–5 second cadence;
