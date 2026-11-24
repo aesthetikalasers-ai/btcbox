@@ -209,25 +209,22 @@ test('admin console exposes authenticated editing for supported deposit addresse
 });
 
 
-test('admin console exposes read-only order and support inbox views with escaped API fields', () => {
-  assert.ok(accountView.includes('data-atab="orders">订单查询</div>'));
-  assert.ok(accountView.includes('data-atab="support">客服消息</div>'));
-  assert.ok(accountView.includes('apiAdapter.adminOrders()'));
-  assert.ok(accountView.includes('apiAdapter.adminSupportMessages()'));
-  assert.ok(accountView.includes("adminOrdersSource==='legacy_state'"));
-  assert.ok(accountView.includes("escapeHtml(o.email||'—')"));
-  assert.ok(accountView.includes("escapeHtml(m.content||'')"));
-  assert.ok(accountView.includes('只读收件箱'));
-  assert.ok(app.includes("async adminOrders(){ return adminFetch('/admin/orders'); }"));
-  assert.ok(app.includes("async adminSupportMessages(){ return adminFetch('/admin/support/messages'); }"));
+test('React admin exposes read-only order and searchable support inbox views', () => {
+  assert.ok(reactAdminPage.includes('tab === "orders"'));
+  assert.ok(reactAdminPage.includes('getAdminOrders(token)'));
+  assert.ok(reactAdminPage.includes('tab === "support"'));
+  assert.ok(reactAdminPage.includes('getAdminSupportMessages(token, supportSearchApplied)'));
+  assert.ok(reactAdminPage.includes('supportSearchApplied'));
+  assert.ok(reactAdminPage.includes('asText(message.content)'));
+  assert.ok(reactAdminPage.includes('ID {asText(message.id)}'));
   const orderStart = apiCore.indexOf("if (sub === 'orders' && method === 'GET')");
   const supportStart = apiCore.indexOf("if (sub === 'support/messages' && method === 'GET')");
   assert.ok(orderStart >= 0 && supportStart > orderStart);
   assert.ok(apiCore.slice(orderStart, supportStart).includes("source: 'legacy_state'"));
   const supportRoute = apiCore.slice(supportStart);
-  assert.ok(supportRoute.includes('conversation.slice(-100).forEach'));
-  assert.ok(supportRoute.includes('return json({ ok: true, messages: list });'));
-  assert.ok(!supportRoute.includes('list.slice(-500)'));
+  assert.ok(supportRoute.includes('selectedMessages.slice(-100).forEach'));
+  assert.ok(supportRoute.includes('const boundedList = searchQuery ? list.slice(-500) : list'));
+  assert.ok(supportRoute.includes('messages: boundedList'));
 });
 
 test('public build excludes the retired legacy admin shell while retaining the React admin route', () => {
@@ -264,7 +261,7 @@ test('React admin exposes audited user freeze and unfreeze actions behind users.
   assert.ok(adminApi.includes('adminSetUserFrozen'));
   assert.ok(adminApi.includes('"admin/user/freeze"'));
   assert.ok(reactAdminPage.includes('hasPermission("users.freeze")'));
-  assert.ok(reactAdminPage.includes('adminText(user.frozen?"Unfreeze":"Freeze")'));
+  assert.ok(reactAdminPage.includes('adminText(user.frozen ? "Unfreeze" : "Freeze")'));
   assert.ok(reactAdminPage.includes('target.kind === "user-freeze"'));
   assert.ok(reactAdminPage.includes('setSelectedUser(current => current?.uid === target.uid ? { ...current, frozen } : current)'));
 });
