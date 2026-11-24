@@ -45,7 +45,7 @@ interface MarketPickerDialogProps {
  * so a change to the market list only happens in one place.
  */
 const FAVORITES_KEY = "btcbox.market-favorites";
-type PickerFilter = "all" | "hot" | "favorites" | "gainers" | "losers";
+type PickerFilter = "all" | "volume" | "favorites" | "gainers" | "losers";
 
 function readFavorites(): string[] {
   if (typeof window === "undefined") return [];
@@ -98,13 +98,13 @@ export function MarketPickerDialog({ open, onOpenChange, items, activeId, onSele
     if (filter === "favorites") rows = rows.filter((item) => favorites.includes(favoriteKey(item)));
     if (filter === "gainers") rows = rows.filter((item) => item.changePct != null && item.changePct > 0);
     if (filter === "losers") rows = rows.filter((item) => item.changePct != null && item.changePct < 0);
-    if (filter === "hot") rows = [...rows].sort((a, b) => Number(b.quoteVolume ?? -1) - Number(a.quoteVolume ?? -1));
+    if (filter === "volume") rows = [...rows].sort((a, b) => Number(b.quoteVolume ?? -1) - Number(a.quoteVolume ?? -1));
     return rows;
   }, [items, query, filter, favorites]);
 
   const filters: Array<[PickerFilter, string]> = [
     ["all", "All"],
-    ["hot", "Hot"],
+    ["volume", "24h volume"],
     ["favorites", "Favorites"],
     ["gainers", "Gainers"],
     ["losers", "Losers"],
@@ -134,7 +134,7 @@ export function MarketPickerDialog({ open, onOpenChange, items, activeId, onSele
               aria-label={t("Search BTCBOX")}
             />
           </div>
-          <div className="term-pair-dialog__filters" role="tablist" aria-label={t("Market filters")}>
+          <div className="term-pair-dialog__filters" role="tablist" aria-label={t("Markets")}>
             {filters.map(([key, label]) => (
               <button key={key} type="button" role="tab" aria-selected={filter === key}
                 className={filter === key ? "is-active" : ""}
@@ -175,7 +175,7 @@ export function MarketPickerDialog({ open, onOpenChange, items, activeId, onSele
                     </div>
                   );
                 })
-              : <p className="term-pair-dialog__empty">{filter === "favorites" ? t("No favorites yet.") : emptyLabel}</p>}
+              : <p className="term-pair-dialog__empty">{emptyLabel}</p>}
           </div>
         </Dialog.Content>
       </Dialog.Portal>
