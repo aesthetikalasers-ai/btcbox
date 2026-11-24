@@ -20,7 +20,7 @@ test('manual credit and manual debit are separate finance-centre actions, not us
   const financeBlock = page.slice(financeStart, financeEnd);
   assert.ok(userBlock.includes('setTab("financial-adjustments")'));
   assert.ok(page.includes('const selectUser = async (uid: string): Promise<boolean>'));
-  assert.ok(page.includes('then(loaded=>{if(loaded)setTab("financial-adjustments");})'));
+  assert.match(page, /selectUser\(user\.uid\)\.then\(loaded\s*=>\s*\{\s*if\s*\(loaded\)\s*setTab\("financial-adjustments"\)/);
 
   assert.ok(!userBlock.includes('ManualDebitPanel'));
   assert.ok(!userBlock.includes('manualCredit(event,coin)'));
@@ -38,7 +38,7 @@ test('manual debit remains reason-free and localized while preserving the existi
   assert.ok(!debit.includes('name="reason"'));
   assert.ok(!debit.includes('placeholder="Reason"'));
   assert.ok(debit.includes('adminText("Manual debit")'));
-  assert.ok(debit.includes('adminText("Confirm debit")'));
+  assert.ok(debit.includes('adminText(busy ? "Processing…" : requestId ? "Retry same debit" : "Confirm debit")'));
   assert.ok(api.includes("route === 'user/balance' && verb === 'POST'"));
   assert.ok(api.includes("'financial_adjustment.request'"));
   for (const label of ['Manual debit', 'Debit amount', 'Confirm debit', 'Financial adjustments']) {
