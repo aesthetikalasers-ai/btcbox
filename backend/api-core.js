@@ -4511,9 +4511,13 @@ async function handleRequest(event, context) {
     // window prevents one busy thread from hiding other customers in the inbox.
     if (sub === 'support/messages' && method === 'GET') {
       const list = [];
+      const params = event.queryStringParameters || {};
+      const searchQuery = String(params.search || '').trim().slice(0, 128).toLowerCase();
       const readReceipts = db.admin_support_read_receipts && typeof db.admin_support_read_receipts === 'object' ? db.admin_support_read_receipts : {};
       Object.values(db.users).forEach(function (u) {
         const uid = String(u.uid || '');
+        const email = String(u.email || '');
+        const username = String(u.username || '');
         const conversation = Array.isArray(u.support_messages) ? u.support_messages : [];
         const receiptKey = String(adminUserId) + ':' + uid;
         const receipt = readReceipts[receiptKey];
@@ -4522,23 +4526,37 @@ async function handleRequest(event, context) {
         const readCursorIndex = lastReadMessageId
           ? conversation.findIndex(function(m) { return m && String(m.id || '') === lastReadMessageId; })
           : -1;
-        // Count unread customer messages across the full retained conversation,
-        // using the exact message cursor so same-second arrivals stay unread.
         const unreadCount = conversation.filter(function(m, index) {
           if (!m || m.from !== 'user') return false;
           if (readCursorIndex >= 0) return index > readCursorIndex;
           if (lastReadMessageId) return String(m.id || '') > lastReadMessageId;
           return !lastReadAt || String(m.time || '') > lastReadAt;
         }).length;
-        // Bound each customer's response independently. A busy customer's
-        // history must never consume the shared response window and hide other
-        // customers from the support inbox.
-        conversation.slice(-100).forEach(function (m) {
+
+        const identityMatches = !!searchQuery && [uid, email, username].some(function(value) {
+          return value.toLowerCase().includes(searchQuery);
+        });
+        const exactMessageMatches = searchQuery ? conversation.filter(function(m) {
+          return m && String(m.id || '').toLowerCase() === searchQuery;
+        }) : [];
+        const selectedMessages = !searchQuery
+          ? conversation.slice(-100)
+          : exactMessageMatches.length
+            ? exactMessageMatches
+            : identityMatches
+              ? conversation.slice(-100)
+              : conversation.filter(function(m) {
+                  return m && String(m.id || '').toLowerCase().includes(searchQuery);
+                });
+        if (searchQuery && selectedMessages.length === 0) return;
+
+        selectedMessages.slice(-100).forEach(function (m) {
           if (!m || (m.from !== 'user' && m.from !== 'admin')) return;
           list.push({
             id: String(m.id || ''),
             uid: uid,
-            email: String(u.email || ''),
+            email: email,
+            username: username,
             from: m.from,
             content: String(m.content || ''),
             time: String(m.time || ''),
@@ -4550,7 +4568,10 @@ async function handleRequest(event, context) {
         if (a.time === b.time) return a.id < b.id ? -1 : 1;
         return a.time < b.time ? -1 : 1;
       });
-      return json({ ok: true, messages: list });
+      // Search results are server-filtered and bounded; the browser never loads
+      // every retained conversation just to locate a message or customer.
+      const boundedList = searchQuery ? list.slice(-500) : list;
+      return json({ ok: true, messages: boundedList, search: searchQuery || null });
     }
 
     // ---------- Admin: help centre (FAQ) ----------
