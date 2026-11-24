@@ -279,7 +279,7 @@
   "Place buy limit order": "Kauf-Limit-Order aufgeben",
   "Place sell limit order": "Verkaufs-Limit-Order aufgeben",
   "Order book snapshot unavailable": "Orderbuch-Snapshot nicht verfügbar",
-  "Live market depth": "Live-Markttiefe",
+  "Market depth": "Markttiefe",
   "Asks": "Verkaufsangebote",
   "Bids": "Kaufangebote",
   "Enter an amount within the active backend policy limits.": "Geben Sie einen Betrag innerhalb der aktiven Richtliniengrenzen des Backends ein.",
