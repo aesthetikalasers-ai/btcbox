@@ -16,7 +16,11 @@ LANGUAGE plpgsql SECURITY INVOKER SET search_path = ''
 AS $
 DECLARE
   v_operation_id text;
+  v_deposit_offset boolean := false;
 BEGIN
+  IF TG_OP = 'UPDATE' THEN
+    v_deposit_offset := OLD.available < 0 AND NEW.available > OLD.available;
+  END IF;
   IF NEW.available < 0 THEN
     v_operation_id := current_setting('btcbox.financial_operation_id', true);
     IF coalesce(v_operation_id, '') = '' OR NOT EXISTS (
@@ -27,8 +31,7 @@ BEGIN
          AND (
            (o.operation_type = 'admin_adjustment' AND o.metadata->>'reason' = 'admin_manual_debit')
            OR
-           (TG_OP = 'UPDATE' AND OLD.available < 0 AND NEW.available > OLD.available
-             AND o.operation_type = 'deposit_credit')
+           (v_deposit_offset AND o.operation_type = 'deposit_credit')
          )
     ) THEN
       RAISE EXCEPTION 'negative available balance requires a marked admin debit or a deposit offset';
