@@ -75,9 +75,19 @@ function extractUsdmMarketFilters(payload, symbols = CANDIDATE_SYMBOLS) {
 }
 async function main() {
   const response = await fetch(ENDPOINT, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(15000) });
+  if (response.status === 451) {
+    process.stdout.write(JSON.stringify({
+      source: ENDPOINT, data_status: 'blocked_by_provider', http_status: 451,
+      generated_at: new Date().toISOString(), candidate_count: CANDIDATE_SYMBOLS.length,
+      markets: [], unsupported: CANDIDATE_SYMBOLS.map(symbol => ({ symbol, reason: 'provider_access_blocked' })),
+      invalid: [],
+    }, null, 2) + '\n');
+    return;
+  }
   if (!response.ok) throw new Error('Binance exchangeInfo HTTP ' + response.status);
   const payload = await response.json();
   const report = extractUsdmMarketFilters(payload);
+  report.data_status = 'available';
   process.stdout.write(JSON.stringify(report, null, 2) + '\n');
   if (report.invalid.length) process.exitCode = 2;
 }
