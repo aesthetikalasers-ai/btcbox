@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { Button } from "../../components/ui/button";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
-import { getSpotMarketPairs, getTradingStatus, getSecondsPolicy, getEarnCatalog, getPerpMarkets, type SpotMarketPair, type TradingStatus } from "../../lib/api";
+import { getSpotMarketPairs, getTradingStatus, getSecondsPolicy, getEarnCatalog, getPerpMarkets, getPublicAssetCatalog, type SpotMarketPair, type TradingStatus, type PublicAssetConfig } from "../../lib/api";
 import { PageFrame } from "./Pages";
 
 
@@ -16,6 +16,7 @@ import { PageFrame } from "./Pages";
 export function TradeHubPage() {
   const { t } = useI18n();
   const { status } = useAuth();
+  const [assetCatalog, setAssetCatalog] = useState<PublicAssetConfig[] | null>(null);
   const [spotPairs, setSpotPairs] = useState<SpotMarketPair[]>([]);
   const [pairsLoading, setPairsLoading] = useState(true);
   const [pairsError, setPairsError] = useState("");
@@ -24,6 +25,14 @@ export function TradeHubPage() {
   const [secondsAvailability, setSecondsAvailability] = useState<"loading" | "sign-in" | "enabled" | "read-only" | "unavailable">("loading");
   const [earnAvailability, setEarnAvailability] = useState<"loading" | "sign-in" | "enabled" | "read-only" | "empty" | "unavailable">("loading");
   const [perpAvailability, setPerpAvailability] = useState<"loading" | "sign-in" | "enabled" | "read-only" | "unavailable">("loading");
+
+  useEffect(() => {
+    const controller = new AbortController();
+    getPublicAssetCatalog(controller.signal)
+      .then((assets) => { if (!controller.signal.aborted) setAssetCatalog(assets); })
+      .catch(() => { if (!controller.signal.aborted) setAssetCatalog([]); });
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -63,6 +72,13 @@ export function TradeHubPage() {
   }, [status]);
 
   const spotExecutionEnabled = tradingStatus?.spot_order_entry_enabled === true;
+  const hasVisibleAssetModule = (flag: "spot_enabled" | "perpetual_enabled" | "seconds_enabled" | "earn_enabled", allowed?: string[]) =>
+    !!assetCatalog?.some((asset) => asset.code !== "USDT" && asset.enabled && asset.visible && asset[flag] && (!allowed || allowed.includes(asset.code)));
+  const usdtAsset = assetCatalog?.find((asset) => asset.code === "USDT");
+  const showSpot = !pairsLoading && !pairsError && spotPairs.length > 0;
+  const showPerpetual = hasVisibleAssetModule("perpetual_enabled") && !!usdtAsset?.enabled && !!usdtAsset.visible && !!usdtAsset.perpetual_enabled;
+  const showSeconds = hasVisibleAssetModule("seconds_enabled", ["BTC", "ETH", "SOL", "BNB"]);
+  const showEarn = hasVisibleAssetModule("earn_enabled");
 
 
 
@@ -74,6 +90,7 @@ export function TradeHubPage() {
     >
       {/* 4 Core Trading Product Cards (Institutional Grid) */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {showSpot ? (
         {/* Spot Card */}
         <Card className="card-lift border-brand-border bg-brand-surface shadow-xl flex flex-col justify-between">
           <CardHeader>
@@ -93,6 +110,10 @@ export function TradeHubPage() {
           </CardContent>
         </Card>
 
+        </Card>
+        ) : null}
+
+        {showPerpetual ? (
         {/* Perpetual Card */}
         <Card className="card-lift border-brand-border bg-brand-surface shadow-xl flex flex-col justify-between">
           <CardHeader>
@@ -112,6 +133,10 @@ export function TradeHubPage() {
           </CardContent>
         </Card>
 
+        </Card>
+        ) : null}
+
+        {showSeconds ? (
         {/* Seconds Card */}
         <Card className="card-lift border-brand-border bg-brand-surface shadow-xl flex flex-col justify-between">
           <CardHeader>
@@ -131,6 +156,10 @@ export function TradeHubPage() {
           </CardContent>
         </Card>
 
+        </Card>
+        ) : null}
+
+        {showEarn ? (
         {/* Earn Card */}
         <Card className="card-lift border-brand-border bg-brand-surface shadow-xl flex flex-col justify-between">
           <CardHeader>
@@ -149,6 +178,7 @@ export function TradeHubPage() {
             </Button>
           </CardContent>
         </Card>
+        ) : null}
       </div>
 
 
