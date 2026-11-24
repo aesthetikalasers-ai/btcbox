@@ -1374,7 +1374,7 @@ export function AdminPage() {
   const savePerpMarket = async () => {
     if (!token || !hasPermission("system_config.write")) return;
     const draft = perpMarketDraft;
-    const decimal = /^(?:0|[1-9]\\d{0,19})(?:\\.\\d{1,18})?$/;
+    const decimal = /^(?:0|[1-9]\d{0,19})(?:\.\d{1,18})?$/;
     const positive = (value: string) => decimal.test(value.trim()) && Number(value) > 0;
     const optionalPositive = (value: string) => !value.trim() || positive(value);
     const maxLeverage = Number(draft.max_leverage);
