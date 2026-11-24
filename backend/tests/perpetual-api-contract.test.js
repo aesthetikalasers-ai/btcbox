@@ -233,6 +233,7 @@ test('perpetual matching caps maker reduce-only fills to live opposite position 
 
 
 test('liquidation records insurance funding and bad debt as explicit auditable operations', () => {
+  const migration = fs.readFileSync(path.join(root, 'supabase', 'sql', '0041_perpetual_contract_v1.sql'), 'utf8');
   assert.match(migration, /insert into public\.financial_accounts\(user_id,asset\) values \(v_market\.insurance_user_id,'USDT'\) on conflict do nothing/i);
   assert.match(migration, /insurance fee credit invariant failed/i);
   assert.match(migration, /insurance liquidation debit invariant failed/i);
