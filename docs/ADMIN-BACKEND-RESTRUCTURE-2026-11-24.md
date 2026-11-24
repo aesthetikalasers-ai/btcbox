@@ -56,9 +56,9 @@ The handler also contains a separate perpetual-market admin route group. It is n
 
 ### Findings
 
-1. **Perpetual admin route reachability — SOURCE OBSERVED, runtime NOT VERIFIED.** The handler contains a `sub.startsWith('perpetual/')` block with `market` POST, `liquidations` GET and `insurance` GET handlers. However, the common `requiredPermission(route, verb)` resolver returns `null` for these paths, and the handler returns `ADMIN_ROUTE_NOT_FOUND` before reaching the perpetual block. The route block appears unreachable through the current dispatcher. Do not simply add a broad permission mapping: the three routes have different risk profiles and need explicit least-privilege permissions, audit expectations, and a decision about whether the market mutation is in scope. No production request was made.
+1. **Perpetual admin route reachability — SOURCE OBSERVED, runtime NOT VERIFIED.** The current source explicitly maps `GET /admin/perpetual/markets` to `system_config.read`, `POST /admin/perpetual/market` to `system_config.write`, and liquidation/insurance reads to `financial_audit.read`. The market upsert handler forces `enabled: false` and `status: 'paused'` and appends an audit event. The handlers and permission map are present; live endpoint behavior remains NOT VERIFIED. Keep these admin configuration routes separate from PR #113's user-facing market picker and do not change perpetual SQL or matching behavior in this workstream.
 2. **Permission matrix test coverage is incomplete — SOURCE OBSERVED.** `backend/tests/admin-route-permissions.test.js` asserts several core routes but does not explicitly cover `POST /admin/withdraw/approve`, `POST /admin/withdraw/reject`, `POST /admin/withdraw/mark-paid`, `POST /admin/support/read`, or all FAQ methods. The resolver currently maps these routes, but the tests do not protect every mapping against regression.
-3. **Perpetual routes are absent from the route permission contract test.** This aligns with the missing resolver mapping and means current tests do not catch the apparent unreachable-route condition.
+3. **Perpetual route tests must protect the existing scoped mappings and paused-only write behavior.**
 4. **Test execution is pending.** Source and test files have been inspected, but the backend test suite has not yet been executed in this work session. No TEST PASSED claim is made.
 
 ### Files inspected in this pass
@@ -73,7 +73,7 @@ The handler also contains a separate perpetual-market admin route group. It is n
 ### Required next checks before implementation
 
 - Add a complete route inventory test that enumerates every route/method, including support read receipts, all FAQ methods, all withdrawal actions, and perpetual routes.
-- Decide whether the three perpetual routes should be restored, deliberately retired, or left inaccessible; obtain explicit owner approval before enabling the market mutation route.
+- Preserve the existing scoped permissions and paused-only configuration write. Do not enable market trading or matching through this admin workstream.
 - Run the backend test suite and relevant frontend typecheck/build in a disposable checkout or CI environment. Record the exact results.
 - Do not change financial, matching, settlement, or perpetual mutation behavior as part of a pure route extraction.
 
