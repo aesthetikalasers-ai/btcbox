@@ -77,17 +77,11 @@ test("degraded public catalogue keeps fresh quotes visible but disables all new 
   // A degraded catalogue is explicitly read-only even if the general trading
   // status endpoint says the matching engine is enabled.
   await expect(page.getByText("Trading is temporarily unavailable.", { exact: true }).first()).toBeVisible();
-  // The catalogue degradation must make new spot order entry read-only. The
-  // account gate may render for signed-out CI sessions; in that case it is the
-  // only enabled submit CTA and must not issue an order request.
-  const orderForm = page.getByRole("form", { name: "Order form" });
+  // The compact trading terminal keeps the order form mounted, but the
+  // degraded catalogue must make its new-order submit control read-only.
+  const orderForm = page.locator("#trade-entry form");
   await expect(orderForm).toBeVisible();
   const submitButton = orderForm.locator("button[type=\"submit\"]");
   await expect(submitButton).toHaveCount(1);
-  if (await submitButton.isEnabled()) {
-    await expect(submitButton).toContainText(/Login \/ Register to Trade|Sign in to trade/i);
-    await submitButton.click();
-  } else {
-    await expect(submitButton).toBeDisabled();
-  }
+  await expect(submitButton).toBeDisabled();
 });
