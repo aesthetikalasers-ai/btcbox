@@ -24,6 +24,9 @@ test('admin navigation groups the existing tabs by business centre without dupli
   ];
   for (const item of expected) assert.ok(groups.includes(item), 'missing business-centre group ' + item);
   assert.ok(registry.includes('"financial-adjustments"'));
+  assert.ok(registry.includes('id: "users", label: "Users", permission: "users.read"'));
+  assert.ok(!registry.includes("Users & manual credit"), "user centre label must not imply finance actions");
+
   const userStart = page.indexOf('!loading && tab === "users"');
   const financeStart = page.indexOf('!loading && tab === "financial-adjustments"');
   const userBlock = page.slice(userStart, financeStart);
