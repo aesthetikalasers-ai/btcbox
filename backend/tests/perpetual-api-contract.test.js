@@ -194,6 +194,10 @@ test('perpetual funding settlement updates funding_paid once and cannot borrow a
     'funding debit must fail closed when isolated margin is insufficient');
   assert.ok(fn.includes('elsif v_payment > 0 then'),
     'zero funding must not mutate the financial account version');
+  assert.ok(!fn.includes('insert into public.financial_accounts'),
+    'funding settlement must never create a missing user balance account');
+  assert.ok(fn.includes("funding financial account missing for existing position"),
+    'missing user account must fail closed');
 });
 
 test('perpetual migration preserves existing production financial operation types', () => {
