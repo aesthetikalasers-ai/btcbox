@@ -1500,6 +1500,9 @@ export async function saveAdminSecondsPolicy(token: string, input: {
 export async function saveAdminConfig(token: string, config: AdminConfig) {
   return adminRequest<AdminConfig & { ok: true; audit_sync_pending?: boolean }>(token, "admin/config", { method: "POST", body: config });
 }
+export async function adminAdjustUserBalance(token: string, input: { uid: string; coin: string; delta: string; mode: "adjust" | "freeze" | "unfreeze"; request_id: string }) {
+  return adminRequest<{ ok: true; operation_id: string; duplicate: boolean; balances: Record<string, { free: string | number; frozen: string | number }> }>(token, "admin/user/balance", { method: "POST", body: input });
+}
 export async function adminManualCredit(token: string, input: { uid: string; coin: string; amount: string; reference: string; note?: string; idempotency_key: string }) {
   return adminRequest<{ ok: true; duplicate?: boolean; balance?: AccountBalance; audit_sync_pending?: boolean }>(token, "admin/deposit/confirm", { method: "POST", body: input });
 }
