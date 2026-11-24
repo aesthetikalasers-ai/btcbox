@@ -166,7 +166,7 @@ test('perpetual funding settlement updates funding_paid once and cannot borrow a
   const fn = migration.slice(start, end);
   assert.equal((fn.match(/funding_paid\\s*=\\s*funding_paid\\s*-\\s*v_payment/g) || []).length, 1,
     'funding_paid must be accumulated exactly once per settlement');
-  assert.ok(fn.includes('where id=v_pos.id and isolated_margin >= -v_from_margin'),
+  assert.ok(fn.includes('then -v_rate.rate else v_rate.rate'),\n    'settlement amount must use the persisted funding rate, not caller input');\n  assert.ok(fn.includes('where id=v_pos.id and isolated_margin >= -v_from_margin'),
     'funding debit must be bounded by this position isolated margin');
   assert.ok(fn.includes("raise exception 'funding isolated margin invariant failed'"),
     'funding debit must fail closed when isolated margin is insufficient');
