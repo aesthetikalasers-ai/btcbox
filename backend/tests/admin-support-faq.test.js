@@ -55,6 +55,12 @@ test('admin help-centre routes are permission-gated and audited before delivery'
   assert.ok(writeRoute.includes('INVALID_FAQ_ANSWER'));
   assert.ok(writeRoute.includes('INVALID_FAQ_ORDER'));
   assert.ok(writeRoute.includes('FAQ_DUPLICATE_QUESTION'));
+  assert.ok(writeRoute.includes('if (!existing && entries.length >= 200)'));
+  assert.ok(writeRoute.includes('Updates remain allowed at capacity'));
+  const capacityCheck = writeRoute.indexOf('if (!existing && entries.length >= 200)');
+  const existingLookup = writeRoute.indexOf('const existing = requestedId ? entries.find');
+  assert.ok(existingLookup >= 0 && capacityCheck > existingLookup,
+    'capacity must be checked after resolving whether this is an update');
   const audit = writeRoute.indexOf('await auditAdmin(');
   const save = writeRoute.indexOf('await saveDB(db)', audit);
   const flush = writeRoute.indexOf('await flushAdminAuditOutbox()', save);
