@@ -66,7 +66,8 @@ test('perpetual admin market form is paused-only and includes all mandatory risk
   for (const field of ['price_tick','quantity_step','min_quantity','min_notional','market_quantity_step','market_min_quantity','market_max_quantity','max_position_notional','max_leverage','maintenance_margin_rate','maker_fee_rate','taker_fee_rate','funding_interval_sec','funding_rate_cap','mark_price_stale_sec','circuit_breaker_deviation_pct']) {
     assert.ok(adminPage.includes(field), 'admin perpetual form missing ' + field);
   }
-  assert.ok(adminPage.includes('enabled: false, status: "paused"'));
+  assert.ok(adminPage.includes('enabled: draft.feed_enabled, status: "paused"'));
+  assert.ok(adminPage.includes('perpMarketDraft.feed_enabled'));
   assert.ok(adminPage.includes('Save paused perpetual market'));
   assert.ok(!adminPage.includes('enabled: true, status: "trading"'));
 });
