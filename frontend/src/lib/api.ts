@@ -1360,6 +1360,17 @@ export interface AdminUserRecord {
   withdrawal_history?: WithdrawalRecord[];
   withdrawal_history_source?: "postgres_financial_ledger" | "legacy_state_retention_limited";
 }
+export interface AdminDepositRecord {
+  id: string;
+  uid: string;
+  email?: string;
+  coin: string;
+  network: string;
+  amount: string;
+  txid: string;
+  status: string;
+  time?: string | null;
+}
 export interface AdminWithdrawalRecord {
   id: string;
   uid: string;
@@ -1509,6 +1520,9 @@ export async function getAdminUsers(token: string, search = "", signal?: AbortSi
 }
 export async function getAdminUser(token: string, uid: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; user: AdminUserRecord }>(token, `admin/user?uid=${encodeURIComponent(uid)}`, { signal });
+}
+export async function getAdminDeposits(token: string, signal?: AbortSignal) {
+  return adminRequest<{ ok: true; deposits: AdminDepositRecord[]; source: string; completeness: string }>(token, "admin/deposits", { signal });
 }
 export async function getAdminWithdrawals(token: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; withdrawals: AdminWithdrawalRecord[]; pending_count?: number; pending_admin_review_count?: number }>(token, "admin/withdrawals", { signal });
