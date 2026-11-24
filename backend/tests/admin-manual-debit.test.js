@@ -23,6 +23,16 @@ test('manual debit accepts signed available deltas without an operator reason fi
   assert.ok(route.includes("if (!isManualDebit && reason.length < 5)"));
 });
 
+test('admin balance reads preserve negative available balances while frozen balances stay non-negative', () => {
+  const start = api.indexOf('async function readAdminAccountBalances');
+  const end = api.indexOf('async function ', start + 30);
+  assert.ok(start >= 0 && end > start);
+  const reader = api.slice(start, end);
+  assert.ok(reader.includes('Number.isFinite(b.free)'));
+  assert.ok(reader.includes('b.frozen < 0'));
+  assert.ok(!reader.includes('b.free < 0'));
+});
+
 test('negative available balance is narrowly enabled for marked manual debit only', () => {
   assert.ok(migration.includes('DROP CONSTRAINT IF EXISTS financial_accounts_available_check'));
   assert.ok(migration.includes('DROP CONSTRAINT IF EXISTS financial_ledger_available_after_check'));
