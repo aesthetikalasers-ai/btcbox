@@ -11,6 +11,7 @@ const root = path.resolve(__dirname, '..');
 const sql = fs.readFileSync(path.join(root, 'supabase/sql/0041_perpetual_contract_v1.sql'), 'utf8');
 const fundingSql = fs.readFileSync(path.join(root, 'supabase/sql/0046_perpetual_funding_atomic_clearing_v1.sql'), 'utf8');
 const fundingWorker = fs.readFileSync(path.join(root, 'scripts/perp-funding-worker.js'), 'utf8');
+const markWorker = fs.readFileSync(path.join(root, 'scripts/perp-mark-price-worker.js'), 'utf8');
 const liquidationAccountingSql = fs.readFileSync(path.join(root, 'supabase/sql/0047_perpetual_liquidation_accounting_closure_v1.sql'), 'utf8');
 
 test('0041 extends operation_type with perp_* and reuses financial_accounts/operations/ledger', () => {
@@ -282,6 +283,15 @@ test('funding worker calls one atomic market RPC and never advances the boundary
   assert.ok(fundingWorker.includes('next_funding_at=not.is.null'));
   assert.ok(!fundingWorker.includes('&enabled=eq.true'));
   assert.ok(fundingSql.includes('where symbol=p_symbol for update'));
+});
+
+test('mark worker sends the fresh source array and uses an independent perpetual order-book midpoint', () => {
+  assert.ok(markWorker.includes('p_sources: freshSources'));
+  assert.ok(!markWorker.includes('p_sources: sources'));
+  assert.ok(markWorker.includes('perpetualBookMidPrice'));
+  assert.ok(markWorker.includes('side=eq.buy'));
+  assert.ok(markWorker.includes('side=eq.sell'));
+  assert.ok(markWorker.includes('fresh two-sided perpetual order book unavailable'));
 });
 
 test('mark feed keeps external spot index independent from the perpetual-book mark premium', () => {
