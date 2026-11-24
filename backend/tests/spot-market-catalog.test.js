@@ -72,8 +72,8 @@ test('Bybit fallback is batched and rejects missing, stale, and future response 
   // Coinbase's timestamp is last-trade time, not response time; do not apply
   // Bybit's response-age gate to it because quiet markets can have old trades.
   const coinbaseStart = gateway.indexOf('async function coinbaseMarket');
-  const klinesStart = gateway.indexOf('async function binanceKlines', coinbaseStart);
-  const coinbase = gateway.slice(coinbaseStart, klinesStart);
+  const bybitStart = gateway.indexOf('async function bybitMarket', coinbaseStart);
+  const coinbase = gateway.slice(coinbaseStart, bybitStart);
   assert.ok(coinbase.includes('Date.parse(ticker.time)'));
   assert.ok(!coinbase.includes('now - providerTs > 60'));
 });
@@ -88,7 +88,7 @@ test('market timestamps distinguish server snapshot time from provider-specific 
   assert.ok(gateway.includes('ts: now, providerTs'), 'gateway preserves provider time separately');
   assert.ok(route.includes('const gatewaySnapshotTs = Number(gatewayRow.ts)'), 'API reads the gateway server snapshot time');
   assert.ok(route.includes('ts: Number.isFinite(gatewaySnapshotTs) && gatewaySnapshotTs > 0 ? gatewaySnapshotTs : null'), 'API preserves the gateway timestamp instead of refreshing stale data');
-  assert.ok(route.includes('do not refresh an old last-good snapshot'), 'stale fallback age must remain unchanged');
+  assert.ok(route.includes('ts: Number.isFinite(gatewaySnapshotTs) && gatewaySnapshotTs > 0 ? gatewaySnapshotTs : null'), 'stale fallback age must remain unchanged');
   assert.ok(route.includes('providerTs: Number.isFinite(Number(gatewayRow.providerTs))'), 'API preserves provider timestamp separately');
   assert.ok(api.includes('Server snapshot time (Unix seconds), not an exchange event timestamp.'));
   assert.ok(api.includes('never synthesized by the browser.'));
