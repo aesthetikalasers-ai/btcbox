@@ -1104,7 +1104,7 @@ export function ContractPage() {
       <div className="lg:hidden">
         <TradeProductNav />
       </div>
-      <div className="mx-auto flex min-h-dvh w-full min-w-0 max-w-[430px] flex-col bg-brand-bg px-0 pb-[calc(132px+env(safe-area-inset-bottom))] text-brand-text lg:max-w-[1560px] lg:gap-4 lg:px-8 lg:pb-6 lg:pt-4">
+      <div className="mx-auto flex min-h-dvh w-full min-w-0 max-w-[430px] flex-col bg-brand-bg px-0 pb-[calc(132px+env(safe-area-inset-bottom))] text-brand-text md:max-w-[900px] md:px-4 lg:max-w-[1560px] lg:gap-4 lg:px-8 lg:pb-6 lg:pt-4">
         <header className="flex min-w-0 flex-col justify-center gap-2 px-4 pt-2.5 pb-1 lg:h-auto lg:rounded-xl lg:border lg:border-brand-border lg:bg-brand-surface lg:px-4 lg:py-2">
           {/* 行 1：合约名（市场选择）+ 永续标签 + 图表/更多 图标 */}
           <div className="flex min-w-0 items-center gap-2">

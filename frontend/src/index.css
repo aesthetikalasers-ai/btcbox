@@ -1583,6 +1583,12 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 @media (min-width: 768px) and (max-width: 1023px) {
   .trade-drawer-root { bottom: 0; }
 }
+/* Tablet chart drawers use page width instead of the 430px phone cap. */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .trade-drawer-panel { max-width: min(900px, 100%); }
+  .trade-drawer-root--perpetual .trade-drawer-panel,
+  .trade-drawer-root--spot .trade-drawer-panel { width: 100%; }
+}
 /* Desktop: the drawer is not used (chart is inline), hide it above 1024px. */
 @media (min-width: 1024px) {
   .trade-drawer-root { display: none; }

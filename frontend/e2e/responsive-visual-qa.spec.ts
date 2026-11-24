@@ -3,10 +3,11 @@ import fs from "node:fs";
 import path from "node:path";
 
 const fixedWidths = [768, 1024, 1279, 1280, 1366, 1440, 1920];
-const mobileWidths = [320, 360, 375, 390, 430];
+const mobileWidths = [320, 360, 375, 390, 414, 430, 600];
 const continuityWidths = [
-  768, 820, 860, 899, 900, 960, 1024, 1100, 1180, 1279, 1280, 1366,
-  1440, 1536, 1680, 1920,
+  320, 360, 375, 390, 414, 430, 480, 540, 600, 680, 767, 768, 820, 860,
+  899, 900, 960, 1023, 1024, 1100, 1180, 1279, 1280, 1366, 1440, 1536,
+  1680, 1920,
 ];
 const routes = [
   { path: "/login", heading: "Welcome back" },
@@ -313,7 +314,7 @@ async function assertPageAtWidth(
   if (route.path === "/trade/BTCUSDT") {
     await expect(page.getByText(/^(Latest trades|Recent trades)$/i)).toHaveCount(0);
   }
-  if (route.path === "/contract" && width < 768) {
+  if (route.path === "/contract" && width < 1024) {
     const workspace = page.getByTestId("perp-mobile-workspace");
     await expect(workspace).toBeVisible();
     const entry = workspace.locator(":scope > div").first();
@@ -324,8 +325,19 @@ async function assertPageAtWidth(
     expect(entryBox).not.toBeNull();
     expect(bookBox).not.toBeNull();
     const entryShare = entryBox!.width / (entryBox!.width + bookBox!.width);
-    expect(Math.abs(entryShare - 0.5), "Perpetual phone columns must be balanced at approximately 50:50.").toBeLessThanOrEqual(0.015);
+    expect(Math.abs(entryShare - 0.5), "Perpetual responsive columns must be balanced at approximately 50:50.").toBeLessThanOrEqual(0.015);
+    expect(Math.abs(entryBox!.y - bookBox!.y), "Perpetual entry and depth must stay on the same row.").toBeLessThanOrEqual(8);
+    if (width >= 768) {
+      const workspaceBox = await workspace.boundingBox();
+      expect(workspaceBox, "Perpetual tablet workspace must have a layout box.").not.toBeNull();
+      expect(workspaceBox!.width, "Perpetual tablet must use available page width, not a 430px phone container.").toBeGreaterThan(width * 0.85);
+    }
     await expect(workspace.getByTestId("perp-leverage-pills")).toBeVisible();
+    const chartDrawer = page.locator(".trade-drawer-root");
+    await expect(chartDrawer, "Perpetual chart drawer must remain available below 1024px.").toBeVisible();
+    await chartDrawer.getByRole("button", { name: "Expand chart" }).click();
+    await expect(chartDrawer.getByRole("button", { name: "Collapse chart" })).toBeVisible();
+    await chartDrawer.getByRole("button", { name: "Collapse chart" }).click();
     await expect(page.getByRole("alert")).toHaveCount(0);
     await expect(page.getByText("Order book is temporarily unavailable.", { exact: true })).toHaveCount(0);
     await expect(page.getByText(/^(Latest trades|Recent trades)$/i)).toHaveCount(0);
@@ -396,7 +408,22 @@ async function assertPageAtWidth(
     if (width < 1024) await expect(page.locator(".trade-drawer-root")).toBeVisible();
     else await expect(page.locator(".trade-drawer-root")).toHaveCount(0);
     expect(ordersBox!.y).toBeGreaterThanOrEqual(Math.max(bookBox!.y + bookBox!.height, formBox!.y + formBox!.height) - 1);
-    await expect(page.locator("#trade-chart-open")).toBeVisible();
+    const chartTrigger = page.locator("#trade-chart-open");
+    await expect(chartTrigger).toBeVisible();
+    if (width < 1024) {
+      const chartDrawer = page.locator(".trade-drawer-root");
+      await expect(chartDrawer, "Spot chart drawer must be visible below 1024px.").toBeVisible();
+      await chartDrawer.getByRole("button", { name: "Expand chart" }).click();
+      await expect(chartDrawer.getByRole("button", { name: "Collapse chart" })).toBeVisible();
+      await chartDrawer.getByRole("button", { name: "Collapse chart" }).click();
+    } else {
+      await chartTrigger.click();
+      const chartDialog = page.locator(".spot-chart-drawer");
+      await expect(chartDialog, "Compact desktop chart trigger must open the chart panel.").toBeVisible();
+      await expect(chartDialog.locator(".trade-candles")).toBeVisible();
+      await chartDialog.getByRole("button", { name: "Close chart" }).click();
+      await expect(chartDialog).toHaveCount(0);
+    }
   }
 
   if (route.path === "/trade/BTCUSDT" && width < 768) {
@@ -678,7 +705,7 @@ test("trade interaction QA desktop order-book side and price handoff", async ({ 
 // passing only at the seven required snapshot widths. These are desktop-browser
 // viewport sweeps; independent touch-device coverage is provided above.
 for (const route of routes.filter((item) => [
-  "/home", "/markets", "/trade/BTCUSDT", "/trade-hub", "/assets",
+  "/home", "/markets", "/trade/BTCUSDT", "/trade-hub", "/assets", "/contract",
 ].includes(item.path))) {
   test("continuous responsive sweep " + route.path, async ({ page }) => {
     test.setTimeout(300_000);
