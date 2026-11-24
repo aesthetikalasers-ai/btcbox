@@ -131,12 +131,12 @@ export function AssetsPage() {
     const visibleEntries = entries.filter(([rawCode, balance]) => {
       const code = rawCode.toUpperCase();
       const config = configured.get(code);
-      const hasPositiveAmount = (value: number | string | undefined) => {
-        if (typeof value === "number") return Number.isFinite(value) && value > 0;
+      const hasNonZeroAmount = (value: number | string | undefined) => {
+        if (typeof value === "number") return Number.isFinite(value) && value !== 0;
         const raw = String(value ?? "").trim();
-        return /^\d+(?:\.\d+)?$/.test(raw) && /[1-9]/.test(raw);
+        return /^-?\d+(?:\.\d+)?$/.test(raw) && /[1-9]/.test(raw);
       };
-      const hasFunds = hasPositiveAmount(balance.free) || hasPositiveAmount(balance.frozen);
+      const hasFunds = hasNonZeroAmount(balance.free) || hasNonZeroAmount(balance.frozen);
       return hasFunds || !config || (config.enabled && config.visible);
     });
     return visibleEntries.sort((a, b) => {
