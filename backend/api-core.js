@@ -5,7 +5,7 @@ const { authorizeSupabaseAdmin } = require('./admin-auth');
 const { hasAdminPermission } = require('./admin-rbac');
 const { isValidIban } = require('./bank-account-validation');
 const { hasActiveVersionedSecondsPolicy } = require('./seconds-policy-readiness');
-const { getUsdtUsd } = require('./market-gateway');
+const { getMarket, getUsdtUsd } = require('./market-gateway');
 
 const SESSION_COOKIE = 'session_token';
 const PBKDF2_ITER = 100000;
@@ -2619,213 +2619,59 @@ async function handleRequest(event, context) {
   }
 
   // ---------- GET /api/market ----------
+  // Single production entrypoint for market data. The gateway owns provider
+  // selection, normalization, short-lived upstream caching, and last-good
+  // snapshot fallback so this route cannot fan out per-symbol requests itself.
   if (path === 'market' && method === 'GET') {
-    /**
-     * Provider chain, ordered by regional reachability.
-     *
-     * The deployment region is `iad1` (US-East), where `api.binance.com` answers
-     * HTTP 451 and Coinbase/Bybit are reachable but list very few USDT pairs.
-     * `data-api.binance.vision` is Binance's public market-data host and is NOT
-     * geo-blocked, so it goes first: it is the only source that can serve the
-     * whole catalogue from a US edge. Coinbase and Bybit remain as fallbacks and
-     * for symbols Binance Vision does not quote.
-     *
-     * Per-symbol provenance is preserved — every row's price/change/high/low come
-     * from exactly one provider and are never averaged across sources.
-     */
     let bases;
     try {
       const catalog = await readSpotMarketCatalog();
-      bases = [...new Set(catalog.filter(market => market.enabled && market.quote_asset === 'USDT').map(market => market.base_asset))];
+      bases = [...new Set(catalog
+        .filter(market => market.enabled && market.quote_asset === 'USDT')
+        .map(market => String(market.base_asset || '').toUpperCase())
+        .filter(base => /^[A-Z0-9]{2,12}$/.test(base) && base !== 'USDT'))];
     } catch (_) {
       return json({ ok: false, code: 'MARKET_CATALOG_UNAVAILABLE', msg: 'Spot market catalogue is temporarily unavailable.', markets: [], data: {} }, 503);
     }
     if (!bases.length) return json({ ok: true, markets: [], data: {}, source: 'configured_empty' });
-    const now = Math.floor(Date.now() / 1000);
-    const finitePositive = value => Number.isFinite(Number(value)) && Number(value) > 0;
-    const fetchJson = async url => {
-      const response = await fetch(url, { signal: AbortSignal.timeout(5000), headers: { 'Accept': 'application/json' } });
-      if (!response.ok) throw new Error('market provider HTTP ' + response.status);
-      return response.json();
-    };
-    const normalize = (base, ticker, source, providerTs = null) => {
-      const price = Number(ticker.price);
-      const high = Number(ticker.high);
-      const low = Number(ticker.low);
-      const chg = Number(ticker.chg);
-      const vol = Number(ticker.vol);
-      if (![price, high, low, chg, vol].every(Number.isFinite) || price <= 0 || high <= 0 || low <= 0 || vol < 0) return null;
-      return { sym: base, price, chg, high, low, vol, ts: now, providerTs, source };
-    };
-    const marketsByBase = {};
-    let coinbaseAvailable = false;
 
-    /**
-     * Primary source: Binance public market data (`data-api.binance.vision`).
-     *
-     * This host is Binance's public-data mirror and is not geo-blocked, so it is
-     * the only provider that can serve a full USDT catalogue from the US-East
-     * (`iad1`) edge we deploy to. One request covers every base via the
-     * `symbols=[...]` parameter. Rows that fail validation are dropped, never
-     * patched with another provider's fields.
-     */
     try {
-      const symbols = bases.map(base => base + 'USDT');
-      const rows = await fetchJson('https://data-api.binance.vision/api/v3/ticker/24hr?symbols=' + encodeURIComponent(JSON.stringify(symbols)));
-      if (!Array.isArray(rows)) throw new Error('invalid Binance Vision ticker payload');
-      const bySymbol = new Map(rows.filter(r => r && typeof r.symbol === 'string').map(r => [r.symbol, r]));
-      for (const base of bases) {
-        const row = bySymbol.get(base + 'USDT');
-        if (!row) continue;
-        const closeTime = Number(row.closeTime);
-        const providerTs = Number.isFinite(closeTime) && closeTime > 0 ? Math.floor(closeTime / 1000) : null;
-        const normalized = normalize(base, {
-          price: Number(row.lastPrice),
-          high: Number(row.highPrice),
-          low: Number(row.lowPrice),
-          chg: Number(row.priceChangePercent),
-          vol: Number(row.quoteVolume),
-        }, 'binance-vision', providerTs);
-        if (normalized) marketsByBase[base] = normalized;
+      const result = await getMarket({ symbols: bases, timeoutMs: 5000 });
+      if (!result || result.ok !== true || !Array.isArray(result.markets) || !result.markets.length) {
+        return json({ ok: false, code: 'MARKET_DATA_UNAVAILABLE', msg: 'Market data unavailable.', markets: [], data: {}, source: 'unavailable' }, 503);
       }
-    } catch (_) {
-      // Fall through to Coinbase / Bybit below; never invent a price.
-    }
-
-    const missingAfterBinance = bases.filter(base => !marketsByBase[base]);
-    try {
-      if (!missingAfterBinance.length) throw new Error('binance covered every base');
-      const products = await fetchJson('https://api.exchange.coinbase.com/products');
-      if (!Array.isArray(products)) throw new Error('invalid Coinbase product list');
-      const enabled = new Set(products.filter(p => p && p.quote_currency === 'USDT' && p.status === 'online' && p.trading_disabled !== true).map(p => p.id));
-      const coinbaseRows = await Promise.all(missingAfterBinance.map(async base => {
-        const productId = base + '-USDT';
-        if (!enabled.has(productId)) return null;
-        try {
-          const [ticker, stats] = await Promise.all([
-            fetchJson('https://api.exchange.coinbase.com/products/' + productId + '/ticker'),
-            fetchJson('https://api.exchange.coinbase.com/products/' + productId + '/stats')
-          ]);
-          const price = Number(ticker.price);
-          const open = Number(stats.open);
-          const baseVolume = Number(stats.volume);
-          const providerTs = typeof ticker.time === 'string' ? Math.floor(Date.parse(ticker.time) / 1000) : null;
-          if (!finitePositive(price) || !finitePositive(open) || !finitePositive(stats.high) || !finitePositive(stats.low) || !Number.isFinite(baseVolume) || baseVolume < 0) return null;
-          return normalize(base, { price, high: Number(stats.high), low: Number(stats.low), chg: (price - open) / open * 100, vol: baseVolume * price }, 'coinbase', Number.isFinite(providerTs) && providerTs > 0 ? providerTs : null);
-        } catch (_) { return null; }
-      }));
-      coinbaseRows.forEach(row => { if (row) marketsByBase[row.sym] = row; });
-      coinbaseAvailable = coinbaseRows.some(Boolean);
-    } catch (_) {
-      // Provider failure is intentionally handled by the fallback below.
-    }
-    const missingBases = bases.filter(base => !marketsByBase[base]);
-    if (missingBases.length) {
-      try {
-        const payload = await fetchJson('https://api.bybit.com/v5/market/tickers?category=spot');
-        const list = payload && payload.result && payload.result.list;
-        if (!Array.isArray(list)) throw new Error('invalid Bybit ticker payload');
-        const bybit = new Map(list.filter(t => t && /USDT$/.test(t.symbol || '')).map(t => [t.symbol.slice(0, -4), t]));
-        missingBases.forEach(base => {
-          const t = bybit.get(base);
-          if (!t) return;
-          const price = Number(t.lastPrice), high = Number(t.highPrice24h), low = Number(t.lowPrice24h);
-          const chg = Number(t.price24hPcnt) * 100, vol = Number(t.turnover24h);
-          const providerTimeMs = Number(payload.time);
-          const providerTs = Number.isFinite(providerTimeMs) && providerTimeMs > 0 ? Math.floor(providerTimeMs / 1000) : null;
-          // Bybit's timestamp is the response timestamp, so unlike Coinbase's
-          // last-trade time it can be checked for snapshot freshness.
-          if (providerTs === null || providerTs > now + 15 || now - providerTs > 60) return;
-          const row = normalize(base, { price, high, low, chg, vol }, 'bybit', providerTs);
-          if (row) marketsByBase[base] = row;
-        });
-      } catch (_) {
-        // Keep valid Coinbase rows; do not invent prices for missing symbols.
-      }
-    }
-    // This is the server snapshot time after provider responses have been received,
-    // not an exchange event timestamp (Coinbase stats has no event-time field).
-    const snapshotTs = Math.floor(Date.now() / 1000);
-    const out = bases.filter(base => marketsByBase[base]).map(base => {
-      const row = marketsByBase[base];
-      return { sym: row.sym, price: row.price, chg: row.chg, high: row.high, low: row.low, vol: Number.isFinite(row.vol) && row.vol >= 0 ? String(row.vol) : '0', source: row.source };
-    });
-    const dataObj = {};
-    out.forEach(row => { dataObj[row.sym] = { price: row.price, chg: row.chg, high: row.high, low: row.low, vol: marketsByBase[row.sym].vol, ts: snapshotTs, providerTs: marketsByBase[row.sym].providerTs, source: row.source }; });
-    if (!out.length) return json({ ok: false, code: 'MARKET_DATA_UNAVAILABLE', msg: 'Market data unavailable.', markets: [], data: {}, source: coinbaseAvailable ? 'coinbase_partial' : 'unavailable' }, 503);
-    // Public market snapshots contain no user data. Allow short shared-cache reuse
-    // so free serverless plans do not fetch every provider for every browser poll.
-    // Authenticated/private/financial endpoints retain the default no-store policy.
-    const usedProviders = [...new Set(out.map(row => row.source).filter(Boolean))];
-    const snapshotSource = usedProviders.length === 1 ? usedProviders[0] : usedProviders.length ? usedProviders.join('+') : 'unavailable';
-    return json({ ok: true, markets: out, data: dataObj, source: snapshotSource }, 200, { 'Cache-Control': 'public, max-age=0, s-maxage=2, stale-while-revalidate=1' });
-  }
-
-  // Public capability snapshot. Financial order writes remain fail-closed unless
-  // every matching-engine cutover flag is explicitly enabled server-side.
-  if (path === 'trading/status' && method === 'GET') {
-    const enabled = matchingEngineEnabled();
-    return json({ ok: true, spot_order_entry_enabled: enabled, spot_cancel_enabled: enabled, supported_order_types: ['limit'] });
-  }
-
-  // ---------- POST /api/order ----------
-  // Never simulate fills or mutate customer balances outside the PostgreSQL matching RPC.
-  if (path === 'order' && method === 'POST') {
-    // Never simulate fills or mutate customer balances outside the PostgreSQL matching RPC.
-    // Never simulate fills: an unavailable or unapproved engine must fail closed.
-    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
-    if (user.frozen) return json({ ok: false, msg: 'Account frozen. Trading is not available. Please contact support.', code: 'ACCOUNT_FROZEN' }, 403);
-    { const rl = await rateCheckShared('spot_order', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
-    const symbol = String(body.symbol || 'BTCUSDT').toUpperCase();
-    const side = String(body.side || 'buy').toLowerCase();
-    const type = String(body.type || body.order_type || 'limit').toLowerCase();
-    const qty = parseMoneyInput(body.qty);
-    const price = parseMoneyInput(body.price === undefined || body.price === null || body.price === '' ? '0' : body.price);
-    const pair = matchingPairFromSymbol(symbol);
-    if (!pair) return json({ ok: false, msg: 'Operation failed: this trading pair is not supported.' }, 400);
-    if (!['buy','sell'].includes(side)) return json({ ok: false, msg: 'Operation failed: invalid trade direction.' }, 400);
-    // Market orders are intentionally rejected until a separately bounded market-order policy exists.
-    if (type !== 'limit') return json({ ok: false, code: 'ORDER_TYPE_UNSUPPORTED', msg: 'Only limit orders are currently supported.' }, 400);
-    if (qty === null || compareMoney(qty, '0') <= 0 || compareMoney(qty, '1000000000000') > 0) return json({ ok: false, msg: 'Operation failed: invalid quantity.' }, 400);
-    if (price === null || compareMoney(price, '0') <= 0 || compareMoney(price, '1000000000000000') > 0) return json({ ok: false, msg: 'Operation failed: invalid limit price.' }, 400);
-    const clientOrderId = String(body.client_order_id || body.request_id || '').trim();
-    if (!/^[A-Za-z0-9_-]{16,100}$/.test(clientOrderId)) return json({ ok: false, code: 'IDEMPOTENCY_KEY_REQUIRED', msg: 'Please provide a valid client_order_id (16-100 characters).' }, 400);
-    if (!matchingEngineEnabled()) {
-      return json({ ok: false, code: 'MATCHING_ENGINE_UNAVAILABLE', msg: 'Matching engine cutover is not approved. No order was created and your balance was unchanged.' }, 503);
-    }
-    const orderId = 'O' + crypto.randomUUID().replace(/-/g, '');
-    try {
-      const result = await matchingRpc('submit_limit_order_matching_v1', {
-        p_order_id: orderId, p_user_id: String(user.uid), p_base_asset: pair[0], p_quote_asset: pair[1],
-        p_side: side, p_price: price, p_quantity: qty, p_client_order_id: clientOrderId
+      const snapshotTs = Math.floor(Date.now() / 1000);
+      const out = result.markets
+        .filter(row => row && /^[A-Z0-9]{2,12}$/.test(String(row.sym || '')))
+        .map(row => ({
+          sym: String(row.sym).toUpperCase(), price: Number(row.price), chg: Number(row.chg),
+          high: Number(row.high), low: Number(row.low),
+          vol: Number.isFinite(Number(row.vol)) && Number(row.vol) >= 0 ? String(row.vol) : '0',
+          source: String(row.source || result.source || 'market-gateway')
+        }))
+        .filter(row => Number.isFinite(row.price) && row.price > 0 && Number.isFinite(row.high) && row.high > 0 &&
+          Number.isFinite(row.low) && row.low > 0 && Number.isFinite(row.chg));
+      if (!out.length) return json({ ok: false, code: 'MARKET_DATA_UNAVAILABLE', msg: 'Market data unavailable.', markets: [], data: {}, source: 'unavailable' }, 503);
+      const dataObj = {};
+      out.forEach(row => {
+        const gatewayRow = result.data && result.data[row.sym] ? result.data[row.sym] : {};
+        dataObj[row.sym] = {
+          price: row.price, chg: row.chg, high: row.high, low: row.low,
+          vol: Number.isFinite(Number(gatewayRow.vol)) && Number(gatewayRow.vol) >= 0 ? Number(gatewayRow.vol) : Number(row.vol),
+          ts: snapshotTs,
+          providerTs: Number.isFinite(Number(gatewayRow.providerTs)) ? Number(gatewayRow.providerTs) : null,
+          source: row.source
+        };
       });
-      return json({ ok: true, duplicate: !!result.duplicate, order_id: result.order_id || orderId,
-        status: result.status, price: result.price, quantity: result.quantity,
-        remaining_quantity: result.remaining_quantity, reserved_remaining: result.reserved_remaining });
-    } catch (e) {
-      const status = e.status === 400 ? 400 : 503;
-      return json({ ok: false, code: e.status === 400 ? 'ORDER_REJECTED' : 'MATCHING_RPC_UNAVAILABLE',
-        msg: e.status === 400 ? 'Order validation failed. Please check trading pair rules, available balance, and request parameters.' : 'Matching database temporarily unavailable. Order result is unconfirmed. Please check your orders before retrying.' }, status);
-    }
-  }
-
-  // ---------- POST /api/order/cancel ----------
-  if (path === 'order/cancel' && method === 'POST') {
-    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
-    const orderId = String(body.order_id || '').trim();
-    const cancelId = String(body.client_cancel_id || body.request_id || '').trim();
-    if (!orderId || orderId.length > 128) return json({ ok: false, code: 'INVALID_ORDER_ID', msg: 'Invalid order ID.' }, 400);
-    if (!/^[A-Za-z0-9_-]{16,100}$/.test(cancelId)) return json({ ok: false, code: 'IDEMPOTENCY_KEY_REQUIRED', msg: 'Please provide a valid client_cancel_id (16-100 characters).' }, 400);
-    { const rl = await rateCheckShared('spot_cancel', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
-    if (!matchingEngineEnabled()) return json({ ok: false, code: 'MATCHING_ENGINE_UNAVAILABLE', msg: 'Matching engine cutover is not approved. Cancel was not executed.' }, 503);
-    try {
-      const result = await matchingRpc('cancel_limit_order_matching_v1', {
-        p_user_id: String(user.uid), p_order_id: orderId, p_client_cancel_id: cancelId
-      });
-      return json({ ok: true, duplicate: !!result.duplicate, order_id: result.order_id || orderId, status: result.status });
-    } catch (e) {
-      return json({ ok: false, code: e.status === 400 ? 'CANCEL_REJECTED' : 'MATCHING_RPC_UNAVAILABLE',
-        msg: e.status === 400 ? 'Cancel failed. Please check the order status.' : 'Matching database temporarily unavailable. Cancel result is unconfirmed. Please check your orders before retrying.' }, e.status === 400 ? 400 : 503);
+      const usedProviders = [...new Set(out.map(row => row.source).filter(Boolean))];
+      const snapshotSource = usedProviders.length === 1 ? usedProviders[0] : usedProviders.length ? usedProviders.join('+') : 'market-gateway';
+      const headers = result.stale === true
+        ? { 'Cache-Control': 'no-store', 'X-BTCBOX-Market-Degraded': '1' }
+        : { 'Cache-Control': 'public, s-maxage=2, stale-while-revalidate=1' };
+      return json({ ok: true, markets: out, data: dataObj, source: snapshotSource, stale: result.stale === true, degraded: result.degraded === true, msg: result.msg || undefined }, 200, headers);
+    } catch (error) {
+      console.error('[market] gateway failure', error && error.message ? error.message : 'unknown');
+      return json({ ok: false, code: 'MARKET_DATA_UNAVAILABLE', msg: 'Market data unavailable.', markets: [], data: {}, source: 'unavailable' }, 503);
     }
   }
 
