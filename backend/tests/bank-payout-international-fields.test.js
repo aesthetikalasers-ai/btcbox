@@ -48,8 +48,8 @@ test('admin payout details can be read, edited and deleted with dedicated permis
   assert.ok(clientApi.includes('account_number?: string; iban?: string; country?: string; routing_number?: string;'));
   assert.ok(clientApi.includes('swift?: string; bank_address?: string; note?: string;'));
   assert.ok(clientApi.includes('admin/address/manage'));
-  assert.ok(adminPage.includes('id: "payout-addresses"'));
-  assert.ok(adminPage.includes('payout_addresses.manage'));
+  assert.ok(adminPage.includes('tab === "payout-addresses"'));
+  assert.ok(adminPage.includes('hasPermission("payout_addresses.manage")'));
   assert.ok(adminPage.includes('action:"update"'));
   assert.ok(api.includes('isValidIban(body.iban)'));
   assert.ok(adminPage.includes('action:"delete"'));
