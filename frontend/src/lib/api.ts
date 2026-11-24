@@ -1350,6 +1350,9 @@ export interface AdminPerpMarket {
   quantity_step: string | number;
   min_quantity: string | number;
   min_notional: string | number;
+  market_quantity_step: string | number;
+  market_min_quantity: string | number;
+  market_max_quantity?: string | number | null;
   max_quantity?: string | number | null;
   max_position_notional?: string | number | null;
   max_leverage: number;
@@ -1631,6 +1634,9 @@ export interface PerpMarket {
   quantity_step: string;
   min_quantity: string;
   min_notional: string;
+  market_quantity_step: string;
+  market_min_quantity: string;
+  market_max_quantity?: string | null;
   funding_interval_sec: number;
   funding_rate_cap: number;
   next_funding_at?: string | null;
