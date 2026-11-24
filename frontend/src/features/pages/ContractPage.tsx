@@ -231,7 +231,10 @@ export function ContractPage() {
    * Hoisted above every consumer (the margin/percent handlers and the two
    * quantity inputs) so a handler invoked before this line still resolves.
    */
-  const quantityDecimals = decimalsFromTick(selectedMarket?.quantity_step);
+  const usesMarketLot = orderType === "market" && !reduceOnly && !closePosition;
+  const selectedQuantityStep = usesMarketLot ? selectedMarket?.market_quantity_step ?? selectedMarket?.quantity_step : selectedMarket?.quantity_step;
+  const selectedMinQuantity = usesMarketLot ? selectedMarket?.market_min_quantity ?? selectedMarket?.min_quantity : selectedMarket?.min_quantity;
+  const quantityDecimals = decimalsFromTick(selectedQuantityStep);
 
   // Live 24h ticker for the selected contract symbol (Binance-style header).
   // Falls back to the mark price from the market catalogue when the stream has
@@ -493,7 +496,7 @@ export function ContractPage() {
     setSubmitOk("");
     if (orderType === "limit" && (!price || Number(price) <= 0)) { setSubmitError(t("Enter a valid price.")); return; }
     if (!quantity || Number(quantity) <= 0) { setSubmitError(t("Enter a valid quantity.")); return; }
-    const minQuantity = Number(selectedMarket.min_quantity);
+    const minQuantity = Number(selectedMinQuantity);
     if (Number.isFinite(minQuantity) && minQuantity > 0 && Number(quantity) < minQuantity) {
       setSubmitError(t("Quantity is below the market minimum."));
       return;
@@ -826,7 +829,7 @@ export function ContractPage() {
               inputMode="decimal"
               value={quantity}
               onChange={(e) => setQuantity(sanitizeDecimal(e.target.value, quantityDecimals))}
-              placeholder={selectedMarket ? `${t("Min")} ${selectedMarket.min_quantity}` : "0.0000"}
+              placeholder={selectedMarket ? `${t("Min")} ${selectedMinQuantity}` : "0.0000"}
               aria-label={t("Quantity")}
               className="bf-tabular h-10 w-full rounded-md border border-brand-border bg-brand-surface-2 px-2.5 font-mono text-sm text-brand-text outline-none transition-colors focus:border-brand-accent"
             />
@@ -953,7 +956,7 @@ export function ContractPage() {
       <div className="flex h-9 items-center justify-between rounded-lg bg-brand-surface-2 px-3">
         <input type="text" inputMode="decimal" value={quantity}
           onChange={(e) => setQuantity(sanitizeDecimal(e.target.value, quantityDecimals))}
-          placeholder={selectedMarket ? `${selectedMarket.min_quantity}` : "0.0000"}
+          placeholder={selectedMarket ? `${selectedMinQuantity}` : "0.0000"}
           aria-label={t("Quantity")}
           className="w-full bg-transparent font-mono text-[13px] font-medium tabular-nums outline-none placeholder:text-brand-text-muted" />
         <span className="ml-2 shrink-0 text-[11px] font-medium text-brand-text-muted">{selectedMarket?.base_asset ?? "BTC"}</span>
