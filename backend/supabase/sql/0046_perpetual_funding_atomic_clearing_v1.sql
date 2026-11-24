@@ -96,8 +96,8 @@ begin
   -- Positive rate: long pays, short receives. The persisted rate is authoritative.
   v_payment := case when v_pos.side='long' then -v_rate.rate else v_rate.rate end * v_notional;
 
-  insert into public.financial_accounts(user_id,asset) values (p_user_id,'USDT') on conflict do nothing;
-  perform 1 from public.financial_accounts where user_id=p_user_id and asset='USDT' for update;
+  -- A live position must already have its canonical USDT financial account.
+  -- Never create a zero-balance account during settlement; missing account is corruption.
   insert into public.financial_operations(idempotency_key,user_id,asset,operation_type,request_hash,metadata)
   values (v_idem,p_user_id,'USDT','perp_funding',
     encode(extensions.digest(v_idem||':'||v_payment::text,'sha256'),'hex'),
@@ -105,7 +105,10 @@ begin
   returning id into v_op;
 
   select available, frozen into v_avail_before, v_frozen_before
-    from public.financial_accounts where user_id=p_user_id and asset='USDT';
+    from public.financial_accounts where user_id=p_user_id and asset='USDT' for update;
+  if not found then
+    raise exception 'funding financial account missing for existing position';
+  end if;
 
   if v_payment < 0 then
     if v_avail_before >= -v_payment then
