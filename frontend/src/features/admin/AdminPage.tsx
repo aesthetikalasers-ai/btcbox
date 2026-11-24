@@ -240,7 +240,7 @@ export function AdminPage() {
   const [perpMarkets, setPerpMarkets] = useState<AdminPerpMarket[]>([]);
   const [perpMarketDraft, setPerpMarketDraft] = useState({
     base_asset: "", price_tick: "", quantity_step: "", min_quantity: "", min_notional: "5",
-    max_quantity: "", max_position_notional: "", max_leverage: "1", maintenance_margin_rate: "0.05",
+    market_quantity_step: "", market_min_quantity: "", market_max_quantity: "", max_quantity: "", max_position_notional: "", max_leverage: "1", maintenance_margin_rate: "0.05",
     maker_fee_rate: "0", taker_fee_rate: "0", funding_interval_sec: "28800", funding_rate_cap: "0.0075",
     mark_price_stale_sec: "60", circuit_breaker_deviation_pct: "5", reason: "",
   });
@@ -1393,7 +1393,9 @@ export function AdminPage() {
     const reason = draft.reason.trim();
     if (!spotAssets.includes(draft.base_asset) || ["USDT", "USDC"].includes(draft.base_asset) ||
         !positive(draft.price_tick) || !positive(draft.quantity_step) || !positive(draft.min_quantity) ||
-        !positive(draft.min_notional) || !optionalPositive(draft.max_quantity) || !optionalPositive(draft.max_position_notional) ||
+        !positive(draft.min_notional) || !positive(draft.market_quantity_step) || !positive(draft.market_min_quantity) ||
+        !optionalPositive(draft.market_max_quantity) || !optionalPositive(draft.max_quantity) || !optionalPositive(draft.max_position_notional) ||
+        (draft.market_max_quantity.trim() && Number(draft.market_max_quantity) < Number(draft.market_min_quantity)) ||
         !Number.isInteger(maxLeverage) || maxLeverage < 1 || maxLeverage > 100 ||
         !Number.isFinite(mmr) || mmr <= 0 || mmr > 0.5 ||
         !Number.isFinite(makerFee) || makerFee < 0 || makerFee > 0.1 ||
@@ -1411,6 +1413,7 @@ export function AdminPage() {
         base_asset: draft.base_asset, quote_asset: "USDT", enabled: false, status: "paused",
         price_tick: draft.price_tick.trim(), quantity_step: draft.quantity_step.trim(),
         min_quantity: draft.min_quantity.trim(), min_notional: draft.min_notional.trim(),
+        market_quantity_step: draft.market_quantity_step.trim(), market_min_quantity: draft.market_min_quantity.trim(), market_max_quantity: draft.market_max_quantity.trim() || null,
         max_quantity: draft.max_quantity.trim() || null, max_position_notional: draft.max_position_notional.trim() || null,
         max_leverage: maxLeverage, maintenance_margin_rate: draft.maintenance_margin_rate.trim(),
         maker_fee_rate: draft.maker_fee_rate.trim(), taker_fee_rate: draft.taker_fee_rate.trim(),
@@ -1732,7 +1735,7 @@ export function AdminPage() {
                   <td className="px-3 py-2 text-right tabular-nums">{asText(market.min_notional)} USDT</td>
                   <td className="px-3 py-2 text-right tabular-nums">{(Number(market.maintenance_margin_rate)*100).toFixed(3)}%</td>
                   <td className="px-3 py-2 text-right"><Button size="sm" variant="outline" disabled={busy||!hasPermission("system_config.write")} onClick={()=>setPerpMarketDraft({
-                    base_asset:market.base_asset,price_tick:String(market.price_tick),quantity_step:String(market.quantity_step),min_quantity:String(market.min_quantity),min_notional:String(market.min_notional),
+                    base_asset:market.base_asset,price_tick:String(market.price_tick),quantity_step:String(market.quantity_step),min_quantity:String(market.min_quantity),min_notional:String(market.min_notional),market_quantity_step:String(market.market_quantity_step),market_min_quantity:String(market.market_min_quantity),market_max_quantity:market.market_max_quantity==null?"":String(market.market_max_quantity),
                     max_quantity:market.max_quantity==null?"":String(market.max_quantity),max_position_notional:market.max_position_notional==null?"":String(market.max_position_notional),
                     max_leverage:String(market.max_leverage),maintenance_margin_rate:String(market.maintenance_margin_rate),maker_fee_rate:String(market.maker_fee_rate),taker_fee_rate:String(market.taker_fee_rate),
                     funding_interval_sec:String(market.funding_interval_sec),funding_rate_cap:String(market.funding_rate_cap),mark_price_stale_sec:String(market.mark_price_stale_sec),circuit_breaker_deviation_pct:String(market.circuit_breaker_deviation_pct),reason:""
@@ -1744,7 +1747,7 @@ export function AdminPage() {
               <label className="space-y-1 text-sm"><span>{adminText("Base asset")}</span><select value={perpMarketDraft.base_asset} disabled={busy||!hasPermission("system_config.write")} onChange={event=>setPerpMarketDraft(current=>({...current,base_asset:event.target.value}))} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"><option value="">{adminText("Select asset")}</option>{spotAssets.filter(asset=>asset!=="USDT"&&asset!=="USDC").map(asset=><option key={asset} value={asset}>{asset}/USDT</option>)}</select></label>
               <label className="space-y-1 text-sm"><span>{adminText("Quote asset")}</span><input value="USDT" readOnly className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label>
               {([
-                ["price_tick","Price tick"],["quantity_step","Quantity step"],["min_quantity","Minimum quantity"],["min_notional","Minimum notional (USDT)"],
+                ["price_tick","Price tick"],["quantity_step","Limit quantity step"],["min_quantity","Limit minimum quantity"],["market_quantity_step","Market quantity step"],["market_min_quantity","Market minimum quantity"],["market_max_quantity","Market maximum quantity (optional)"],["min_notional","Minimum notional (USDT)"],
                 ["max_quantity","Maximum quantity (optional)"],["max_position_notional","Maximum position notional (optional)"],["max_leverage","Maximum leverage"],
                 ["maintenance_margin_rate","Maintenance margin rate"],["maker_fee_rate","Maker fee rate"],["taker_fee_rate","Taker fee rate"],
                 ["funding_interval_sec","Funding interval (seconds)"],["funding_rate_cap","Funding rate cap"],["mark_price_stale_sec","Mark price max age (seconds)"],["circuit_breaker_deviation_pct","Circuit breaker deviation (%)"]
