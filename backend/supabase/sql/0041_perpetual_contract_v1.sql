@@ -70,6 +70,7 @@ create table if not exists public.perpetual_markets (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   check (base_asset <> quote_asset),
+  check (symbol = base_asset || quote_asset),
   check (max_quantity is null or min_quantity <= max_quantity)
 );
 
