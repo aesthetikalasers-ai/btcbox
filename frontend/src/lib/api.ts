@@ -1354,7 +1354,7 @@ export interface AdminPerpMarket {
   market_min_quantity: string | number;
   market_max_quantity?: string | number | null;
   max_quantity?: string | number | null;
-  max_position_notional?: string | number | null;
+  max_position_notional: string | number;
   max_leverage: number;
   maintenance_margin_rate: string | number;
   maker_fee_rate: string | number;
