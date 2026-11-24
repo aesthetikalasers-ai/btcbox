@@ -248,3 +248,23 @@ test('admin portal has a dedicated sign-in surface and owns nested admin routes'
   assert.ok(adminPage.includes('Administrator sign in'));
   assert.ok(adminPage.includes('redirectTo="/admin"'));
 });
+
+test('React admin exposes audited user freeze and unfreeze actions behind users.freeze permission', () => {
+  const adminApi = fs.readFileSync(path.resolve(root, '../frontend/src/lib/api.ts'), 'utf8');
+  const routePermission = apiCore.indexOf("route === 'user/freeze' && verb === 'POST'");
+  const routeStart = apiCore.indexOf("if (sub === 'user/freeze' && method === 'POST')");
+  const routeEnd = apiCore.indexOf("// POST /api/admin/user/reset-pwd", routeStart);
+  assert.ok(routePermission >= 0, 'user freeze endpoint must map to users.freeze');
+  assert.ok(routeStart >= 0 && routeEnd > routeStart, 'user freeze endpoint must exist');
+  const route = apiCore.slice(routeStart, routeEnd);
+  assert.ok(route.includes('const reason = String(body.reason ||').includes('200'));
+  assert.ok(route.includes('if (!reason)'));
+  assert.ok(route.includes('await auditAdmin(frozen ?'));
+  assert.ok(route.includes('await saveDB(db)'));
+  assert.ok(adminApi.includes('adminSetUserFrozen'));
+  assert.ok(adminApi.includes('"admin/user/freeze"'));
+  assert.ok(reactAdminPage.includes('hasPermission("users.freeze")'));
+  assert.ok(reactAdminPage.includes('adminText(user.frozen?"Unfreeze":"Freeze")'));
+  assert.ok(reactAdminPage.includes('target.kind === "user-freeze"'));
+  assert.ok(reactAdminPage.includes('setSelectedUser(current => current?.uid === target.uid ? { ...current, frozen } : current)'));
+});
