@@ -26,26 +26,33 @@ const PINNED_COINS = ["BTC", "ETH", "USDT"];
 
 /** Display names shown under each asset symbol (Binance-style asset list). */
 const COIN_NAMES: Record<string, string> = {
+  USDT: "Tether",
+  USDC: "USD Coin",
   BTC: "Bitcoin",
   ETH: "Ethereum",
-  USDT: "TetherUS",
-  USDC: "USD Coin",
   SOL: "Solana",
   BNB: "BNB",
   XRP: "XRP",
   DOGE: "Dogecoin",
   ADA: "Cardano",
   AVAX: "Avalanche",
-  SUI: "Sui",
   LINK: "Chainlink",
   DOT: "Polkadot",
-  LTC: "Litecoin",
   TRX: "TRON",
+  LTC: "Litecoin",
   BCH: "Bitcoin Cash",
+  NEAR: "NEAR Protocol",
+  UNI: "Uniswap",
   ATOM: "Cosmos",
   ETC: "Ethereum Classic",
-  PEPE: "Pepe",
-};
+  APT: "Aptos",
+  ARB: "Arbitrum",
+  OP: "Optimism",
+  SUI: "Sui",
+  INJ: "Injective",
+  TIA: "Celestia",
+  FIL: "Filecoin",
+};;
 
 /**
  * Displays the user's asset balances and wallet actions.
