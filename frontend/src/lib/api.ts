@@ -1484,6 +1484,10 @@ export interface AdminAuditRecord {
   by: string;
   detail: string;
   postgres_sync_status: string;
+  operator_uid?: string;
+  operator_email?: string;
+  operator_identity_status?: 'linked' | 'ambiguous' | 'unmatched' | 'non_uuid_actor';
+  subject_email?: string;
 }
 async function adminRequest<T>(token: string, path: string, options: { method?: string; body?: unknown; signal?: AbortSignal } = {}): Promise<T> {
   if (!token || token.length < 20) throw new ApiError("Administrator Supabase session is missing.", 401, "ADMIN_AUTH_REQUIRED");
