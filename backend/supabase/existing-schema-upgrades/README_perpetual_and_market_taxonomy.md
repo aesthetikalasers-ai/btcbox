@@ -6,6 +6,7 @@ the fresh-database bootstrap.
 ## Canonical SQL sources
 
 - Perpetual contract schema and RPCs: `backend/supabase/sql/0041_perpetual_contract_v1.sql`
+- Atomic funding clearing subledger: `backend/supabase/sql/0046_perpetual_funding_atomic_clearing_v1.sql`
 - Market taxonomy foundation: `backend/supabase/sql/0045_market_asset_categories_v1.sql`
 - Atomic funding settlement and clearing subledger: `backend/supabase/sql/0046_perpetual_funding_atomic_clearing_v1.sql`
 
@@ -39,14 +40,17 @@ the exact target project:
    mechanism so the hosted `supabase_migrations.schema_migrations` ledger
    records the generated timestamp/name. Do not manually invent a timestamp
    or insert a migration-ledger row.
-2. Verify the 11 perpetual tables, RPC signatures, RLS, and service-role-only
-   grants. Confirm all markets remain `enabled=false` and `status='paused'`.
-3. Apply `0045_market_asset_categories_v1.sql` as a separate migration.
-4. Verify the four category definitions and empty asset assignments.
+2. Apply `0046_perpetual_funding_atomic_clearing_v1.sql` as a separate migration.
+   It adds the balanced funding clearing subledger and atomic market-boundary RPC.
+3. Verify the 11 perpetual tables, the funding clearing ledger, RPC signatures,
+   RLS and service-role-only grants. Confirm all markets remain
+   `enabled=false` and `status='paused'`.
+4. Apply `0045_market_asset_categories_v1.sql` as a separate migration.
+5. Verify the four category definitions and empty asset assignments.
    `0045` reuses the existing `public.btcbox_assets` registry through a foreign
    key; new asset codes must first be registered there. Do not infer
    classifications from tickers or write assignments without verified metadata.
-5. Compare financial account balances and existing ledger rows to the preflight
+6. Compare financial account balances and existing ledger rows to the preflight
    snapshot. The only expected new financial account row from 0041 is the
    zero-balance platform insurance account `__perp_insurance__ / USDT`; existing
    user balances and existing ledger rows must remain unchanged.
