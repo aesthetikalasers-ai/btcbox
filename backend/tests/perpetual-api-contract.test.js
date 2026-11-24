@@ -123,6 +123,13 @@ test('workers exist and are idempotent/restart-safe', () => {
   const mark = fs.readFileSync(path.join(root, 'scripts', 'perp-mark-price-worker.js'), 'utf8');
   assert.ok(mark.includes('sources.length < 2'), 'mark worker requires >=2 sources');
   assert.ok(mark.includes('CIRCUIT BREAKER'), 'mark worker reports circuit breaker');
+  assert.ok(mark.includes('perpetual_markets?select=symbol,base_asset,quote_asset,mark_price_stale_sec,circuit_breaker_deviation_pct&enabled=eq.true'),
+    'mark worker discovers all enabled markets from the database');
+  assert.ok(mark.includes('PERP_COINGECKO_IDS'), 'additional symbols require an explicit provider mapping');
+  assert.ok(mark.includes('market.mark_price_stale_sec'), 'mark worker uses the market-specific stale threshold');
+  assert.ok(mark.includes('market.circuit_breaker_deviation_pct'), 'mark worker uses the market-specific circuit breaker');
+  assert.ok(mark.includes('ADAUSDT') && mark.includes('AVAXUSDT') && mark.includes('DOGEUSDT') && mark.includes('XRPUSDT'),
+    'registered BTCBOX assets have built-in provider mappings');
   const fund = fs.readFileSync(path.join(root, 'scripts', 'perp-funding-worker.js'), 'utf8');
   assert.ok(fund.includes('duplicate'), 'funding worker handles duplicate settlement');
   const liq = fs.readFileSync(path.join(root, 'scripts', 'perp-liquidation-worker.js'), 'utf8');
