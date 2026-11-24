@@ -1501,6 +1501,17 @@ async function handleRequest(event, context) {
     }, db ? 200 : 503);
   }
 
+  // ---------- GET /api/assets ----------
+  // Public display metadata only. Asset configuration never exposes wallet addresses,
+  // network settings, fees, or private account balances.
+  if (path === 'assets' && method === 'GET') {
+    return json({ ok: true, assets: normalizeAdminAssetCatalog(db && db.asset_catalog).map(function (asset) {
+      return { code: asset.code, name: asset.name, display_name: asset.display_name,
+        display_precision: asset.display_precision, enabled: asset.enabled,
+        visible: asset.visible, sort_order: asset.sort_order };
+    }) });
+  }
+
   // ---------- GET /api/config ----------
   if (path === 'config' && method === 'GET') {
     return json({
