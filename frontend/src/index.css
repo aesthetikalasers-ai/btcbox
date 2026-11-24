@@ -1579,6 +1579,10 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .trade-drawer-root.is-dragging .trade-drawer-panel { transition: none; }
 .trade-drawer-handle { touch-action: none; cursor: grab; }
 .trade-drawer-handle:active { cursor: grabbing; }
+/* Tablet compact mode has no fixed mobile navigation, so dock the chart to the viewport edge. */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .trade-drawer-root { bottom: 0; }
+}
 /* Desktop: the drawer is not used (chart is inline), hide it above 1024px. */
 @media (min-width: 1024px) {
   .trade-drawer-root { display: none; }
