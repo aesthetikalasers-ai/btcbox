@@ -1341,6 +1341,30 @@ export function AdminPage() {
       ].map(([label, value], index) => <Card key={adminText(String(label))} className="overflow-hidden border-brand-border bg-brand-surface"><div className={"h-1 "+(index===0?"bg-brand-info":index===1?"bg-brand-text-muted":index===2?"bg-brand-text-muted":"bg-brand-accent")}/><CardContent className="p-4 sm:p-5"><p className="type-meta font-semibold uppercase tracking-wide text-brand-text-muted">{adminText(String(label))}</p><p className="type-price mt-2 text-brand-text">{asText(value)}</p></CardContent></Card>)}
     </div> : null}
 
+    {!loading && tab === "overview" ? <section className="mt-5 space-y-3" aria-labelledby="admin-overview-shortcuts">
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h3 id="admin-overview-shortcuts" className="text-sm font-semibold text-brand-text">{adminText("Operational shortcuts")}</h3>
+          <p className="mt-1 text-xs text-brand-text-muted">{adminText("Open the main review queues and management areas directly.")}</p>
+        </div>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {([
+          { id: "withdrawals", title: "Withdrawal queue", description: "Review and process withdrawal requests.", count: stats?.pending_withdrawals },
+          { id: "kyc", title: "KYC review", description: "Review pending identity applications.", count: stats?.pending_kyc },
+          { id: "users", title: "User centre", description: "Search customer records and open user details." },
+          { id: "deposit-records", title: "Deposit records", description: "Inspect recent ledger deposit records." },
+        ] as const).filter(item => allowedTabs.some(allowed => allowed.id === item.id)).map(item => <button key={item.id} type="button" onClick={() => setTab(item.id)} className="group min-w-0 rounded-lg border border-brand-border bg-brand-surface p-4 text-left transition-colors hover:border-brand-accent/50 hover:bg-brand-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent">
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-sm font-semibold text-brand-text">{adminText(item.title)}</span>
+            {"count" in item ? <span className="shrink-0 font-mono text-lg font-semibold tabular-nums text-brand-text">{asText(item.count)}</span> : null}
+          </div>
+          <p className="mt-2 text-xs leading-5 text-brand-text-muted">{adminText(item.description)}</p>
+          <span className="mt-3 inline-block text-xs font-semibold text-brand-accent">{adminText("Open section")} →</span>
+        </button>)}
+      </div>
+    </section> : null}
+
     {!loading && tab === "users" ? <div className="grid gap-4">
       <Card><CardHeader><CardTitle>{adminText("Users")}</CardTitle><CardDescription>{adminText("Search for a user and open their record. Financial operations are managed in the Finance centre.")}</CardDescription></CardHeader><CardContent>
         <div className="mb-3 flex flex-wrap items-center gap-2"><Badge variant="outline">{adminText("Source: BTCBOX state user directory")}</Badge>{usersDirectoryCompleteness === "limit_reached" ? <Badge variant="destructive">{adminText("Result limit reached")}</Badge> : usersDirectoryCompleteness === "snapshot" ? <Badge variant="outline">{adminText("Snapshot results")}</Badge> : null}<span className="text-xs text-brand-text-muted">{usersDirectoryMatchedCount} {adminText("matching users")}</span></div><form className="mb-3 flex flex-wrap gap-2" onSubmit={event => { event.preventDefault(); void loadTab(); }}><input value={search} onChange={event => setSearch(event.target.value)} placeholder={adminText("Search UID or email")} className="h-11 min-w-0 flex-1 rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15"/><Button size="sm" type="submit">{adminText("Search")}</Button></form>
