@@ -52,6 +52,31 @@
 
 The handler also contains a separate perpetual-market admin route group. It is not part of the first restructuring batch and must not be accidentally removed.
 
+## Phase 1 follow-up: route and test review (2026-11-24)
+
+### Findings
+
+1. **Perpetual admin route reachability — SOURCE OBSERVED, runtime NOT VERIFIED.** The handler contains a `sub.startsWith('perpetual/')` block with `market` POST, `liquidations` GET and `insurance` GET handlers. However, the common `requiredPermission(route, verb)` resolver returns `null` for these paths, and the handler returns `ADMIN_ROUTE_NOT_FOUND` before reaching the perpetual block. The route block appears unreachable through the current dispatcher. Do not simply add a broad permission mapping: the three routes have different risk profiles and need explicit least-privilege permissions, audit expectations, and a decision about whether the market mutation is in scope. No production request was made.
+2. **Permission matrix test coverage is incomplete — SOURCE OBSERVED.** `backend/tests/admin-route-permissions.test.js` asserts several core routes but does not explicitly cover `POST /admin/withdraw/approve`, `POST /admin/withdraw/reject`, `POST /admin/withdraw/mark-paid`, `POST /admin/support/read`, or all FAQ methods. The resolver currently maps these routes, but the tests do not protect every mapping against regression.
+3. **Perpetual routes are absent from the route permission contract test.** This aligns with the missing resolver mapping and means current tests do not catch the apparent unreachable-route condition.
+4. **Test execution is pending.** Source and test files have been inspected, but the backend test suite has not yet been executed in this work session. No TEST PASSED claim is made.
+
+### Files inspected in this pass
+
+- `backend/api-core.js` — route dispatcher, permission resolver, admin route handlers.
+- `backend/admin-auth.js` — Supabase identity verification and membership lookup.
+- `backend/admin-rbac.js` — closed permission catalogue and permission evaluation.
+- `backend/tests/admin-route-permissions.test.js` — explicit route permission assertions.
+- `backend/tests/admin-api-contract.test.js` — API/frontend route contract and response behavior assertions.
+- `backend/package.json` — backend test command is `npm test` (`node --test --test-reporter=spec tests/*.test.js`).
+
+### Required next checks before implementation
+
+- Add a complete route inventory test that enumerates every route/method, including support read receipts, all FAQ methods, all withdrawal actions, and perpetual routes.
+- Decide whether the three perpetual routes should be restored, deliberately retired, or left inaccessible; obtain explicit owner approval before enabling the market mutation route.
+- Run the backend test suite and relevant frontend typecheck/build in a disposable checkout or CI environment. Record the exact results.
+- Do not change financial, matching, settlement, or perpetual mutation behavior as part of a pure route extraction.
+
 ## Initial gaps to verify before proposing new functionality
 
 These are inventory findings, not claims that a feature is impossible:
