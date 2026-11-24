@@ -200,3 +200,28 @@ Do not proceed with a code move that lacks a reliable parity test for its affect
 - The first CI run for this branch completed the unified site build successfully, then failed one newly added source assertion because the test expected a single-route FAQ permission line while the actual resolver intentionally groups FAQ POST and FAQ delete under one shared `support.manage` condition.
 - The source resolver itself was already correct; this was a test expectation mismatch, not a production-code defect. The assertion was corrected to match the grouped condition.
 - A new CI run was triggered by commit `78ef2fc5316bd13616efb9b62fee1c175be4850a`. Its status must be checked before recording a passing result.
+
+## Approved implementation update: manual debit (2026-11-24)
+
+The operator workflow is intentionally minimal:
+
+- Select the user in the User Centre; choose the asset and enter the debit amount.
+- No operator-entered reason, note, dual approval, or extra review stage is required.
+- The debit may take the user's available balance below zero.
+- The browser retains the same request ID across an uncertain retry; the backend uses the existing atomic `admin_adjustment_atomic` operation.
+- The system records administrator identity, subject UID, asset, signed delta, before/after ledger state, operation ID and timestamp through the financial operation / ledger / audit records. The audit reason is a fixed internal action marker (`admin_manual_debit`), not an operator field.
+
+### Ledger boundary
+
+- New migration: `backend/supabase/sql/0045_admin_manual_debit_negative_balance_v1.sql`.
+- Only a marked manual-debit adjustment with a negative available delta and zero frozen delta may create a negative available balance.
+- Other debit paths (withdrawal freeze/approval, earn subscription, and frozen-balance movements) retain their insufficient-funds checks.
+- A confirmed deposit credit can increase an already-negative available balance, including a partial offset that remains below zero.
+- The manual-debit UI is available only when the selected user's balance source is confirmed as `postgres_financial_ledger` and the administrator has the existing `financial_adjustment.request` permission plus balance-read access.
+- The existing manual-credit flow remains separate and unchanged.
+
+### Safety and rollout
+
+- The migration is committed to this isolated branch only. It has **not** been applied to any Supabase database.
+- No production deployment, production DB write, PR #113 modification, or merge has been performed.
+- CI and database integration tests must validate this migration before any staging application. Production application requires a separate explicit authorization.
