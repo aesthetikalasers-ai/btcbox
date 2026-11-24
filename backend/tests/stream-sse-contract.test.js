@@ -113,6 +113,31 @@ test('emits hello frame with channel and interval', async () => {
   }
 });
 
+test('cleans up immediately when the client disconnects during the first upstream read', async () => {
+  let releaseFetch;
+  const pendingFetch = new Promise((resolve) => { releaseFetch = resolve; });
+  const originalFetch = global.fetch;
+  global.fetch = async () => {
+    await pendingFetch;
+    throw new Error('offline');
+  };
+  try {
+    const res = createFakeRes();
+    const pending = streamApi(createReq('/api/stream/depth?symbol=BTCUSDT'), res);
+    await new Promise((resolve) => setImmediate(resolve));
+
+    // The initial provider request is still pending. The response close event
+    // must already be observed and cleanup must run without waiting for it.
+    res.emit('close');
+    assert.strictEqual(res.writableEnded, true, 'disconnect during first poll must close immediately');
+
+    releaseFetch();
+    await pending;
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
 test('normalizes levels and drops malformed rows', () => {
   const rows = [['100', '1'], ['bad', '2'], ['99', '0'], ['98', '3'], null, ['97']];
   const levels = core.normalizeLevels(rows);
