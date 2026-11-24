@@ -485,6 +485,7 @@ const messages: Record<string, string> = {
   "Perpetual market configuration saved. The market remains paused and disabled.": "永续市场配置已保存，市场仍保持暂停和停用状态。",
   "Perpetual market configuration could not be confirmed.": "无法确认永续市场配置结果。",
   "Perpetual market configuration is temporarily unavailable. The spot market list remains available.": "永续市场配置暂时不可用，现货市场列表仍可正常查看。",
+  "Reason for market configuration change (required)": "市场配置变更原因（必填）",
 };
 
 export function adminText(message: string): string {
