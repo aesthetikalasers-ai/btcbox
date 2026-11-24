@@ -1707,7 +1707,9 @@
   "Minimum notional": "Minimum notional",
   "Market trading rules are unavailable. Order entry is disabled.": "Market trading rules are unavailable. Order entry is disabled.",
   "Price must follow the market tick; quantity must follow the step and minimum order rules.": "Price must follow the market tick; quantity must follow the step and minimum order rules.",
-  "Spot reference": "Spot reference",
+  "Spot reference": "Spot reference",,
+  "Bootstrap reference": "Bootstrap reference",
+  "Bootstrap": "Bootstrap"
   "Underlying spot order book": "Underlying spot order book",
   "Spot reference only — not the perpetual execution book.": "Spot reference only — not the perpetual execution book.",
   "Spot reference depth": "Spot reference depth",
