@@ -148,6 +148,7 @@ test('perpetual admin routes are permission-mapped and configuration saves stay 
   assert.match(routes, /enabled: false, status: 'paused'/);
   assert.ok(routes.includes('mark_price_stale_sec: staleSec'));
   assert.ok(routes.includes('circuit_breaker_deviation_pct: breaker'));
+  assert.ok(routes.includes("!maxPositionNotional || compareMoney(maxPositionNotional, '0') <= 0"), 'new market configurations require a positive exposure cap');
   assert.ok(routes.includes("await auditAdmin('perpetual_market_upsert'"));
   assert.ok(routes.indexOf("if (!response.ok)") < routes.indexOf("await auditAdmin('perpetual_market_upsert'"));
   assert.ok(!routes.includes('enabled: enabled'));
@@ -166,6 +167,7 @@ test('perpetual admin frontend reads the live asset catalogue and exposes only p
   assert.ok(adminPage.includes('getAdminAssets(token)'));
   assert.ok(adminPage.includes('assetCatalog.filter(asset => !["USDT", "USDC"].includes(asset.code))'));
   assert.ok(adminPage.includes('enabled: false, status: "paused"'));
+  assert.ok(adminPage.includes('!positive(draft.max_position_notional)'), 'admin form requires a positive maximum exposure cap');
   assert.ok(adminPage.includes('setPerpMarkets(refreshed.markets || [])'));
   assert.ok(adminPage.includes("const decimal = /^(?:0|[1-9]\\d{0,19})(?:\\.\\d{1,18})?$/;"));
   assert.ok(adminPage.includes("/[\\u0000-\\u001f\\u007f]/"));
