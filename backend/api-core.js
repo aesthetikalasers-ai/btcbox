@@ -3066,7 +3066,7 @@ async function handleRequest(event, context) {
           const rows = await response.json().catch(() => []);
           const row = Array.isArray(rows) ? rows[0] : null;
           const age = Number(row && row.age_sec);
-          const fresh = response.ok && row && ['ok', 'degraded'].includes(row.status) &&
+          const fresh = response.ok && row && ['ok', 'degraded', 'bootstrap'].includes(row.status) &&
             Number.isFinite(age) && age >= 0 && age <= Number(market.mark_price_stale_sec) &&
             Number(row.mark_price) > 0 && Number(row.index_price) > 0;
           return { ...market, mark_price: fresh ? String(row.mark_price) : null, index_price: fresh ? String(row.index_price) : null,
