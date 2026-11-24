@@ -150,7 +150,10 @@ module.exports = async function streamHandler(req, res) {
     cleanup();
   }, MAX_STREAM_MS);
 
-  req.on('close', cleanup);
+  // IncomingMessage "close" can fire as soon as the GET request itself has
+  // been fully read; that is not the lifetime of the SSE response. Closing the
+  // stream from req.close can therefore terminate a healthy subscription before
+  // its first update. Track the response/socket lifecycle instead.
   req.on('error', cleanup);
   res.on('close', cleanup);
   res.on('error', cleanup);
