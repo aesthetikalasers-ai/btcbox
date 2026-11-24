@@ -365,25 +365,18 @@ async function raceProviders(candidates, run, isUsable) {
 }
 
 /**
- * Reads the market snapshot across every provider and merges the result.
+ * Reads market data primary-first, then falls back only when coverage is incomplete.
  *
- * Why this is not a simple "try each provider in order" loop:
+ * - Upstreams are not fanned out concurrently: the shared ticker cache and ordered
+ *   fallback avoid multiplying public-provider requests on every browser poll.
+ * - Partial responses are retained and merged by symbol, preserving the first
+ *   provider's valid row rather than overwriting it with a later fallback.
+ * - If all live providers fail, the last good snapshot is returned with stale and
+ *   degraded flags; the API preserves its original timestamp and the client keeps
+ *   enforcing its 90-second freshness rule.
  *
- *  - Latency: the previous serial loop waited a full `timeoutMs` per provider, so
- *    a black-holed upstream on a US edge cost up to 3 x timeoutMs (18s) before
- *    the page rendered. Providers are now raced in parallel and the fastest
- *    usable answer wins.
- *  - Silent shrinkage: `binanceMarket` skips symbols it cannot quote, so a
- *    provider that only lists 3 of our 24 bases would still return `ok: true`
- *    with 3 rows — the UI would read that as "21 pairs delisted". A provider is
- *    now only accepted outright if it covers most of the requested bases;
- *    otherwise its rows are merged with the other providers' rows.
- *  - Region split: a US edge may only reach binance.us while an EU edge may only
- *    reach binance-vision. Merging keeps both audiences on the widest catalogue
- *    each can actually see.
- *
- * Per-symbol provenance is preserved: a symbol's price/change/high/low always
- * come from ONE provider, never averaged across sources.
+ * Per-symbol provenance is preserved: price/change/high/low for a symbol always
+ * come from one provider, never averaged across sources.
  */
 async function getMarket({ symbols = DEFAULT_SYMBOLS, timeoutMs = 6000 } = {}) {
   const bases = [...new Set(symbols.map((s) => String(s).toUpperCase().replace(/USDT$/, '')))]
