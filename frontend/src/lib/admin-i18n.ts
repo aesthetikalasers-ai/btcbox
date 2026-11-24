@@ -462,7 +462,7 @@ const messages: Record<string, string> = {
   "This fund operation has already been processed. It was not executed again.": "此资金操作已处理，系统未重复执行。",
   "Financial database temporarily unavailable. Did not fall back to the legacy balance system. Please check the operation log.": "资金数据库暂时不可用，系统未回退至旧余额系统。请检查操作日志。",
   "Perpetual market configuration": "永续合约市场配置",
-  "Configure USDT-margined perpetual market rules. Every saved market remains disabled and paused; enabling trading is a separate release gate.": "配置 USDT 本位永续合约市场规则。保存后交易始终保持暂停；可单独启用行情源预热价格，开放交易必须经过独立验收。",
+  "Configure USDT-margined perpetual market rules. Every saved market remains paused; its data feed may be enabled to prewarm mark prices. Trading activation is a separate release gate.": "配置 USDT 本位永续合约市场规则。保存后交易始终保持暂停；可单独启用行情源预热价格，开放交易必须经过独立验收。",
   "Trading disabled": "交易未开放",
   "Leverage": "杠杆",
   "Maintenance margin": "维持保证金",
