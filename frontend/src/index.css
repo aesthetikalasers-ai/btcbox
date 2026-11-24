@@ -1884,10 +1884,10 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   /* Responsive market picker: desktop market table, compact touch-first mobile list.
      This dialog is independent from the K-line ChartDrawer and must never become a bottom sheet. */
   .term-pair-dialog {
-    top: 64px;
-    width: min(760px, calc(100vw - 48px));
-    max-height: min(78vh, 720px);
-    border-radius: 14px;
+    top: 96px;
+    width: min(360px, calc(100vw - 24px));
+    max-height: min(60vh, 520px);
+    border-radius: 10px;
   }
   .term-pair-dialog__head { padding: 14px 18px; }
   .term-pair-dialog__title { font-size: 15px; }
@@ -1912,6 +1912,8 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
     flex-direction: column;
     gap: 0;
     padding: 0 8px 8px;
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
   }
@@ -2009,9 +2011,6 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
     .term-pair-option__price { font-size: 11px; }
   }
 
-  @media (min-width: 768px) and (max-width: 1023px) {
-    .term-pair-dialog { width: min(680px, calc(100vw - 40px)); }
-  }
 
   .term-top-price {
     /* Spec §1.2: the last price is the dominant figure — 24px/700. */
