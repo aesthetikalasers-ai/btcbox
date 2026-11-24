@@ -630,6 +630,7 @@ declare
   v_req public.perpetual_cancel_requests%rowtype;
   v_order public.perpetual_orders%rowtype;
   v_request_hash text;
+  v_cancel_op_id uuid;
   v_resp jsonb;
 begin
   if coalesce(p_user_id,'')='' or coalesce(p_order_id,'')=''
@@ -660,9 +661,9 @@ begin
         p_user_id,'USDT','perp_order_cancel',
         encode(extensions.digest(p_order_id||':'||v_order.remaining_quantity::text,'sha256'),'hex'),
         jsonb_build_object('order_id',p_order_id))
-      returning id into v_order.reserve_operation_id;
+      returning id into v_cancel_op_id;
       insert into public.financial_ledger(operation_id,user_id,asset,available_delta,frozen_delta,available_after,frozen_after)
-      select v_order.reserve_operation_id, p_user_id, 'USDT', v_order.reserved_margin, -v_order.reserved_margin, available, frozen
+      select v_cancel_op_id, p_user_id, 'USDT', v_order.reserved_margin, -v_order.reserved_margin, available, frozen
         from public.financial_accounts where user_id=p_user_id and asset='USDT';
     end if;
     update public.perpetual_orders set status='cancelled', remaining_quantity=0, reserved_margin=0, updated_at=now() where id=p_order_id;
@@ -744,7 +745,8 @@ begin
   if not found then return jsonb_build_object('ok',true,'no_position',true); end if;
   v_notional := v_pos.quantity * coalesce(v_rate.mark_price, v_pos.entry_price);
   -- long pays when rate>0: long payment = -rate*notional; short receives +rate*notional.
-  -- The persisted funding-rate row is authoritative; never trust a caller-supplied rate for settlement.\n  v_payment := case when v_pos.side='long' then -v_rate.rate else v_rate.rate end * v_notional;
+  -- The persisted funding-rate row is authoritative; never trust a caller-supplied rate for settlement.
+  v_payment := case when v_pos.side='long' then -v_rate.rate else v_rate.rate end * v_notional;
 
   insert into public.financial_accounts(user_id,asset) values (p_user_id,'USDT') on conflict do nothing;
   perform 1 from public.financial_accounts where user_id=p_user_id and asset='USDT' for update;
@@ -805,6 +807,7 @@ declare
   v_notional numeric(38,18);
   v_mm numeric(38,18);
   v_loss numeric(38,18);
+  v_margin_return numeric(38,18) := 0;
   v_insurance_cover numeric(38,18) := 0;
   v_bad_debt numeric(38,18) := 0;
   v_op uuid;
@@ -813,6 +816,7 @@ declare
   v_orders_reserved numeric(38,18) := 0;
   v_total_frozen_release numeric(38,18);
 begin
+  perform pg_advisory_xact_lock(hashtextextended('perp-market:'||p_symbol, 0));
   select * into v_pos from public.perpetual_positions where user_id=p_user_id and symbol=p_symbol for update;
   if not found then return jsonb_build_object('ok',true,'no_position',true); end if;
   select * into v_market from public.perpetual_markets where symbol=p_symbol;
@@ -823,19 +827,21 @@ begin
 
   v_notional := v_pos.quantity * v_mark.mark_price;
   v_mm := v_notional * v_market.maintenance_margin_rate;
-  -- liquidation price: where isolated_margin + unrealized = maintenance margin.
+  -- Solve equity = maintenance margin for the liquidation threshold.
   if v_pos.side='long' then
-    v_liq_price := v_pos.entry_price * (1 - (v_pos.isolated_margin - v_mm)/v_notional);
+    v_liq_price := greatest(0, (v_pos.entry_price*v_pos.quantity-v_pos.isolated_margin) /
+      (v_pos.quantity*(1-v_market.maintenance_margin_rate)));
     if v_mark.mark_price > v_liq_price then return jsonb_build_object('ok',true,'liquidatable',false,'mark',v_mark.mark_price,'liq_price',v_liq_price); end if;
-    v_bankruptcy := v_pos.entry_price * (1 - v_pos.isolated_margin/v_notional);
-    v_close_price := greatest(v_mark.mark_price, v_bankruptcy);
-    v_loss := (v_pos.entry_price - v_close_price) * v_pos.quantity; -- loss to margin
+    v_bankruptcy := greatest(0, (v_pos.entry_price*v_pos.quantity-v_pos.isolated_margin)/v_pos.quantity);
+    v_close_price := v_mark.mark_price;
+    v_loss := greatest(0, (v_pos.entry_price-v_close_price)*v_pos.quantity);
   else
-    v_liq_price := v_pos.entry_price * (1 + (v_pos.isolated_margin - v_mm)/v_notional);
+    v_liq_price := (v_pos.entry_price*v_pos.quantity+v_pos.isolated_margin) /
+      (v_pos.quantity*(1+v_market.maintenance_margin_rate));
     if v_mark.mark_price < v_liq_price then return jsonb_build_object('ok',true,'liquidatable',false,'mark',v_mark.mark_price,'liq_price',v_liq_price); end if;
-    v_bankruptcy := v_pos.entry_price * (1 + v_pos.isolated_margin/v_notional);
-    v_close_price := least(v_mark.mark_price, v_bankruptcy);
-    v_loss := (v_close_price - v_pos.entry_price) * v_pos.quantity;
+    v_bankruptcy := (v_pos.entry_price*v_pos.quantity+v_pos.isolated_margin)/v_pos.quantity;
+    v_close_price := v_mark.mark_price;
+    v_loss := greatest(0, (v_close_price-v_pos.entry_price)*v_pos.quantity);
   end if;
 
   v_idem := 'perp-liq-'||v_pos.id::text;
@@ -844,6 +850,7 @@ begin
   end if;
 
   -- Loss absorbed by isolated margin (already frozen). Excess loss beyond margin -> insurance -> bad debt.
+  v_margin_return := greatest(v_pos.isolated_margin - v_loss, 0);
   if v_loss > v_pos.isolated_margin then
     declare v_excess numeric(38,18) := v_loss - v_pos.isolated_margin;
             v_ins_bal numeric(38,18);
@@ -871,11 +878,11 @@ begin
   -- reserved margin was frozen for orders; on liquidation those orders cancel, so reserved margin returns to available (it was never lost).
   -- Accounting: isolated_margin is consumed (frozen down, no available up); orders' reserved margin returns to available.
   update public.financial_accounts set frozen=frozen-v_total_frozen_release,
-    available=available + v_orders_reserved, version=version+1, updated_at=now()
+    available=available + v_orders_reserved + v_margin_return, version=version+1, updated_at=now()
    where user_id=p_user_id and asset='USDT' and frozen >= v_total_frozen_release;
   if not found then raise exception 'liquidation frozen release invariant failed'; end if;
   insert into public.financial_ledger(operation_id,user_id,asset,available_delta,frozen_delta,available_after,frozen_after)
-  select v_op, p_user_id, 'USDT', v_orders_reserved, -v_total_frozen_release, available, frozen
+  select v_op, p_user_id, 'USDT', (v_orders_reserved + v_margin_return), -v_total_frozen_release, available, frozen
     from public.financial_accounts where user_id=p_user_id and asset='USDT';
   if v_insurance_cover > 0 then
     insert into public.financial_ledger(operation_id,user_id,asset,available_delta,frozen_delta,available_after,frozen_after)
@@ -886,7 +893,7 @@ begin
   insert into public.perpetual_position_history(user_id,symbol,side,quantity,entry_price,close_price,realized_pnl,funding_paid,close_reason)
   values (p_user_id,p_symbol,v_pos.side,v_pos.quantity,v_pos.entry_price,v_close_price,v_pos.realized_pnl - v_loss,v_pos.funding_paid,'liquidation');
   insert into public.perpetual_liquidation_events(user_id,symbol,side,quantity,entry_price,mark_price_at_liq,liquidation_price,bankruptcy_price,margin_lost,insurance_cover,bad_debt,operation_id)
-  values (p_user_id,p_symbol,v_pos.side,v_pos.quantity,v_pos.entry_price,v_mark.mark_price,v_liq_price,v_bankruptcy,v_pos.isolated_margin,v_insurance_cover,v_bad_debt,v_op);
+  values (p_user_id,p_symbol,v_pos.side,v_pos.quantity,v_pos.entry_price,v_mark.mark_price,v_liq_price,v_bankruptcy,least(v_loss,v_pos.isolated_margin),v_insurance_cover,v_bad_debt,v_op);
   delete from public.perpetual_positions where id=v_pos.id;
   -- cancel any open orders for this user/symbol (reduce exposure); reserved margin already released above.
   update public.perpetual_orders set status='cancelled', remaining_quantity=0, reserved_margin=0, updated_at=now()

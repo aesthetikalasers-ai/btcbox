@@ -179,3 +179,28 @@ test('perpetual migration preserves existing production financial operation type
     assert.ok(migration.includes("'" + operation + "'"), 'missing operation type: ' + operation);
   }
 });
+
+
+test('perpetual liquidation solves thresholds and routes excess loss through insurance/bad-debt waterfall', () => {
+  const migration = fs.readFileSync(path.join(root, 'supabase', 'sql', '0041_perpetual_contract_v1.sql'), 'utf8');
+  const start = migration.indexOf('create or replace function public.perp_liquidate_position(');
+  const end = migration.indexOf('$$;', start);
+  const fn = migration.slice(start, end);
+  assert.ok(fn.includes('(v_pos.entry_price*v_pos.quantity-v_pos.isolated_margin) /'));
+  assert.ok(fn.includes('(v_pos.entry_price*v_pos.quantity+v_pos.isolated_margin) /'));
+  assert.ok(fn.includes('v_close_price := v_mark.mark_price'));
+  assert.ok(fn.includes('v_bad_debt := v_excess - v_insurance_cover'));
+  assert.ok(fn.includes('v_orders_reserved + v_margin_return'));
+  assert.ok(fn.includes('least(v_loss,v_pos.isolated_margin)'));
+});
+
+test('perpetual cancellation uses a distinct operation id for the release ledger', () => {
+  const migration = fs.readFileSync(path.join(root, 'supabase', 'sql', '0041_perpetual_contract_v1.sql'), 'utf8');
+  const start = migration.indexOf('create or replace function public.perp_cancel_order(');
+  const end = migration.indexOf('$$;', start);
+  const fn = migration.slice(start, end);
+  assert.ok(fn.includes('v_cancel_op_id uuid'));
+  assert.ok(fn.includes('returning id into v_cancel_op_id'));
+  assert.ok(fn.includes('select v_cancel_op_id, p_user_id'));
+  assert.ok(!fn.includes('returning id into v_order.reserve_operation_id'));
+});
