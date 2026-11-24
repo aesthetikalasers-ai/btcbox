@@ -30,6 +30,7 @@ test('public spot-market catalogue is sourced from operator configuration', () =
   assert.ok(routeBlock.includes('readSpotMarketCatalog(db)'));
   assert.ok(!routeBlock.includes('if (!user)'), 'public catalogue must not require a user session');
   assert.ok(routeBlock.includes('markets.filter(market => market.enabled)'));
+  assert.ok(backend.includes('asset.enabled && asset.visible && asset.spot_enabled'), 'hidden assets must not expose Spot markets');
   assert.ok(backend.includes("market.quote_asset !== 'USDT'"));
   assert.ok(backend.includes("quoteAsset !== 'USDT'"));
   assert.ok(!backend.includes("DEFAULT_SPOT_CATALOG"), "catalogue read failures must not activate a seeded market list");
