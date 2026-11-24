@@ -29,11 +29,3 @@ export function filterPublicSpotMarkets(
   });
 }
 
-export function publicAssetName(
-  assets: PublicAssetConfig[] | null,
-  symbol: string,
-): string | undefined {
-  if (!assets) return undefined;
-  const asset = assets.find((item) => item.code === baseAssetCode(symbol));
-  return asset ? asset.display_name || asset.name : undefined;
-}
