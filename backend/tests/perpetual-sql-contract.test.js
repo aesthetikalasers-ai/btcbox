@@ -73,6 +73,7 @@ test('0051 adds a positive per-market minimum notional and enforces it inside th
   assert.ok(migration.includes('Full-position closes use the exact locked position quantity'));
   assert.ok(migration.includes("v_market.max_position_notional is null or v_market.max_position_notional <= 0"));
   assert.ok(migration.includes('market risk exposure cap unavailable'));
+  assert.ok(migration.includes("notify pgrst, 'reload schema'"));
   assert.ok(migration.includes('never be blocked by opening-order lot/minimum filters'));
 });
 
