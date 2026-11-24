@@ -38,6 +38,7 @@ test('public perpetual catalogue returns the configured minimum notional and fro
   assert.ok(page.includes('selectedMarket.min_notional'));
   assert.ok(page.includes('selectedMarket.market_quantity_step'));
   assert.ok(page.includes('selectedMarket.market_min_quantity'));
+  assert.ok(page.includes('if (!closePosition && Number.isFinite(minQuantity)'));
   assert.ok(page.includes('const usesMarketLot = orderType === "market" && !reduceOnly && !closePosition'));
   assert.ok(page.includes('Order notional is below the market minimum.'));
   assert.ok(page.includes('if (!reduceOnly'));
