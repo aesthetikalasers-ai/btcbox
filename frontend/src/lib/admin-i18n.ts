@@ -496,6 +496,7 @@ const messages: Record<string, string> = {
   "Market quantity step": "市价单数量步长",
   "Market minimum quantity": "市价单最小数量",
   "Market maximum quantity (optional)": "市价单最大数量（可选）",
+  "Price / limit step / market step": "价格步长／限价单步长／市价单步长",
 };
 
 export function adminText(message: string): string {
