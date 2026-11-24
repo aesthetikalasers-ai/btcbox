@@ -3825,6 +3825,7 @@ async function handleRequest(event, context) {
       const q = ((event.queryStringParameters && event.queryStringParameters.search) || '').toLowerCase();
       let list = Object.values(db.users);
       if (q) list = list.filter(function (u) { return String(u.email || '').toLowerCase().indexOf(q) > -1 || String(u.uid || '').toLowerCase().indexOf(q) > -1; });
+      const matchedCount = list.length;
       list = list.slice(0, 200);
       const canReadFinancialAudit = hasAdminPermission(adminMembership, 'financial_audit.read');
       const useCanonicalFinancialReads = financialPostgresReadsEnabled();
@@ -3841,7 +3842,7 @@ async function handleRequest(event, context) {
         });
         try { await getLiveUsdtPrices(priceBases); } catch (_) {}
       }
-      return json({ ok: true, users: list.map(function (u) {
+      return json({ ok: true, source: 'btcbox_state_user_directory', completeness: matchedCount > list.length ? 'limit_reached' : 'snapshot', matched_count: matchedCount, returned_count: list.length, users: list.map(function (u) {
         const record = { uid: u.uid, email: u.email || '', admin_auth_user_id: adminMembership.is_super_admin === true ? String(u.supabase_user_id || (Array.isArray(u.supabase_user_ids) ? u.supabase_user_ids[0] : '') || '') : '', kyc_status: (u.kyc && u.kyc.status) || 'unverified', created_at: u.created_at || '', frozen: !!u.frozen, twofa: !!u.twofa_enabled };
         if (canReadFinancialAudit) {
           const balances = normalizedBalances ? (normalizedBalances[String(u.uid)] || {}) : (u.balances || {});
