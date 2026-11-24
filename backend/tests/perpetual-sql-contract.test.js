@@ -404,3 +404,13 @@ test('funding-rate producer is separate from the settlement worker and never cha
   assert.ok(!fundingRateWorker.includes('financial_accounts'));
   assert.ok(!fundingRateWorker.includes("method:'PATCH'"));
 });
+
+
+test('0053 promotes a BTCBOX book mark with two independent fresh spot-index providers only inside the 2% safety envelope', () => {
+  const migration = fs.readFileSync(path.join(root, 'supabase/sql/0053_perpetual_two_source_live_mark_v1.sql'), 'utf8');
+  assert.ok(migration.includes("v_count >= 2 and v_max_dev < 2"));
+  assert.ok(migration.includes("and v_mark_deviation <= v_market.circuit_breaker_deviation_pct then 'ok'"));
+  assert.ok(migration.includes("else 'degraded'"));
+  assert.ok(migration.includes('BTCBOX order-book mark'));
+  assert.ok(migration.includes('grant execute on function public.perp_record_mark_price(text,numeric,numeric,jsonb,integer)'));
+});
