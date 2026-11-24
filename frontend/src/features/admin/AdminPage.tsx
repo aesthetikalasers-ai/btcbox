@@ -30,6 +30,8 @@ import {
   getAdminSecondsPolicy,
   getAdminSecondsOpenPositions,
   getAdminSpotMarkets,
+  getAdminAssets,
+  saveAdminAssets,
   getAdminSupportMessages,
   getAdminAddresses,
   manageAdminAddress,
@@ -43,6 +45,7 @@ import {
   saveAdminConfig,
   saveAdminSecondsPolicy,
   saveAdminSpotMarket,
+  type AdminAssetConfig,
   type AdminAuditRecord,
   type AdminConfig,
   type AdminKycRecord,
@@ -193,6 +196,7 @@ export function AdminPage() {
   const [adminReason, setAdminReason] = useState("");
   const [adminRequestId, setAdminRequestId] = useState("");
   const [adminRequestKey, setAdminRequestKey] = useState("");
+  const [assetCatalog, setAssetCatalog] = useState<AdminAssetConfig[]>([]);
   const [spotMarkets, setSpotMarkets] = useState<AdminSpotMarket[]>([]);
   const [spotMarketDraft, setSpotMarketDraft] = useState({
     base_asset: "BTC", quote_asset: "USDT", enabled: true,
@@ -308,6 +312,12 @@ export function AdminPage() {
         const snapshot = await getAdminConfig(token);
         if (requestId !== tabLoadRequestRef.current) return;
         setConfig(snapshot);
+      }
+      if (tab === "assets") {
+        setAssetCatalog([]);
+        const result = await getAdminAssets(token);
+        if (requestId !== tabLoadRequestRef.current) return;
+        setAssetCatalog(result.assets || []);
       }
       if (tab === "markets") {
         setSpotMarkets([]);
@@ -1008,6 +1018,26 @@ export function AdminPage() {
     finally { supportReplyLocksRef.current[uid] = false; setBusy(false); }
   };
 
+  const saveAssetCatalog = async () => {
+    if (!token || !hasPermission("system_config.write")) return;
+    if (assetCatalog.length !== 26 || new Set(assetCatalog.map(asset => asset.code)).size !== 26) {
+      setError("The asset catalogue must retain all 26 supported assets.");
+      return;
+    }
+    if (assetCatalog.some(asset => !asset.name.trim() || !asset.display_name.trim() || !Number.isInteger(asset.display_precision) || asset.display_precision < 0 || asset.display_precision > 18 || !Number.isInteger(asset.sort_order) || asset.sort_order < 0 || asset.sort_order > 9999)) {
+      setError("Check asset names, display precision (0–18), and sort order (0–9999).");
+      return;
+    }
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const result = await saveAdminAssets(token, assetCatalog);
+      setAssetCatalog(result.assets || []);
+      setNotice("The 26-asset catalogue has been saved.");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Asset catalogue could not be saved.");
+    } finally { setBusy(false); }
+  };
+
   const saveSpotMarket = async () => {
     if (!token || !session?.user_id || !hasPermission("system_config.write")) return;
     const draft = {
@@ -1282,6 +1312,10 @@ export function AdminPage() {
         </CardContent>
       </Card>
     </div> : null}
+    {!loading && tab === "assets" ? <Card><CardHeader><CardTitle>{adminText("Asset configuration · 26 assets")}</CardTitle><CardDescription>{adminText("Manage asset identity, display name, display precision, visibility and status independently from spot trading pairs and deposit or withdrawal settings. Disabling an asset here does not create or configure a market or wallet network.")}</CardDescription></CardHeader><CardContent className="space-y-3">
+      <div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 text-xs uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2">{adminText("Asset")}</th><th className="px-3 py-2">{adminText("Name")}</th><th className="px-3 py-2">{adminText("Display name")}</th><th className="px-3 py-2 text-right">{adminText("Display decimals")}</th><th className="px-3 py-2 text-right">{adminText("Sort")}</th><th className="px-3 py-2 text-center">{adminText("Enabled")}</th><th className="px-3 py-2 text-center">{adminText("Visible")}</th></tr></thead><tbody>{assetCatalog.map((asset,index)=><tr key={asset.code} className="border-b border-brand-border-subtle"><td className="px-3 py-2.5 font-semibold tabular-nums">{asset.code}</td><td className="px-3 py-2"><input aria-label={asset.code+" name"} value={asset.name} disabled={busy||!hasPermission("system_config.write")} maxLength={64} onChange={event=>setAssetCatalog(current=>current.map((item,i)=>i===index?{...item,name:event.target.value}:item))} className="w-full min-w-28 rounded-md border border-brand-border bg-brand-surface-2 px-2 py-1.5 text-brand-text"/></td><td className="px-3 py-2"><input aria-label={asset.code+" display name"} value={asset.display_name} disabled={busy||!hasPermission("system_config.write")} maxLength={64} onChange={event=>setAssetCatalog(current=>current.map((item,i)=>i===index?{...item,display_name:event.target.value}:item))} className="w-full min-w-28 rounded-md border border-brand-border bg-brand-surface-2 px-2 py-1.5 text-brand-text"/></td><td className="px-3 py-2 text-right"><input aria-label={asset.code+" display precision"} type="number" min="0" max="18" step="1" value={asset.display_precision} disabled={busy||!hasPermission("system_config.write")} onChange={event=>setAssetCatalog(current=>current.map((item,i)=>i===index?{...item,display_precision:Number(event.target.value)}:item))} className="w-20 rounded-md border border-brand-border bg-brand-surface-2 px-2 py-1.5 text-right tabular-nums text-brand-text"/></td><td className="px-3 py-2 text-right"><input aria-label={asset.code+" sort order"} type="number" min="0" max="9999" step="1" value={asset.sort_order} disabled={busy||!hasPermission("system_config.write")} onChange={event=>setAssetCatalog(current=>current.map((item,i)=>i===index?{...item,sort_order:Number(event.target.value)}:item))} className="w-20 rounded-md border border-brand-border bg-brand-surface-2 px-2 py-1.5 text-right tabular-nums text-brand-text"/></td><td className="px-3 py-2 text-center"><input aria-label={asset.code+" enabled"} type="checkbox" checked={asset.enabled} disabled={busy||!hasPermission("system_config.write")} onChange={event=>setAssetCatalog(current=>current.map((item,i)=>i===index?{...item,enabled:event.target.checked}:item))}/></td><td className="px-3 py-2 text-center"><input aria-label={asset.code+" visible"} type="checkbox" checked={asset.visible} disabled={busy||!hasPermission("system_config.write")} onChange={event=>setAssetCatalog(current=>current.map((item,i)=>i===index?{...item,visible:event.target.checked}:item))}/></td></tr>)}</tbody></table></div>
+      <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-brand-text-muted">{adminText("Asset codes are fixed in this catalogue; all 26 entries remain present. Visibility and enabled status are separate switches.")}</p>{hasPermission("system_config.write")?<Button disabled={busy||assetCatalog.length!==26} onClick={()=>void saveAssetCatalog()}>{busy?adminText("Saving…"):adminText("Save asset configuration")}</Button>:<Badge variant="outline">{adminText("Read only")}</Badge>}</div>
+    </CardContent></Card> : null}
     {!loading && tab === "markets" ? <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(340px,0.9fr)]">
       <Card><CardHeader><CardTitle>{adminText("Spot market catalogue")}</CardTitle><CardDescription>{adminText("Only enabled pairs accept limit orders. Market orders remain disabled; maker/taker fees stay at zero until fee movements are implemented atomically.")}</CardDescription></CardHeader><CardContent className="space-y-3">
         {spotMarkets.length ? <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">{adminText("Pair")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5 text-right">{adminText("Tick / step")}</th><th className="px-3 py-2.5 text-right">{adminText("Min quantity / notional")}</th><th className="px-3 py-2.5 text-right">{adminText("Action")}</th></tr></thead><tbody>{spotMarkets.map(market=><tr key={market.base_asset + "/" + market.quote_asset} className="border-b border-brand-border-subtle transition-colors hover:bg-brand-surface-hover/40"><td className="px-3 py-2.5 font-semibold">{market.base_asset}/{market.quote_asset}</td><td className="px-3 py-2.5"><Badge variant={market.enabled ? "success" : "outline"}>{market.enabled ? adminText("Enabled") : adminText("Disabled")}</Badge></td><td className="px-3 py-2.5 text-right text-xs tabular-nums">{asText(market.price_tick)} / {asText(market.quantity_step)}</td><td className="px-3 py-2.5 text-right text-xs tabular-nums">{asText(market.min_quantity)} / {asText(market.min_notional)}</td><td className="px-3 py-2.5 text-right"><Button size="sm" variant="outline" disabled={busy || !!spotMarketRequestId || !hasPermission("system_config.write")} onClick={()=>setSpotMarketDraft({base_asset:market.base_asset,quote_asset:market.quote_asset,enabled:market.enabled,price_tick:String(market.price_tick),quantity_step:String(market.quantity_step),min_quantity:String(market.min_quantity),min_notional:String(market.min_notional),min_limit_price:market.min_limit_price==null?"":String(market.min_limit_price),max_limit_price:market.max_limit_price==null?"":String(market.max_limit_price),reason:""})}>{adminText("Edit")}</Button></td></tr>)}</tbody></table></div> : <p className="text-sm text-brand-text-muted">{adminText("No spot pairs have been configured yet.")}</p>}
