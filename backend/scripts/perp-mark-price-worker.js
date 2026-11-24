@@ -72,6 +72,15 @@ async function binancePrice(symbol) {
   if (!Number.isFinite(p) || p <= 0 || !Number.isFinite(ts) || ts <= 0) throw new Error('binance bad price/timestamp');
   return { source: 'binance', price: p, ts };
 }
+async function okxPrice(symbol) {
+  const instId = symbol.replace(/USDT$/, '-USDT');
+  const j = await fetchJson('https://www.okx.com/api/v5/market/ticker?instId=' + encodeURIComponent(instId), FETCH_TIMEOUT_MS);
+  const item = j && j.code === '0' && Array.isArray(j.data) ? j.data[0] : null;
+  const p = Number(item && item.last);
+  const ts = Number(item && item.ts);
+  if (!Number.isFinite(p) || p <= 0 || !Number.isFinite(ts) || ts <= 0) throw new Error('okx bad price/timestamp');
+  return { source: 'okx', price: p, ts };
+}
 async function coingeckoPrice(symbol) {
   const coinId = COINGECKO_IDS[symbol];
   if (!coinId) throw new Error('coingecko mapping missing for ' + symbol + ' (configure PERP_COINGECKO_IDS)');
@@ -82,7 +91,7 @@ async function coingeckoPrice(symbol) {
   if (!Number.isFinite(p) || p <= 0 || !Number.isFinite(ts) || ts <= 0) throw new Error('coingecko bad price/timestamp');
   return { source: 'coingecko', price: p, ts };
 }
-async function recordMark(symbol, indexPrice, markPrice, sources, maxAgeSec) {
+async function recordMark(symbol, indexPrice, markPrice, freshSources, maxAgeSec) {
   const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/perp_record_mark_price', {
     method: 'POST', headers: headers(),
     body: JSON.stringify({ p_symbol: symbol, p_index_price: String(indexPrice), p_mark_price: String(markPrice), p_sources: sources, p_max_age_sec: maxAgeSec })
@@ -111,23 +120,25 @@ async function recordMark(symbol, indexPrice, markPrice, sources, maxAgeSec) {
       continue;
     }
     const sources = [];
-    for (const fn of [binancePrice, coingeckoPrice]) {
+    for (const fn of [binancePrice, okxPrice, coingeckoPrice]) {
       try { sources.push(await fn(symbol)); }
       catch (e) { console.warn('[perp-mark] source failed for', symbol, '-', e.message); }
     }
-    if (sources.length < 2) {
-      console.warn('[perp-mark]', symbol, 'only', sources.length, 'source(s) available; skipping record (requires >=2).');
+    const nowMs = Date.now();
+    const freshSources = sources.filter(source => Math.abs(nowMs - source.ts) <= maxAgeSec * 1000);
+    if (freshSources.length < 2) {
+      console.warn('[perp-mark]', symbol, 'only', freshSources.length, 'fresh source(s) available; skipping record (requires >=2).');
       hadFailure = true;
       continue;
     }
-    const prices = sources.map(s => s.price);
+    const prices = freshSources.map(s => s.price);
     const mean = prices.reduce((a, b) => a + b, 0) / prices.length;
     const maxDevPct = Math.max(...prices.map(p => Math.abs((p - mean) / mean) * 100));
     const indexPrice = mean; // v1 index = mean of sources; mark = index (no premium index yet)
     const markPrice = mean;
     try {
       const res = await recordMark(symbol, indexPrice, markPrice, sources, maxAgeSec);
-      console.log('[perp-mark]', symbol, 'index=' + indexPrice, 'mark=' + markPrice, 'sources=' + sources.length,
+      console.log('[perp-mark]', symbol, 'index=' + indexPrice, 'mark=' + markPrice, 'sources=' + freshSources.length,
         'deviation_pct=' + maxDevPct.toFixed(3), 'db_status=' + res.status, 'ts=' + new Date().toISOString());
       if (maxDevPct > breakerPct) console.warn('[perp-mark] CIRCUIT BREAKER: sources disagree >' + breakerPct + '% for ' + symbol + '; DB order-entry status is degraded.');
     } catch (e) {
