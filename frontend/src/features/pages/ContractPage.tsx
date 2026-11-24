@@ -1342,7 +1342,6 @@ export function ContractPage() {
               </div>
               {!signedOut ? <div className="col-span-full min-w-0">{positionRiskCard}</div> : null}
             </div>
-            </div>
           </>
         ) : null}
       </div>
