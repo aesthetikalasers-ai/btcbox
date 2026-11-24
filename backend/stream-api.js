@@ -106,6 +106,13 @@ module.exports = async function streamHandler(req, res) {
     try { res.end(); } catch { /* already closed */ }
   };
 
+  // Attach lifecycle listeners before the first upstream read. A client can
+  // disconnect while that read is pending; registering after await emit()
+  // would miss the close event and leave the stream alive until its deadline.
+  req.on('error', cleanup);
+  res.on('close', cleanup);
+  res.on('error', cleanup);
+
   const emit = async () => {
     if (closed || inFlight) return;
     inFlight = true;
@@ -150,9 +157,5 @@ module.exports = async function streamHandler(req, res) {
     cleanup();
   }, MAX_STREAM_MS);
 
-  req.on('close', cleanup);
-  req.on('error', cleanup);
-  res.on('close', cleanup);
-  res.on('error', cleanup);
 };
 module.exports.resolveChannel = resolveChannel;

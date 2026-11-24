@@ -18,6 +18,28 @@ test("stale quotes are hidden from both the summary and list when snapshots have
   await expect(page.getByRole("link", { name: "ETH spot trading" })).toHaveCount(0);
 });
 
+test("fresh market snapshots remain usable when provider timestamps are null or omitted", async ({ page }) => {
+  const now = Math.floor(Date.now() / 1000);
+  await page.route("**/api/market", route => route.fulfill({ status: 200, json: {
+    ok: true,
+    markets: [
+      { sym: "BTC", price: 65000, chg: 1, high: 66000, low: 64000, vol: "1200", source: "coinbase" },
+      { sym: "ETH", price: 3200, chg: 0.5, high: 3300, low: 3100, vol: "500", source: "coinbase" },
+    ],
+    data: {
+      BTC: { ts: now, providerTs: null, source: "coinbase" },
+      ETH: { ts: now, source: "coinbase" },
+    },
+  } }));
+  await page.route("**/api/kline?**", route => route.fulfill({ status: 200, json: { ok: true, klines: [] } }));
+
+  await page.goto("/markets");
+
+  await expect(page.getByRole("link", { name: "BTC spot trading" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "ETH spot trading" })).toBeVisible();
+  await expect(page.getByText("Market feed unavailable", { exact: true })).toHaveCount(0);
+});
+
 test("a timed-out market refresh hides previous quotes and a later refresh recovers", async ({ page }) => {
   test.setTimeout(40_000);
   let stallNext = false;
