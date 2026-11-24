@@ -1298,7 +1298,7 @@ export function AdminPage() {
           <h1 className="mt-1 text-lg font-semibold tracking-tight text-brand-text">{adminText("Administrator Console")}</h1>
           <p className="mt-1 truncate text-xs text-brand-text-muted" title={session.user_id}>{session.is_super_admin ? adminText("Super Administrator") : adminText("Role-based administrator")} · {session.user_id}</p>
         </div>
-        <nav aria-label={adminText("Management navigation")} className="mt-4 grid grid-cols-2 gap-x-3 gap-y-4 pb-2 sm:gap-x-5 lg:mt-5 lg:grid-cols-1 lg:gap-y-5 lg:pb-0">
+        <nav aria-label={adminText("Management navigation")} className="mt-4 grid grid-cols-1 gap-y-4 pb-2 min-[520px]:grid-cols-2 min-[520px]:gap-x-5 lg:mt-5 lg:grid-cols-1 lg:gap-y-5 lg:pb-0">
           {ADMIN_TAB_GROUPS.map(group => {
             const visibleItems = allowedTabs.filter(item => group.tabs.includes(item.id));
             if (!visibleItems.length) return null;
