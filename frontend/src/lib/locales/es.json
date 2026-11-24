@@ -1814,5 +1814,9 @@
   "Bank branch address (optional)": "Dirección de la sucursal bancaria (opcional)",
   "Withdrawal result is unconfirmed. Keep the same request ID and check withdrawal history before retrying.": "El resultado del retiro no está confirmado. Conserva el mismo ID de solicitud y consulta el historial de retiros antes de volver a intentarlo.",
   "Please wait before requesting another email. Check your inbox for an earlier link.": "Espera antes de solicitar otro correo. Si ya solicitaste un enlace, revisa tu bandeja de entrada y la carpeta de spam.",
-  "Trade USDT-margined perpetual contracts. Availability and limits are determined by the server.": "Opera contratos perpetuos con margen en USDT. El servidor determina la disponibilidad y los límites."
+  "Trade USDT-margined perpetual contracts. Availability and limits are determined by the server.": "Opera contratos perpetuos con margen en USDT. El servidor determina la disponibilidad y los límites.",
+  "Unable to load open orders. Refresh to try again.": "No se pudieron cargar las órdenes abiertas. Actualiza e inténtalo de nuevo.",
+  "Unable to load order history. Refresh to try again.": "No se pudo cargar el historial de órdenes. Actualiza e inténtalo de nuevo.",
+  "Unable to load trade history. Refresh to try again.": "No se pudo cargar el historial de operaciones. Actualiza e inténtalo de nuevo.",
+  "Unable to load funding history. Refresh to try again.": "No se pudo cargar el historial de financiación. Actualiza e inténtalo de nuevo."
 }
