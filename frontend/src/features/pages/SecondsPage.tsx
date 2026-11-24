@@ -151,6 +151,7 @@ export function SecondsPage() {
       setSnapshot(null);
       setPositionsLoadError(false);
       setPolicy(null);
+      setPolicyUnavailableMessage("");
       setAvailableUSDT(null);
       setPendingIntent(null);
       setError("");
@@ -164,6 +165,7 @@ export function SecondsPage() {
     setSnapshot(null);
     setPositionsLoadError(false);
     setPolicy(null);
+      setPolicyUnavailableMessage("");
     setAvailableUSDT(null);
     setPendingIntent(null);
 
