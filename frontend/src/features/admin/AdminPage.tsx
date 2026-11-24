@@ -30,6 +30,7 @@ import {
   getAdminSecondsPolicy,
   getAdminSecondsOpenPositions,
   getAdminSpotMarkets,
+  getAdminPerpMarkets,
   getAdminAssets,
   saveAdminAssets,
   getAdminSupportMessages,
@@ -45,12 +46,14 @@ import {
   saveAdminConfig,
   saveAdminSecondsPolicy,
   saveAdminSpotMarket,
+  saveAdminPerpMarket,
   type AdminAssetConfig,
   type AdminAuditRecord,
   type AdminConfig,
   type AdminKycRecord,
   type AdminSession,
   type AdminSpotMarket,
+  type AdminPerpMarket,
   type AdminSupportFaqEntry,
   type AdminSecondsOpenPosition,
   type AdminSecondsOpenPositionsSnapshot,
@@ -204,6 +207,13 @@ export function AdminPage() {
     min_notional: "1", min_limit_price: "", max_limit_price: "", reason: "",
   });
   const [spotMarketRequestId, setSpotMarketRequestId] = useState("");
+  const [perpMarkets, setPerpMarkets] = useState<AdminPerpMarket[]>([]);
+  const [perpMarketDraft, setPerpMarketDraft] = useState({
+    base_asset: "BTC", price_tick: "0.01", quantity_step: "0.000001", min_quantity: "0.000001",
+    max_quantity: "", max_position_notional: "", max_leverage: "1", maintenance_margin_rate: "0.05",
+    maker_fee_rate: "0", taker_fee_rate: "0", funding_rate_cap: "0.0075",
+    mark_price_stale_sec: "60", circuit_breaker_deviation_pct: "5", reason: "",
+  });
   const [secondsPolicy, setSecondsPolicy] = useState<{policy_id:string;policy_version:number;symbols:string[];durations_sec:number[];min_stake:number|string;max_stake:number|string;payout_bps:number;per_user_open_exposure:number|string|null;max_open_positions_per_user:number|null}|null>(null);
   const [secondsOpenPositions, setSecondsOpenPositions] = useState<AdminSecondsOpenPosition[]>([]);
   const [secondsOpenSummary, setSecondsOpenSummary] = useState<AdminSecondsOpenPositionsSnapshot | null>(null);
@@ -321,9 +331,21 @@ export function AdminPage() {
       }
       if (tab === "markets") {
         setSpotMarkets([]);
-        const result = await getAdminSpotMarkets(token);
+        setPerpMarkets([]);
+        setAssetCatalog([]);
+        const [spotResult, perpResult, assetResult] = await Promise.allSettled([
+          getAdminSpotMarkets(token), getAdminPerpMarkets(token), getAdminAssets(token),
+        ]);
         if (requestId !== tabLoadRequestRef.current) return;
-        setSpotMarkets(result.markets || []);
+        if (spotResult.status !== "fulfilled") throw spotResult.reason;
+        setSpotMarkets(spotResult.value.markets || []);
+        if (perpResult.status === "fulfilled") setPerpMarkets(perpResult.value.markets || []);
+        else setError("Perpetual market configuration is temporarily unavailable. Spot markets remain available.");
+        if (assetResult.status === "fulfilled") setAssetCatalog(assetResult.value.assets || []);
+        else {
+          setAssetCatalog([]);
+          setError("The asset catalogue could not be loaded. Perpetual market configuration is read-only until it is available.");
+        }
         const pendingKey = "btcbox.admin.spot-market.v1." + session.user_id;
         try {
           const raw = window.localStorage.getItem(pendingKey);
@@ -1104,6 +1126,60 @@ export function AdminPage() {
     } finally { setBusy(false); }
   };
 
+  const savePerpMarket = async () => {
+    if (!token || !hasPermission("system_config.write")) return;
+    const draft = perpMarketDraft;
+    const decimal = /^(?:0|[1-9]\\d{0,19})(?:\\.\\d{1,18})?$/;
+    const positive = (value: string) => decimal.test(value.trim()) && Number(value) > 0;
+    const optionalPositive = (value: string) => !value.trim() || positive(value);
+    const maxLeverage = Number(draft.max_leverage);
+    const mmr = Number(draft.maintenance_margin_rate);
+    const makerFee = Number(draft.maker_fee_rate);
+    const takerFee = Number(draft.taker_fee_rate);
+    const fundingCap = Number(draft.funding_rate_cap);
+    const staleSec = Number(draft.mark_price_stale_sec);
+    const breaker = Number(draft.circuit_breaker_deviation_pct);
+    const reason = draft.reason.trim();
+    const supportedBaseAsset = assetCatalog.some(asset => asset.code === draft.base_asset && !["USDT", "USDC"].includes(asset.code));
+    if (!supportedBaseAsset ||
+        !positive(draft.price_tick) || !positive(draft.quantity_step) || !positive(draft.min_quantity) ||
+        !optionalPositive(draft.max_quantity) || !optionalPositive(draft.max_position_notional) ||
+        (draft.max_quantity.trim() && Number(draft.max_quantity) < Number(draft.min_quantity)) ||
+        !Number.isInteger(maxLeverage) || maxLeverage < 1 || maxLeverage > 100 ||
+        !Number.isFinite(mmr) || mmr < 0 || mmr > 0.5 ||
+        !Number.isFinite(makerFee) || makerFee < 0 || makerFee > 0.1 ||
+        !Number.isFinite(takerFee) || takerFee < 0 || takerFee > 0.1 ||
+        !Number.isFinite(fundingCap) || fundingCap <= 0 || fundingCap > 0.0075 ||
+        !Number.isInteger(staleSec) || staleSec < 15 || staleSec > 300 ||
+        !Number.isFinite(breaker) || breaker <= 0 || breaker > 20 ||
+        reason.length < 5 || reason.length > 500 || /[\\u0000-\\u001f\\u007f]/.test(reason)) {
+      setError("Check the asset and perpetual risk parameters. Markets are always saved disabled and paused; funding interval is fixed at 8 hours.");
+      return;
+    }
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await saveAdminPerpMarket(token, {
+        base_asset: draft.base_asset, quote_asset: "USDT", enabled: false, status: "paused",
+        price_tick: draft.price_tick.trim(), quantity_step: draft.quantity_step.trim(), min_quantity: draft.min_quantity.trim(),
+        max_quantity: draft.max_quantity.trim() || null, max_position_notional: draft.max_position_notional.trim() || null,
+        max_leverage: maxLeverage, maintenance_margin_rate: draft.maintenance_margin_rate.trim(),
+        maker_fee_rate: draft.maker_fee_rate.trim(), taker_fee_rate: draft.taker_fee_rate.trim(),
+        funding_interval_sec: 28800, funding_rate_cap: draft.funding_rate_cap.trim(),
+        mark_price_stale_sec: staleSec, circuit_breaker_deviation_pct: draft.circuit_breaker_deviation_pct.trim(), reason,
+      });
+      setNotice("Perpetual market configuration saved. The market remains paused and disabled.");
+      setPerpMarketDraft(current => ({ ...current, reason: "" }));
+      try {
+        const refreshed = await getAdminPerpMarkets(token);
+        setPerpMarkets(refreshed.markets || []);
+      } catch {
+        setError("Perpetual market settings were saved, but the list could not refresh. Reload the Markets tab before making another change.");
+      }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Perpetual market configuration could not be confirmed.");
+    } finally { setBusy(false); }
+  };
+
   const saveSecondsPolicy = async () => {
     if (!token || !secondsPolicy || !hasPermission("seconds_policy.manage")) return;
     const reason = secondsReason.trim();
@@ -1329,6 +1405,60 @@ export function AdminPage() {
         <div className="grid grid-cols-2 gap-3"><label className="space-y-1 text-sm"><span>{adminText("Minimum limit price (optional)")}</span><input value={spotMarketDraft.min_limit_price} disabled={busy||!!spotMarketRequestId||!hasPermission("system_config.write")} onChange={event=>setSpotMarketDraft(current=>({...current,min_limit_price:event.target.value}))} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label><label className="space-y-1 text-sm"><span>{adminText("Maximum limit price (optional)")}</span><input value={spotMarketDraft.max_limit_price} disabled={busy||!!spotMarketRequestId||!hasPermission("system_config.write")} onChange={event=>setSpotMarketDraft(current=>({...current,max_limit_price:event.target.value}))} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label></div>
         <label className="block space-y-1 text-sm"><span>{adminText("Reason (required)")}</span><textarea value={spotMarketDraft.reason} disabled={busy||!!spotMarketRequestId||!hasPermission("system_config.write")} onChange={event=>setSpotMarketDraft(current=>({...current,reason:event.target.value}))} rows={2} maxLength={500} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-brand-text"/></label>
         {hasPermission("system_config.write") ? <Button block disabled={busy||!spotMarketDraft.reason.trim()} onClick={()=>void saveSpotMarket()}>{spotMarketRequestId ? adminText("Retry same update") : adminText("Save market settings")}</Button> : <p className="text-sm text-brand-text-muted">{adminText("Your administrator role is read-only for spot markets.")}</p>}
+      <div className="col-span-full">
+        <Card>
+          <CardHeader>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <CardTitle>{adminText("Perpetual market configuration")}</CardTitle>
+                <CardDescription>{adminText("Configure the existing USDT-margined perpetual market fields. Saving never activates trading; all markets remain disabled and paused.")}</CardDescription>
+              </div>
+              <Badge variant="warning">{adminText("Trading disabled")}</Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {perpMarkets.length ? <div className="overflow-x-auto">
+              <table className="w-full min-w-[1080px] text-left text-sm">
+                <thead><tr className="border-b border-brand-border bg-brand-surface-2/50 text-xs uppercase tracking-wide text-brand-text-muted">
+                  <th className="px-3 py-2">{adminText("Pair")}</th><th className="px-3 py-2">{adminText("Status")}</th>
+                  <th className="px-3 py-2 text-right">{adminText("Leverage")}</th><th className="px-3 py-2 text-right">{adminText("Tick / step")}</th>
+                  <th className="px-3 py-2 text-right">{adminText("Minimum quantity")}</th><th className="px-3 py-2 text-right">{adminText("Mark stale / circuit breaker")}</th>
+                  <th className="px-3 py-2 text-right">{adminText("Action")}</th>
+                </tr></thead>
+                <tbody>{perpMarkets.map(market => <tr key={market.symbol} className="border-b border-brand-border-subtle">
+                  <td className="px-3 py-2.5 font-semibold">{market.base_asset}/{market.quote_asset}</td>
+                  <td className="px-3 py-2.5"><Badge variant="warning">{adminText("Paused · disabled")}</Badge></td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">{market.max_leverage}x</td>
+                  <td className="px-3 py-2.5 text-right text-xs tabular-nums">{asText(market.price_tick)} / {asText(market.quantity_step)}</td>
+                  <td className="px-3 py-2.5 text-right text-xs tabular-nums">{asText(market.min_quantity)}</td>
+                  <td className="px-3 py-2.5 text-right text-xs tabular-nums">{market.mark_price_stale_sec}s / {asText(market.circuit_breaker_deviation_pct)}%</td>
+                  <td className="px-3 py-2.5 text-right"><Button size="sm" variant="outline" disabled={busy || !hasPermission("system_config.write")} onClick={() => setPerpMarketDraft({
+                    base_asset: market.base_asset, price_tick: String(market.price_tick), quantity_step: String(market.quantity_step),
+                    min_quantity: String(market.min_quantity), max_quantity: market.max_quantity == null ? "" : String(market.max_quantity),
+                    max_position_notional: market.max_position_notional == null ? "" : String(market.max_position_notional),
+                    max_leverage: String(market.max_leverage), maintenance_margin_rate: String(market.maintenance_margin_rate),
+                    maker_fee_rate: String(market.maker_fee_rate), taker_fee_rate: String(market.taker_fee_rate),
+                    funding_rate_cap: String(market.funding_rate_cap), mark_price_stale_sec: String(market.mark_price_stale_sec),
+                    circuit_breaker_deviation_pct: String(market.circuit_breaker_deviation_pct), reason: "",
+                  })}>{adminText("Edit")}</Button></td>
+                </tr>)}</tbody>
+              </table>
+            </div> : <p className="rounded-lg border border-dashed border-brand-border p-5 text-center text-sm text-brand-text-muted">{adminText("No perpetual markets are configured. No contract can be traded.")}</p>}
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <label className="space-y-1 text-sm"><span>{adminText("Base asset")}</span><select value={perpMarketDraft.base_asset} disabled={busy || !hasPermission("system_config.write")} onChange={event => setPerpMarketDraft(current => ({ ...current, base_asset: event.target.value }))} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text">
+                <option value="">{adminText("Select asset")}</option>
+                {assetCatalog.filter(asset => !["USDT", "USDC"].includes(asset.code)).map(asset => <option key={asset.code} value={asset.code}>{asset.code}/USDT{asset.enabled && asset.visible && asset.perpetual_enabled ? "" : " · " + adminText("asset module off")}</option>)}
+              </select></label>
+              <label className="space-y-1 text-sm"><span>{adminText("Quote asset")}</span><input value="USDT" readOnly className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label>
+              {([[ "price_tick", "Price tick" ], [ "quantity_step", "Quantity step" ], [ "min_quantity", "Minimum quantity" ], [ "max_quantity", "Maximum quantity (optional)" ], [ "max_position_notional", "Maximum position notional (optional)" ], [ "max_leverage", "Maximum leverage (1–100)" ], [ "maintenance_margin_rate", "Maintenance margin rate (0–0.5)" ], [ "maker_fee_rate", "Maker fee rate (0–0.1)" ], [ "taker_fee_rate", "Taker fee rate (0–0.1)" ], [ "funding_rate_cap", "Funding rate cap (max 0.0075)" ], [ "mark_price_stale_sec", "Mark-price stale seconds (15–300)" ], [ "circuit_breaker_deviation_pct", "Circuit breaker deviation % (max 20)" ]] as const).map(([key, label]) => <label key={key} className="space-y-1 text-sm"><span>{adminText(label)}</span><input value={perpMarketDraft[key]} disabled={busy || !hasPermission("system_config.write")} onChange={event => setPerpMarketDraft(current => ({ ...current, [key]: event.target.value }))} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label>)}
+              <label className="space-y-1 text-sm"><span>{adminText("Funding interval")}</span><input value="8 hours (28,800 seconds)" readOnly className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label>
+            </div>
+            <label className="block space-y-1 text-sm"><span>{adminText("Reason for configuration change (required)")}</span><textarea value={perpMarketDraft.reason} disabled={busy || !hasPermission("system_config.write")} onChange={event => setPerpMarketDraft(current => ({ ...current, reason: event.target.value }))} rows={2} maxLength={500} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-brand-text"/></label>
+            <p className="text-xs text-brand-text-muted">{adminText("Asset availability is still controlled by the 26-asset catalogue. Market configuration does not enable the Perpetual module or start matching. Min-notional fields from PR #116 are not shown because their database migration is not part of this branch.")}</p>
+            {hasPermission("system_config.write") ? <Button block disabled={busy || assetCatalog.length !== 26 || !perpMarketDraft.reason.trim()} onClick={() => void savePerpMarket()}>{adminText("Save paused market configuration")}</Button> : <p className="text-sm text-brand-text-muted">{adminText("Your administrator role is read-only for perpetual markets.")}</p>}
+          </CardContent>
+        </Card>
+      </div>
       </CardContent></Card>
     </div> : null}
     {!loading && tab === "seconds" && secondsPolicy ? <Card><CardHeader><CardTitle>{adminText("Seconds contract policy")}</CardTitle><CardDescription>{adminText("Changes create and activate a new immutable policy version. Existing open positions keep their original policy snapshot. 85% is the minimum payout rate; no fixed upper limit is imposed.")}</CardDescription></CardHeader><CardContent className="space-y-4">
