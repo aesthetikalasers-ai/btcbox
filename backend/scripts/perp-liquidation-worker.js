@@ -59,5 +59,5 @@ async function restGetAll(query) {
   }
   console.log('[perp-liq] pass complete. liquidated=' + liquidated, 'safe=' + safe, 'paused_stale=' + paused, 'failed=' + failed);
   if (paused > 0) console.warn('[perp-liq] mark-price feed stale for ' + paused + ' position(s); check perp-mark-price-worker.');
-  process.exit(failed > 0 ? 2 : 0);
+  process.exit(failed > 0 || paused > 0 ? 2 : 0);
 })().catch(e => { console.error('[perp-liq] fatal:', e.message); process.exit(3); });
