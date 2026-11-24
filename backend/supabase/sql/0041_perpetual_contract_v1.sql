@@ -845,6 +845,8 @@ declare
   v_sources_seen text[] := ARRAY[]::text[];
   i integer;
   v_mean numeric;
+  v_market public.perpetual_markets%rowtype;
+  v_mark_deviation numeric(12,6);
 begin
   if coalesce(p_symbol,'') !~ '^[A-Z0-9]{3,20}$'
      or p_index_price is null or p_index_price <= 0
@@ -879,18 +881,28 @@ begin
   end loop;
 
   v_mean := v_mean / v_count;
-  if abs(p_index_price-v_mean)/v_mean > 0.0001
-     or abs(p_mark_price-v_mean)/v_mean > 0.0001 then
-    raise exception 'mark/index price must match validated source mean';
+  -- External spot providers define the index only. The mark is an independent
+  -- BTCBOX perpetual-book midpoint and is expected to differ by the premium.
+  if abs(p_index_price-v_mean)/v_mean > 0.0001 then
+    raise exception 'index price must match the validated external spot source mean';
   end if;
+  select * into v_market from public.perpetual_markets where symbol=p_symbol;
+  if not found then raise exception 'perpetual market configuration missing for mark feed'; end if;
+  v_mark_deviation := abs(p_mark_price-p_index_price)/p_index_price*100;
 
   v_max_dev := 0;
   for i in 0..v_count-1 loop
     v_src := p_sources->i;
     v_max_dev := greatest(v_max_dev, abs(((v_src->>'price')::numeric - v_mean)/v_mean)*100);
   end loop;
-  v_status := case when v_count >= 3 and v_max_dev < 2 then 'ok'
-                   when v_count >= 2 then 'degraded' else 'stale' end;
+  -- The reported deviation covers both provider disagreement and perp premium.
+  v_max_dev := greatest(v_max_dev, v_mark_deviation);
+  v_status := case
+    when v_count >= 3 and v_max_dev < 2
+         and v_mark_deviation <= v_market.circuit_breaker_deviation_pct then 'ok'
+    when v_count >= 2 then 'degraded'
+    else 'stale'
+  end;
 
   insert into public.perpetual_mark_price_feed(
     symbol,index_price,mark_price,sources,source_count,max_deviation_pct,status
