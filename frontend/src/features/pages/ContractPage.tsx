@@ -29,7 +29,6 @@ import {
   type PerpPosition,
 } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
-import { useMarketStream } from "../../lib/useMarketStream";
 import { localeTags, useI18n } from "../../lib/i18n";
 import { PositionRiskPanel, fromPerpPosition } from "../trade/PositionRiskPanel";
 import { useMarketStreamEvent } from "../../lib/useMarketStreamEvent";
@@ -131,7 +130,6 @@ function sideBadge(side: string, t: (value: string) => string) {
 export function ContractPage() {
   const { t, language } = useI18n();
   const { status } = useAuth();
-  const { tickers } = useMarketStream({ tickers: true });
   const locale = localeTags[language];
   const [markets, setMarkets] = useState<PerpMarket[]>([]);
   const [marketsLoading, setMarketsLoading] = useState(true);
@@ -1353,17 +1351,13 @@ export function ContractPage() {
         description={t("Choose a perpetual contract symbol")}
         emptyLabel={t("No matching market")}
         activeId={selectedMarket?.symbol}
-        items={markets.map((m) => {
-          const base = m.base_asset ?? m.symbol.replace(/USDT$/i, "");
-          const tk = tickers.find((t) => t.sym.toUpperCase() === base.toUpperCase()) ?? null;
-          return {
-            id: m.symbol,
-            label: m.symbol,
-            price: tk?.price !== undefined && tk?.price !== null ? money(Number(tk.price), locale) : null,
-            changePct: tk?.chg != null ? Number(tk.chg) : null,
-            quoteVolume: tk?.vol ?? null,
-          };
-        })}
+        items={markets.map((m) => ({
+          id: m.symbol,
+          label: m.symbol,
+          price: m.index_price != null && Number(m.index_price) > 0 ? money(Number(m.index_price), locale) : null,
+          changePct: null,
+          quoteVolume: null,
+        }))}
         onSelect={(sym) => setSymbol(sym)}
       />
 
