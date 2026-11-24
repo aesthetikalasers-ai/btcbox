@@ -1708,6 +1708,8 @@
   "Market trading rules are unavailable. Order entry is disabled.": "Las reglas del mercado no están disponibles. La entrada de órdenes está deshabilitada.",
   "Price must follow the market tick; quantity must follow the step and minimum order rules.": "El precio debe respetar el tick del mercado; la cantidad debe cumplir el paso y los mínimos de la orden.",
   "Spot reference": "Referencia spot",
+  "Bootstrap reference": "Precio de referencia inicial",
+  "Bootstrap": "Inicial",
   "Underlying spot order book": "Libro de órdenes spot del activo subyacente",
   "Spot reference only — not the perpetual execution book.": "Solo referencia spot — no es el libro de ejecución de perpetuos.",
   "Spot reference depth": "Profundidad de referencia spot",
