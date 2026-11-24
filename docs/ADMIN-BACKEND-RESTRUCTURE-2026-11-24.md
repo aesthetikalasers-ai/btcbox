@@ -166,3 +166,37 @@ Do not proceed with a code move that lacks a reliable parity test for its affect
 - The existing backend CI did not include this isolated admin branch in its push trigger, so branch commits would not automatically run the backend build/test/preflight workflow.
 - The workflow's push trigger has now been extended on this branch only to include `work/admin-backend-restructure-20261124`. No other branch trigger, PR #113 trigger, or production deployment configuration was changed.
 - Verify the workflow run for the latest branch commit before claiming any tests passed.
+
+
+## Follow-up module contract review (2026-11-24)
+
+### SOURCE OBSERVED — user centre / finance boundary
+
+- The current Users tab searches by UID or email. A separate message-ID search or cross-conversation message lookup is not present in the inspected AdminPage flow.
+- The current user detail finance action is explicitly **Manual credit**. It requires a PostgreSQL ledger balance source, a verified receipt/transaction reference, an idempotency request ID, and both `deposits.review` and `deposits.read`.
+- A separate backend `POST /admin/user/balance` route exists for signed balance adjustment / freeze / unfreeze through `admin_adjustment_atomic`, protected by `financial_adjustment.request`. The inspected AdminPage does not expose a distinct manual-debit workflow or API client wrapper for that route.
+- Do not implement manual debit by sending a negative amount through the deposit-credit endpoint. A separate debit workflow needs its own operator reason, explicit target/amount confirmation, idempotency, ledger result, and audit trail. This is a funds-impacting feature and remains out of scope pending separate owner approval.
+- The user details view currently displays the latest 20 deposit records, not an exhaustive deposit ledger. It correctly labels source and completeness and points staff to the audit log for wider history.
+
+### SOURCE OBSERVED — customer support
+
+- The current support inbox groups messages by UID and returns the most recent 100 messages per customer conversation.
+- The inspected inbox has thread-level read marking and replies, but no search field for message ID, UID, or email inside the support module, and no dedicated global message-ID lookup across conversations.
+- A future support workbench should add indexed/search-backed lookup rather than loading every retained message into the browser. Preserve the existing per-thread read cursor and reply idempotency.
+
+### SOURCE OBSERVED — Seconds contracts
+
+- The current admin API exposes the active policy and a read-only open-position queue. It does not expose a dedicated historical settlement/results endpoint in the inspected route map.
+- The UI correctly describes the open-position queue as read-only and explicitly prevents staff from forcing a result or manually releasing frozen funds. Keep this boundary.
+- A settlement-history view should be added only after the canonical settlement data source and its read permission are identified; do not infer settled outcomes from the open-position queue.
+
+### SOURCE OBSERVED — asset catalogue vs market configuration
+
+- The current Spot markets tab manages spot-pair trading rules. Deposit-address keys and the set of balance assets are separately hardcoded in the AdminPage.
+- No independent admin API for coin metadata/catalogue and chain/network enablement was found in the inspected route map. Do not treat spot-pair configuration or deposit-address configuration as a complete coin/network management system.
+
+### CI regression correction
+
+- The first CI run for this branch completed the unified site build successfully, then failed one newly added source assertion because the test expected a single-route FAQ permission line while the actual resolver intentionally groups FAQ POST and FAQ delete under one shared `support.manage` condition.
+- The source resolver itself was already correct; this was a test expectation mismatch, not a production-code defect. The assertion was corrected to match the grouped condition.
+- A new CI run was triggered by commit `78ef2fc5316bd13616efb9b62fee1c175be4850a`. Its status must be checked before recording a passing result.
