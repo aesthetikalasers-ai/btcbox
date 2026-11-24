@@ -22,6 +22,10 @@ the exact target project:
    `public.financial_ledger` already exist.
 2. `public.btcbox_assets` already exists with `asset_code` as its primary key;
    perpetual markets and category assignments reference this canonical registry.
+   Verify the nine currently registered assets (ADA, AVAX, BNB, BTC, DOGE, ETH,
+   SOL, USDT, XRP) are all present before applying 0041. If any are missing, stop
+   and reconcile them separately; production retains a legacy asset-insert trigger
+   that can create zero-balance wallet rows for newly inserted assets.
 3. `financial_ledger.operation_id` references `financial_operations.id`, and
    its unique key is `(operation_id, user_id, asset)`.
 3. Existing `financial_operations_operation_type_check` values are captured
