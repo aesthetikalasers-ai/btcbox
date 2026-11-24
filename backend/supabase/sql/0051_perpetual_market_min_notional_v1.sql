@@ -115,7 +115,7 @@ begin
   end if;
 
   -- 2. Market & risk validation.
-  select * into v_market from public.perpetual_markets where symbol=p_symbol and enabled=true;
+  select * into v_market from public.perpetual_markets where symbol=p_symbol and (enabled=true or coalesce(p_reduce_only,false));
   if not found then raise exception 'perpetual market disabled or unconfigured'; end if;
   if v_market.status not in ('trading','open_only') and not coalesce(p_reduce_only,false) then
     raise exception 'perpetual market not accepting opening orders';
