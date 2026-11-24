@@ -364,10 +364,15 @@ export function AdminPage() {
       if (tab === "markets") {
         setSpotMarkets([]);
         setPerpMarkets([]);
-        const [result, perpResult] = await Promise.all([getAdminSpotMarkets(token), getAdminPerpMarkets(token)]);
+        const [result, perpResult] = await Promise.allSettled([getAdminSpotMarkets(token), getAdminPerpMarkets(token)]);
         if (requestId !== tabLoadRequestRef.current) return;
-        setSpotMarkets(result.markets || []);
-        setPerpMarkets(perpResult.markets || []);
+        if (result.status !== "fulfilled") throw result.reason;
+        setSpotMarkets(result.value.markets || []);
+        if (perpResult.status === "fulfilled") setPerpMarkets(perpResult.value.markets || []);
+        else {
+          setPerpMarkets([]);
+          setError("Perpetual market configuration is temporarily unavailable. The spot market list remains available.");
+        }
         const pendingKey = "btcbox.admin.spot-market.v1." + session.user_id;
         try {
           const raw = window.localStorage.getItem(pendingKey);
