@@ -178,8 +178,8 @@ export function AssetsPage() {
         <h2 className="type-section-title page-accent">{t("Asset balances")}</h2>
       </div>
       {loading ? <div className="space-y-2" role="status" aria-live="polite"><div className="h-14 animate-pulse rounded-xl bg-brand-surface-2"/><div className="h-14 animate-pulse rounded-xl bg-brand-surface-2"/><div className="h-14 animate-pulse rounded-xl bg-brand-surface-2"/></div>
-      : balances.length ? <Card className="overflow-hidden border border-white/[0.06] bg-white/[0.02] shadow-lg backdrop-blur-sm">
-        <div className="divide-y divide-white/[0.04]">
+      : balances.length ? <div className="overflow-hidden">
+        <div className="divide-y divide-white/[0.06]">
           {balances.map(([coin, balance]) => {
             const coinName = COIN_NAMES[coin] ?? coin;
             return (
@@ -208,7 +208,7 @@ export function AssetsPage() {
             );
           })}
         </div>
-      </Card>
+      </div>
       : (authenticated && (signedOut || error)) ? <Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-col items-center px-5 py-12 text-center"><Wallet className="mb-3 h-9 w-9 page-accent"/><p className="type-card-title text-brand-text">{t(signedOut ? "Sign in required" : "Assets could not be loaded")}</p><p className="type-body-compact mt-2 max-w-md text-brand-text-muted">{t(signedOut ? "Your private balances are available after you sign in." : "Refresh after the account service is available. No balance values have been fabricated.")}</p></CardContent></Card>
       : <Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-col items-center px-5 py-12 text-center"><Wallet className="mb-3 h-9 w-9 page-accent"/><p className="type-body-compact text-brand-text-muted">{t("No asset balances are currently available.")}</p></CardContent></Card>}
         </>
