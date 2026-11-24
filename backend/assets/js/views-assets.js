@@ -346,6 +346,7 @@ VIEWS.withdraw.afterRender = function(){
   }
   let withdrawalPendingIntent=readPendingWithdrawal();
   let withdrawalSubmitting=false, withdrawalOutcomeUnknown=!!(withdrawalPendingIntent||(withdrawalUserKey&&state._withdrawUnknownUserKey===withdrawalUserKey));
+  let withdrawalRetryAllowed=false;
   let withdrawalFeeConfigReady=false;
   function currentFee(){return WITHDRAW_FEES[$('#wd-coin').value]||0;}
   function goStep(n){
@@ -473,15 +474,56 @@ VIEWS.withdraw.afterRender = function(){
       $('#wd-next').disabled=true;
       $('#wd-max').disabled=true;
     });
+  async function reconcilePendingWithdrawal(){
+    const intent=withdrawalPendingIntent;
+    if(!intent||intent.invalid)return;
+    const btn=$('#wd-submit');
+    if(btn){btn.disabled=true;btn.textContent='Checking History…';}
+    try{
+      const result=await apiAdapter.withdrawalStatus(intent.request_id);
+      if(!result||result.ok!==true) throw new Error('Withdrawal history could not be confirmed');
+      if(result.found===true&&result.withdrawal){
+        clearPendingWithdrawal();
+        withdrawalOutcomeUnknown=false;
+        withdrawalRetryAllowed=false;
+        if(btn){btn.disabled=false;btn.textContent='Submit Withdrawal';}
+        showResult({ok:true,duplicate:true,status:result.withdrawal.status,
+          withdrawal_id:result.withdrawal.withdrawal_id,request_id:intent.request_id,
+          msg:'This withdrawal request already exists in your account history.'},
+          intent.coin,Number(intent.amount));
+        return;
+      }
+      if(result.found!==false) throw new Error('Withdrawal history response was invalid');
+      // No committed row is visible. Retrying the immutable payload with the same
+      // request ID is safe: the database serializes first-use retries and replays
+      // the original row if the first RPC is still completing.
+      withdrawalOutcomeUnknown=false;
+      withdrawalRetryAllowed=true;
+      $('#wd-coin').value=intent.coin;
+      refresh();
+      $('#wd-network').value=intent.network;
+      $('#wd-addr').value=intent.address;
+      $('#wd-amount').value=intent.amount;
+      calcReceive();
+      goStep(3);
+      if(btn){btn.disabled=!withdrawalFeeConfigReady;btn.textContent='Retry Same Request';}
+      toast('No matching withdrawal record was found. Re-enter your fund password and retry the exact same details with the original request ID.','warn');
+    }catch(_){
+      withdrawalOutcomeUnknown=true;
+      if(withdrawalUserKey)state._withdrawUnknownUserKey=withdrawalUserKey;
+      if(btn){btn.disabled=true;btn.textContent='Status Unconfirmed';}
+      showResult({ok:false,code:'NETWORK_ERROR',status:0,request_id:intent.request_id,
+        msg:'Withdrawal history could not be checked. Keep the original request ID; do not submit a new withdrawal until the history lookup succeeds.'},
+        intent.coin,Number(intent.amount));
+    }
+  }
   if(withdrawalOutcomeUnknown){
     const blockedBtn=$('#wd-submit');
     if(blockedBtn){blockedBtn.disabled=true;blockedBtn.textContent='Status Unconfirmed';}
-    if(withdrawalPendingIntent){
-      showResult({ok:false,code:'NETWORK_ERROR',status:0,request_id:withdrawalPendingIntent.request_id,
-        msg:'A previous withdrawal attempt has no confirmed result. Its original request ID is being retained; contact support to reconcile it before creating another withdrawal.'},
-        withdrawalPendingIntent.coin,Number(withdrawalPendingIntent.amount));
+    if(withdrawalPendingIntent&&!withdrawalPendingIntent.invalid){
+      void reconcilePendingWithdrawal();
     }else{
-      toast('A previous withdrawal result is unconfirmed. Do not create another withdrawal until support reconciles it.','warn');
+      toast('A previous withdrawal result is unconfirmed, but its original request ID is unavailable. Do not create another withdrawal until support reconciles it.','warn');
     }
   }
   /* step 1 -> step 2 (light validation with inline errors) */
