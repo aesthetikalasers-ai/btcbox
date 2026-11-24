@@ -43,7 +43,7 @@ async function rpc(name, payload) {
     process.exit(1);
   }
   const markets = await restGetAll(
-    'perpetual_markets?select=symbol,next_funding_at,enabled,status&enabled=eq.true&order=symbol.asc'
+    'perpetual_markets?select=symbol,next_funding_at,status&next_funding_at=not.is.null&order=symbol.asc'
   );
   let settled = 0, duplicates = 0, skipped = 0, failed = 0;
   for (const market of markets) {
