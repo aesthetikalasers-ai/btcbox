@@ -1394,7 +1394,7 @@ export function AdminPage() {
     if (!spotAssets.includes(draft.base_asset) || ["USDT", "USDC"].includes(draft.base_asset) ||
         !positive(draft.price_tick) || !positive(draft.quantity_step) || !positive(draft.min_quantity) ||
         !positive(draft.min_notional) || !positive(draft.market_quantity_step) || !positive(draft.market_min_quantity) ||
-        !optionalPositive(draft.market_max_quantity) || !optionalPositive(draft.max_quantity) || !optionalPositive(draft.max_position_notional) ||
+        !optionalPositive(draft.market_max_quantity) || !optionalPositive(draft.max_quantity) || !positive(draft.max_position_notional) ||
         (draft.market_max_quantity.trim() && Number(draft.market_max_quantity) < Number(draft.market_min_quantity)) ||
         !Number.isInteger(maxLeverage) || maxLeverage < 1 || maxLeverage > 100 ||
         !Number.isFinite(mmr) || mmr <= 0 || mmr > 0.5 ||
@@ -1748,7 +1748,7 @@ export function AdminPage() {
               <label className="space-y-1 text-sm"><span>{adminText("Quote asset")}</span><input value="USDT" readOnly className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label>
               {([
                 ["price_tick","Price tick"],["quantity_step","Limit quantity step"],["min_quantity","Limit minimum quantity"],["market_quantity_step","Market quantity step"],["market_min_quantity","Market minimum quantity"],["market_max_quantity","Market maximum quantity (optional)"],["min_notional","Minimum notional (USDT)"],
-                ["max_quantity","Maximum quantity (optional)"],["max_position_notional","Maximum position notional (optional)"],["max_leverage","Maximum leverage"],
+                ["max_quantity","Maximum quantity (optional)"],["max_position_notional","Maximum position notional (USDT)"],["max_leverage","Maximum leverage"],
                 ["maintenance_margin_rate","Maintenance margin rate"],["maker_fee_rate","Maker fee rate"],["taker_fee_rate","Taker fee rate"],
                 ["funding_interval_sec","Funding interval (seconds)"],["funding_rate_cap","Funding rate cap"],["mark_price_stale_sec","Mark price max age (seconds)"],["circuit_breaker_deviation_pct","Circuit breaker deviation (%)"]
               ] as const).map(([key,label])=><label key={key} className="space-y-1 text-sm"><span>{adminText(label)}</span><input value={perpMarketDraft[key]} disabled={busy||!hasPermission("system_config.write")||(key==="funding_interval_sec")} onChange={event=>setPerpMarketDraft(current=>({...current,[key]:event.target.value}))} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label>)}
