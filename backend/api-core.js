@@ -4735,7 +4735,7 @@ async function handleRequest(event, context) {
         if (!hasAdminPermission(adminMembership, 'system_config.read')) return json({ ok: false, code: 'ADMIN_PERMISSION_DENIED', permission: 'system_config.read' }, 403);
         if (!supabaseStorageConfigured()) return json({ ok: false, code: 'PERPETUAL_RPC_NOT_CONFIGURED' }, 503);
         try {
-          const markets = await perpRestGet('perpetual_markets?select=symbol,base_asset,quote_asset,enabled,status,price_tick,quantity_step,min_quantity,min_notional,max_quantity,max_position_notional,max_leverage,maintenance_margin_rate,maker_fee_rate,taker_fee_rate,funding_interval_sec,funding_rate_cap,mark_price_stale_sec,circuit_breaker_deviation_pct,updated_at&order=symbol.asc');
+          const markets = await perpRestGet('perpetual_markets?select=symbol,base_asset,quote_asset,enabled,status,price_tick,quantity_step,min_quantity,min_notional,market_quantity_step,market_min_quantity,market_max_quantity,max_quantity,max_position_notional,max_leverage,maintenance_margin_rate,maker_fee_rate,taker_fee_rate,funding_interval_sec,funding_rate_cap,mark_price_stale_sec,circuit_breaker_deviation_pct,updated_at&order=symbol.asc');
           return json({ ok: true, markets: markets });
         } catch (e) { return json({ ok: false, code: 'PERPETUAL_READ_UNAVAILABLE' }, 503); }
       }
