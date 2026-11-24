@@ -4761,7 +4761,7 @@ async function handleRequest(event, context) {
         const takerFee = body.taker_fee_rate === undefined ? 0 : Number(body.taker_fee_rate);
         const fundingInterval = Number(body.funding_interval_sec || 28800);
         const fundingCap = body.funding_rate_cap === undefined ? 0.0075 : Number(body.funding_rate_cap);
-        const status = String(body.status || 'paused').toLowerCase();
+        const status = 'paused'; // This endpoint configures/prewarms markets only; trading activation is a separate release gate.
         const enabled = body.enabled === true;
         const reason = String(body.reason || '').trim();
         if (!/^[A-Z0-9]{3,20}$/.test(symbol) || !/^[A-Z0-9]{2,16}$/.test(baseAsset)
