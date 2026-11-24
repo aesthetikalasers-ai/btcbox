@@ -230,6 +230,22 @@ async function installInteractiveTradeApiMocks(page: Page) {
       bids: [["64999.00", "0.25"], ["64998.00", "0.40"]],
     }),
   }));
+  // Chart rendering checks require verified candle data. The isolated
+  // visual fixture intentionally returns empty klines; override it here for
+  // interactive trading QA so lightweight-charts can mount a real canvas.
+  await page.route("**/api/kline**", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      ok: true,
+      source: "e2e",
+      klines: [
+        { time: now - 7200, open: 64900, high: 65020, low: 64880, close: 64980, volume: 12, source: "e2e" },
+        { time: now - 3600, open: 64980, high: 65080, low: 64950, close: 65030, volume: 18, source: "e2e" },
+        { time: now, open: 65030, high: 65100, low: 65000, close: 65060, volume: 15, source: "e2e" },
+      ],
+    }),
+  }));
   await page.route("**/api/trading/status**", (route) => route.fulfill({
     status: 200,
     contentType: "application/json",
