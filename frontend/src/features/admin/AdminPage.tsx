@@ -1401,7 +1401,7 @@ export function AdminPage() {
         !Number.isInteger(fundingInterval) || fundingInterval !== 28800 ||
         !Number.isFinite(fundingCap) || fundingCap <= 0 || fundingCap > 0.0075 ||
         !Number.isInteger(staleSec) || staleSec < 15 || staleSec > 300 ||
-        !Number.isFinite(breaker) || breaker <= 0 || breaker > 20 || reason.length < 5 || reason.length > 500 || /[\\u0000-\\u001f\\u007f]/.test(reason)) {
+        !Number.isFinite(breaker) || breaker <= 0 || breaker > 20 || reason.length < 5 || reason.length > 500 || /[\u0000-\u001f\u007f]/.test(reason)) {
       setError("Check all perpetual market parameters. Markets are saved paused and disabled; funding interval is fixed at 8 hours.");
       return;
     }
