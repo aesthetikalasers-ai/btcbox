@@ -572,12 +572,17 @@ export async function getAccount(signal?: AbortSignal): Promise<AccountSnapshot>
   const validAmount = (value: unknown) =>
     (typeof value === "number" && Number.isFinite(value) && value >= 0) ||
     (typeof value === "string" && /^(?:\d+)(?:\.\d{1,18})?$/.test(value.trim()));
+  // Admin-authorized manual debits may leave a negative available balance.
+  // Accept signed free balances while keeping frozen/reserved amounts non-negative.
+  const validFreeBalance = (value: unknown) =>
+    (typeof value === "number" && Number.isFinite(value)) ||
+    (typeof value === "string" && /^-?(?:\d+)(?:\.\d{1,18})?$/.test(value.trim()));
   const validBalances = !!payload.balances &&
     typeof payload.balances === "object" &&
     !Array.isArray(payload.balances) &&
     Object.entries(payload.balances).every(([asset, balance]) =>
       !!asset && !!balance && typeof balance === "object" && !Array.isArray(balance) &&
-      validAmount((balance as AccountBalance).free) &&
+      validFreeBalance((balance as AccountBalance).free) &&
       validAmount((balance as AccountBalance).frozen)
     );
   // Fail closed: a malformed balance or missing history array must never be
