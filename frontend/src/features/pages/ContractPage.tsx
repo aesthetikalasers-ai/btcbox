@@ -497,7 +497,7 @@ export function ContractPage() {
     if (orderType === "limit" && (!price || Number(price) <= 0)) { setSubmitError(t("Enter a valid price.")); return; }
     if (!quantity || Number(quantity) <= 0) { setSubmitError(t("Enter a valid quantity.")); return; }
     const minQuantity = Number(selectedMinQuantity);
-    if (Number.isFinite(minQuantity) && minQuantity > 0 && Number(quantity) < minQuantity) {
+    if (!closePosition && Number.isFinite(minQuantity) && minQuantity > 0 && Number(quantity) < minQuantity) {
       setSubmitError(t("Quantity is below the market minimum."));
       return;
     }
