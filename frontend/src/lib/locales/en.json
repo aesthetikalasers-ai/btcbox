@@ -278,7 +278,7 @@
   "Place buy limit order": "Place buy limit order",
   "Place sell limit order": "Place sell limit order",
   "Order book snapshot unavailable": "Order book snapshot unavailable",
-  "Live market depth": "Live market depth",
+  "Market depth": "Market depth",
   "Asks": "Asks",
   "Bids": "Bids",
   "Enter an amount within the active backend policy limits.": "Enter an amount within the active backend policy limits.",

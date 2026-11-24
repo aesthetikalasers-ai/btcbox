@@ -270,7 +270,7 @@
   "Place buy limit order": "買い指値注文を発注",
   "Place sell limit order": "売り指値注文を発注",
   "Order book snapshot unavailable": "板情報のスナップショットを取得できません",
-  "Live market depth": "リアルタイム板情報",
+  "Market depth": "板情報",
   "Asks": "売り板",
   "Bids": "買い板",
   "Enter an amount within the active backend policy limits.": "有効なバックエンドポリシーで定められた範囲内の金額を入力してください。",

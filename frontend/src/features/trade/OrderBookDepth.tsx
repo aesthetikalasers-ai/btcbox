@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { Badge } from "../../components/ui/badge";
 import { useI18n, localeTags } from "../../lib/i18n";
 import { cn } from "../../lib/utils";
 
@@ -54,7 +53,6 @@ export function OrderBookDepth({ mid, book, streamState, usdtUsd, baseAsset = "B
   const [precision, setPrecision] = useState<number>(0.01);
   const [view, setView] = useState<ViewMode>("both");
   const decimals = decimalsFor(precision);
-  const hasBook = book !== null;
   const levelled = useMemo(() => ({
     asks: book ? levelsFromBook(book.asks, "ask", 6) : [],
     bids: book ? levelsFromBook(book.bids, "bid", 6) : [],
@@ -96,17 +94,8 @@ export function OrderBookDepth({ mid, book, streamState, usdtUsd, baseAsset = "B
   return (
     <Card className="border-brand-border bg-brand-surface">
       <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-        <CardTitle className="text-sm">{t("Live market depth")}</CardTitle>
+        <CardTitle className="text-sm">{t("Market depth")}</CardTitle>
         <div className="flex items-center gap-1">
-          <Badge variant="outline" className="border-brand-border-subtle bg-brand-surface-2 text-brand-text-muted">
-            <span
-              aria-hidden="true"
-              className={`mr-1 inline-block h-1.5 w-1.5 rounded-full ${
-                hasBook ? "bg-brand-accent" : streamState === "degraded" ? "bg-brand-danger" : "bg-brand-text-disabled"
-              }`}
-            />
-            {hasBook ? t("Live") : streamState === "degraded" ? t("Degraded") : t("Idle")}
-          </Badge>
           {/* Precision selector — compact segmented control, touch-friendly. */}
           <div className="flex items-center rounded-md border border-brand-border/60 bg-brand-surface-2/60 p-0.5" role="group" aria-label={t("Order book precision")}>
             {PRECISIONS.map((p) => (

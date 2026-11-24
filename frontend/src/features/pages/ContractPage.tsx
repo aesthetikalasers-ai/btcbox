@@ -40,7 +40,7 @@ import { cn } from "../../lib/utils";
 import { MarketPickerDialog } from "../trade/MarketPickerDialog";
 import { TradeProductNav } from "../trade/TradeProductNav";
 
-type Tab = "open" | "history" | "trades" | "funding";
+type Tab = "positions" | "open" | "history" | "trades" | "funding";
 
 const EM_DASH = "—";
 
@@ -548,6 +548,7 @@ export function ContractPage() {
   }
 
   const tabs: Array<[Tab, string]> = [
+    ["positions", t("Positions")],
     ["open", t("Open orders")],
     ["history", t("Order history")],
     ["trades", t("Trade history")],
@@ -598,17 +599,6 @@ export function ContractPage() {
     </div>
   );
 
-  const positionsCard = (
-    <Card className="border-brand-border bg-brand-surface">
-      <CardHeader className="border-b border-brand-border/60 pb-3">
-        <div className="flex items-center justify-between gap-2">
-          <CardTitle className="text-sm font-bold">{t("Positions")}</CardTitle>
-          <Badge variant="outline" className="border-brand-border-subtle bg-brand-surface-2 font-mono text-[11px] text-brand-text-secondary">{positions.length}</Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="pt-4">{positionsBody}</CardContent>
-    </Card>
-  );
   // Risk dashboard derived from the server-reported position book. Positions
   // without a mark/liquidation price render "—" rather than a computed guess;
   // the panel never fabricates a liquidation distance.
@@ -1047,6 +1037,7 @@ export function ContractPage() {
         />
       );
     }
+    if (tab === "positions") return positionsBody;
     if (tab === "open") return openOrdersBody;
     if (tab === "history") {
       return positionsLoading ? <TableSkeleton rows={2} /> : historyError ? (
@@ -1333,8 +1324,7 @@ export function ContractPage() {
               <section aria-label={t("Place order")} className="min-w-0">
                 {orderEntryCard}
               </section>
-              <div className="col-span-full grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-3">
-                {signedOut ? null : positionsCard}
+              <div className="col-span-full min-w-0">
                 {historyCard}
               </div>
               {!signedOut ? <div className="col-span-full min-w-0">{positionRiskCard}</div> : null}

@@ -276,7 +276,7 @@
   "Place buy limit order": "Đặt lệnh mua giới hạn",
   "Place sell limit order": "Đặt lệnh bán giới hạn",
   "Order book snapshot unavailable": "Snapshot sổ lệnh hiện không khả dụng",
-  "Live market depth": "Độ sâu thị trường trực tiếp",
+  "Market depth": "Độ sâu thị trường",
   "Asks": "Bên bán",
   "Bids": "Bên mua",
   "Enter an amount within the active backend policy limits.": "Nhập số tiền nằm trong giới hạn của chính sách backend đang áp dụng.",
