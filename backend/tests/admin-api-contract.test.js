@@ -48,6 +48,38 @@ test('admin frontend functions call the same paths the backend implements and ne
 });
 
 
+test('admin perpetual market configuration has matching permission-gated backend and frontend methods', () => {
+  assert.ok(api.includes("route === 'perpetual/markets' && verb === 'GET') return 'system_config.read'"));
+  assert.ok(api.includes("route === 'perpetual/market' && verb === 'POST') return 'system_config.write'"));
+  assert.ok(client.includes('export async function getAdminPerpMarkets'));
+  assert.ok(client.includes('"admin/perpetual/markets"'));
+  assert.ok(client.includes('export async function saveAdminPerpMarket'));
+  assert.ok(client.includes('"admin/perpetual/market"'));
+  assert.ok(adminPage.includes('getAdminPerpMarkets(token)'));
+  assert.ok(adminPage.includes('enabled: draft.feed_enabled, status: "paused"'));
+  assert.ok(adminPage.includes('perpMarketDraft.feed_enabled'));
+  assert.ok(adminPage.includes('Enable market-data feed (trading remains paused)'));
+  assert.ok(adminPage.includes('saveAdminPerpMarket(token'));
+});
+
+test('perpetual admin market form is paused-only and includes all mandatory risk fields', () => {
+  for (const field of ['price_tick','quantity_step','min_quantity','min_notional','market_quantity_step','market_min_quantity','market_max_quantity','max_position_notional','max_leverage','maintenance_margin_rate','maker_fee_rate','taker_fee_rate','funding_interval_sec','funding_rate_cap','mark_price_stale_sec','circuit_breaker_deviation_pct']) {
+    assert.ok(adminPage.includes(field), 'admin perpetual form missing ' + field);
+  }
+  assert.ok(adminPage.includes('enabled: draft.feed_enabled, status: "paused"'));
+  assert.ok(adminPage.includes('perpMarketDraft.feed_enabled'));
+  assert.ok(adminPage.includes('Save paused perpetual market'));
+  assert.ok(!adminPage.includes('enabled: true, status: "trading"'));
+});
+
+test('perpetual market form requires a reason and does not misreport a confirmed save on refresh failure', () => {
+  assert.ok(adminPage.includes('perpMarketDraft.reason'));
+  assert.ok(adminPage.includes('Reason for market configuration change (required)'));
+  assert.ok(adminPage.includes('reason,'));
+  assert.ok(adminPage.includes('Perpetual market settings were saved, but the list could not refresh.'));
+  assert.ok(client.includes('reason: string'));
+});
+
 test('withdrawal rejection API requires a bounded, non-control-character audit reason', () => {
   const start = api.indexOf("if (sub === 'withdraw/reject' && method === 'POST')");
   const end = api.indexOf("// POST /api/admin/withdraw/mark-paid", start);

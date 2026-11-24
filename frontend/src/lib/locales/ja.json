@@ -1107,6 +1107,7 @@
   "Enter a valid price.": "有効な価格を入力してください。",
   "Enter a valid quantity.": "有効な数量を入力してください。",
   "Quantity is below the market minimum.": "数量が市場の最小値を下回っています。",
+  "Order notional is below the market minimum.": "注文の名目価値が市場の最低要件を下回っています。",
   "Place order": "注文を発注",
   "Order type": "注文タイプ",
   "Decrease price": "価格を下げる",

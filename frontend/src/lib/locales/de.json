@@ -1105,6 +1105,7 @@
   "Enter a valid price.": "Geben Sie einen gültigen Preis ein.",
   "Enter a valid quantity.": "Geben Sie eine gültige Menge ein.",
   "Quantity is below the market minimum.": "Die Menge liegt unter dem Marktminimum.",
+  "Order notional is below the market minimum.": "Der Nominalwert der Order liegt unter dem Marktminimum.",
   "Place order": "Order aufgeben",
   "Order type": "Ordertyp",
   "Decrease price": "Preis senken",

@@ -1105,6 +1105,7 @@
   "Enter a valid price.": "Nhập giá hợp lệ.",
   "Enter a valid quantity.": "Nhập số lượng hợp lệ.",
   "Quantity is below the market minimum.": "Số lượng thấp hơn mức tối thiểu của thị trường.",
+  "Order notional is below the market minimum.": "Giá trị danh nghĩa của lệnh thấp hơn mức tối thiểu của thị trường.",
   "Place order": "Đặt lệnh",
   "Order type": "Loại lệnh",
   "Decrease price": "Giảm giá",

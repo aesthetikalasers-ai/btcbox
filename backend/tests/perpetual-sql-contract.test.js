@@ -54,6 +54,35 @@ test('submit order: market disabled / stale mark / insufficient margin / leverag
   assert.ok(sql.includes('price deviation circuit breaker active'));
 });
 
+test('0051 adds a positive per-market minimum notional and enforces it inside the atomic order RPC', () => {
+  const migration = fs.readFileSync(path.join(root, 'supabase/sql/0051_perpetual_market_min_notional_v1.sql'), 'utf8');
+  assert.ok(migration.includes('add column if not exists min_notional numeric(38,18)'));
+  assert.ok(migration.includes('perpetual_markets_min_notional_positive'));
+  assert.ok(migration.includes("raise exception 'order notional below market minimum'"));
+  assert.ok(migration.includes('coalesce(p_price, v_mark.mark_price) * p_quantity < v_market.min_notional'));
+  assert.ok(migration.includes('if not p_reduce_only and not p_close_position'));
+  assert.ok(migration.includes('min_notional numeric(38,18)'));
+  assert.ok(migration.includes('market_quantity_step numeric(38,18)'));
+  assert.ok(migration.includes('market_min_quantity numeric(38,18)'));
+  assert.ok(migration.includes('market_max_quantity numeric(38,18)'));
+  assert.ok(migration.includes("p_type='market' and not coalesce(p_reduce_only,false)"));
+  assert.ok(migration.includes('market quantity precision invalid'));
+  assert.ok(migration.includes('market quantity below minimum'));
+  assert.ok(migration.includes('Reduce-only partial market orders use the regular lot step'));
+  assert.ok(migration.includes('if p_close_position then'));
+  assert.ok(migration.includes('Full-position closes use the exact locked position quantity'));
+  assert.ok(migration.includes("v_market.max_position_notional is null or v_market.max_position_notional <= 0"));
+  assert.ok(migration.includes("if p_leverage > v_market.max_leverage then raise exception 'leverage exceeds market maximum'; end if;"));
+  assert.ok(migration.includes("where symbol=p_symbol and (enabled=true or coalesce(p_reduce_only,false))"));
+  assert.ok(migration.includes("v_market.status not in ('trading','open_only') and not coalesce(p_reduce_only,false)"));
+  assert.ok(migration.includes("if not coalesce(p_reduce_only,false) then\n      raise exception 'mark price unavailable or stale';"));
+  assert.ok(migration.includes('elsif v_mark.max_deviation_pct > v_market.circuit_breaker_deviation_pct'));
+  assert.ok(migration.includes("set enabled = false, status = 'paused'"));
+  assert.ok(migration.includes('market risk exposure cap unavailable'));
+  assert.ok(migration.includes("notify pgrst, 'reload schema'"));
+  assert.ok(migration.includes('never be blocked by opening-order lot/minimum filters'));
+});
+
 test('submit order idempotency: unique (user, client_order_id) + duplicate replay + payload mismatch raise', () => {
   assert.ok(sql.includes('unique (user_id, client_order_id)'));
   assert.ok(sql.includes("raise exception 'client order id payload mismatch'"));

@@ -503,9 +503,12 @@ DECLARE
 BEGIN
   INSERT INTO public.perpetual_markets(
     symbol,base_asset,quote_asset,enabled,status,price_tick,quantity_step,min_quantity,
+    market_quantity_step,market_min_quantity,max_position_notional,
     funding_interval_sec,funding_rate_cap,mark_price_stale_sec,next_funding_at
-  ) VALUES ('BTCUSDT','BTC','USDT',true,'trading',0.01,0.001,0.001,28800,0.0075,300,v_at)
+  ) VALUES ('BTCUSDT','BTC','USDT',true,'trading',0.01,0.001,0.001,0.01,0.01,1000000,28800,0.0075,300,v_at)
   ON CONFLICT(symbol) DO UPDATE SET enabled=true,status='trading',
+    market_quantity_step=excluded.market_quantity_step,market_min_quantity=excluded.market_min_quantity,
+    max_position_notional=excluded.max_position_notional,
     funding_interval_sec=28800,funding_rate_cap=0.0075,mark_price_stale_sec=300,next_funding_at=excluded.next_funding_at;
 
   PERFORM pg_temp.test_credit('MD-PERP-L','perp-long-ci','USDT',1000,'perp-long-credit-0001','long-ref','perp CI');
@@ -569,9 +572,12 @@ BEGIN
   v_ts := floor(extract(epoch from clock_timestamp())*1000)::text;
   INSERT INTO public.perpetual_markets(
     symbol,base_asset,quote_asset,enabled,status,price_tick,quantity_step,min_quantity,
+    market_quantity_step,market_min_quantity,max_position_notional,
     maintenance_margin_rate,funding_interval_sec,funding_rate_cap,mark_price_stale_sec,next_funding_at
-  ) VALUES ('SOLUSDT','SOL','USDT',true,'trading',0.001,0.001,0.001,0.005,28800,0.0075,300,v_at)
-  ON CONFLICT(symbol) DO UPDATE SET enabled=true,status='trading',funding_interval_sec=28800,
+  ) VALUES ('SOLUSDT','SOL','USDT',true,'trading',0.001,0.001,0.001,0.001,0.001,1000000,0.005,28800,0.0075,300,v_at)
+  ON CONFLICT(symbol) DO UPDATE SET enabled=true,status='trading',
+    market_quantity_step=excluded.market_quantity_step,market_min_quantity=excluded.market_min_quantity,
+    max_position_notional=excluded.max_position_notional,funding_interval_sec=28800,
     funding_rate_cap=0.0075,mark_price_stale_sec=300,next_funding_at=excluded.next_funding_at;
   IF EXISTS (SELECT 1 FROM public.perpetual_positions WHERE symbol='SOLUSDT' AND closed_at IS NULL) THEN
     RAISE EXCEPTION 'no-position funding guard fixture unexpectedly has an open position';
@@ -606,9 +612,12 @@ BEGIN
   v_ts := floor(extract(epoch from clock_timestamp())*1000)::text;
   INSERT INTO public.perpetual_markets(
     symbol,base_asset,quote_asset,enabled,status,price_tick,quantity_step,min_quantity,
+    market_quantity_step,market_min_quantity,max_position_notional,
     maintenance_margin_rate,funding_interval_sec,funding_rate_cap,mark_price_stale_sec,next_funding_at
-  ) VALUES ('ETHUSDT','ETH','USDT',true,'trading',0.01,0.001,0.001,0.005,28800,0.0075,300,v_at)
+  ) VALUES ('ETHUSDT','ETH','USDT',true,'trading',0.01,0.001,0.001,0.001,0.001,1000000,0.005,28800,0.0075,300,v_at)
   ON CONFLICT(symbol) DO UPDATE SET enabled=true,status='trading',maintenance_margin_rate=0.005,
+    market_quantity_step=excluded.market_quantity_step,market_min_quantity=excluded.market_min_quantity,
+    max_position_notional=excluded.max_position_notional,
     funding_interval_sec=28800,funding_rate_cap=0.0075,mark_price_stale_sec=300,next_funding_at=excluded.next_funding_at;
   PERFORM pg_temp.test_credit('MD-PERP-LIQ','perp-liq-ci','USDT',100,'perp-liq-credit-0001','liq-ref','perp CI');
   UPDATE public.financial_accounts SET available=available-10,frozen=frozen+10 WHERE user_id='perp-liq-ci' AND asset='USDT';
@@ -646,5 +655,78 @@ BEGIN
   RAISE NOTICE 'Perpetual PostgreSQL settlement, idempotency, fail-closed rollback and funding-before-liquidation checks passed';
 END
 $perpetual_settlement_tests$;
+
+DO $perpetual_order_filter_tests$
+DECLARE
+  v_result jsonb;
+  v_failed boolean;
+BEGIN
+  UPDATE public.perpetual_markets
+     SET min_notional=20, market_quantity_step=0.01, market_min_quantity=0.01,
+         max_position_notional=1000000
+   WHERE symbol='BTCUSDT';
+  PERFORM pg_temp.test_credit('MD-PERP-ORD','perp-order-ci','USDT',1000,'perp-order-credit-0001','order-ref','perp order filter CI');
+
+  -- Opening market orders must follow MARKET_LOT_SIZE, not the limit LOT_SIZE.
+  v_failed := false;
+  BEGIN
+    PERFORM public.perp_submit_order(
+      'perp-market-bad-lot','perp-order-ci','BTCUSDT','market','buy',null,0.005,2,false,false,
+      'perp-market-badlot-0001'
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_failed := SQLERRM LIKE '%market quantity precision invalid%';
+  END;
+  IF NOT v_failed THEN RAISE EXCEPTION 'opening market order bypassed MARKET_LOT_SIZE step'; END IF;
+
+  -- A correctly stepped market order still fails when mark-price notional is below min_notional.
+  v_failed := false;
+  BEGIN
+    PERFORM public.perp_submit_order(
+      'perp-market-below-notional','perp-order-ci','BTCUSDT','market','buy',null,0.01,2,false,false,
+      'perp-market-minnotional-0001'
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_failed := SQLERRM LIKE '%order notional below market minimum%';
+  END;
+  IF NOT v_failed THEN RAISE EXCEPTION 'opening market order bypassed minimum notional'; END IF;
+
+  -- Limit orders use LOT_SIZE and are not forced to align with MARKET_LOT_SIZE.
+  v_result := public.perp_submit_order(
+    'perp-limit-valid','perp-order-ci','BTCUSDT','limit','buy',4000,0.005,2,false,false,
+    'perp-limit-filter-0001'
+  );
+  IF v_result->>'ok'<>'true' OR NOT EXISTS (
+    SELECT 1 FROM public.perpetual_orders WHERE id='perp-limit-valid' AND status='open'
+  ) THEN
+    RAISE EXCEPTION 'limit order did not use regular LOT_SIZE: %',v_result;
+  END IF;
+
+  -- Market order with valid market lot and notional is accepted (IOC may cancel unfilled remainder).
+  v_result := public.perp_submit_order(
+    'perp-market-valid','perp-order-ci','BTCUSDT','market','buy',null,0.02,2,false,false,
+    'perp-market-valid-0001'
+  );
+  IF v_result->>'ok'<>'true' THEN RAISE EXCEPTION 'valid market order rejected: %',v_result; END IF;
+
+  -- A paused/disabled market and a position smaller than MARKET_LOT_SIZE must
+  -- still permit a full-position reduce-only close.
+  INSERT INTO public.perpetual_positions(user_id,symbol,side,quantity,entry_price,isolated_margin)
+  VALUES ('perp-order-ci','BTCUSDT','long',0.005,1000,0.05);
+  UPDATE public.perpetual_markets SET enabled=false,status='paused' WHERE symbol='BTCUSDT';
+  v_result := public.perp_submit_order(
+    'perp-close-dust','perp-order-ci','BTCUSDT','market','sell',null,0.001,2,false,true,
+    'perp-close-dust-0001'
+  );
+  IF v_result->>'ok'<>'true' THEN RAISE EXCEPTION 'full-position close was blocked by paused market or lot minimum: %',v_result; END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.perpetual_orders
+     WHERE id='perp-close-dust' AND quantity=0.005 AND close_position=true AND reduce_only=true
+  ) THEN
+    RAISE EXCEPTION 'full-position close did not persist exact position quantity';
+  END IF;
+  RAISE NOTICE 'Perpetual order filter, minimum notional, exposure cap and emergency close checks passed';
+END
+$perpetual_order_filter_tests$;
 
 ROLLBACK;

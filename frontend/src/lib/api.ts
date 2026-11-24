@@ -1340,6 +1340,31 @@ export interface AdminConfig {
   withdrawal_fees: Record<string, string>;
   announcement: string;
 }
+export interface AdminPerpMarket {
+  symbol: string;
+  base_asset: string;
+  quote_asset: string;
+  enabled: boolean;
+  status: "trading" | "paused" | "open_only" | "liquidation_only";
+  price_tick: string | number;
+  quantity_step: string | number;
+  min_quantity: string | number;
+  min_notional: string | number;
+  market_quantity_step: string | number;
+  market_min_quantity: string | number;
+  market_max_quantity?: string | number | null;
+  max_quantity?: string | number | null;
+  max_position_notional: string | number;
+  max_leverage: number;
+  maintenance_margin_rate: string | number;
+  maker_fee_rate: string | number;
+  taker_fee_rate: string | number;
+  funding_interval_sec: number;
+  funding_rate_cap: string | number;
+  mark_price_stale_sec: number;
+  circuit_breaker_deviation_pct: string | number;
+  updated_at?: string;
+}
 export interface AdminSpotMarket {
   base_asset: string;
   quote_asset: string;
@@ -1445,6 +1470,13 @@ export async function saveAdminSpotMarket(token: string, input: {
 }) {
   return adminRequest<{ ok: true; market: AdminSpotMarket; replayed?: boolean }>(token, "admin/spot-markets", { method: "POST", body: input });
 }
+export async function getAdminPerpMarkets(token: string, signal?: AbortSignal) {
+  return adminRequest<{ ok: true; markets: AdminPerpMarket[] }>(token, "admin/perpetual/markets", { signal });
+}
+export async function saveAdminPerpMarket(token: string, input: Omit<AdminPerpMarket, "symbol" | "updated_at"> & { base_asset: string; reason: string }) {
+  return adminRequest<{ ok: true; symbol: string; enabled: boolean }>(token, "admin/perpetual/market", { method: "POST", body: input });
+}
+
 export interface AdminSecondsOpenPosition {
   position_id: string;
   user_id: string;
@@ -1601,6 +1633,10 @@ export interface PerpMarket {
   price_tick: string;
   quantity_step: string;
   min_quantity: string;
+  min_notional: string;
+  market_quantity_step: string;
+  market_min_quantity: string;
+  market_max_quantity?: string | null;
   funding_interval_sec: number;
   funding_rate_cap: number;
   next_funding_at?: string | null;

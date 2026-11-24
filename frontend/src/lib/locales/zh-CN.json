@@ -1107,6 +1107,7 @@
   "Enter a valid price.": "请输入有效的价格。",
   "Enter a valid quantity.": "请输入有效的数量。",
   "Quantity is below the market minimum.": "数量低于市场最小值。",
+  "Order notional is below the market minimum.": "订单名义价值低于该市场的最低要求。",
   "Place order": "下单",
   "Order type": "订单类型",
   "Decrease price": "降低价格",
