@@ -39,9 +39,10 @@ the exact target project:
 2. Verify the 11 perpetual tables, RPC signatures, RLS, and service-role-only
    grants. Confirm all markets remain `enabled=false` and `status='paused'`.
 3. Apply `0045_market_asset_categories_v1.sql` as a separate migration.
-4. Verify the four category definitions and empty asset assignments. Do not
-   infer classifications from tickers or write market assignments without
-   verified asset metadata.
+4. Verify the four category definitions and empty asset assignments.
+   `0045` reuses the existing `public.btcbox_assets` registry through a foreign
+   key; new asset codes must first be registered there. Do not infer
+   classifications from tickers or write assignments without verified metadata.
 5. Compare financial account balances and existing ledger rows to the preflight
    snapshot. The only expected new financial account row from 0041 is the
    zero-balance platform insurance account `__perp_insurance__ / USDT`; existing
