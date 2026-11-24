@@ -33,6 +33,8 @@ test('every read/write admin API contract is mapped to an explicit least-privile
     ["support/reply", "POST", "support.reply"],
     ["push", "POST", "announcements.manage"],
     ["audit-logs", "GET", "financial_audit.read"],
+    ["assets", "GET", "system_config.read"],
+    ["assets", "POST", "system_config.write"],
     ["spot-markets", "GET", "system_config.read"],
     ["spot-markets", "POST", "system_config.write"],
     ["config", "GET", "system_config.read"],
