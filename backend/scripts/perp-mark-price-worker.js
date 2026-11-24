@@ -66,18 +66,21 @@ async function fetchJson(url, timeoutMs) {
   } finally { clearTimeout(t); }
 }
 async function binancePrice(symbol) {
-  const j = await fetchJson('https://api.binance.com/api/v3/ticker/price?symbol=' + encodeURIComponent(symbol), FETCH_TIMEOUT_MS);
-  const p = Number(j && j.price);
-  if (!Number.isFinite(p) || p <= 0) throw new Error('binance bad price');
-  return { source: 'binance', price: p, ts: Date.now() };
+  const j = await fetchJson('https://api.binance.com/api/v3/ticker/24hr?symbol=' + encodeURIComponent(symbol), FETCH_TIMEOUT_MS);
+  const p = Number(j && j.lastPrice);
+  const ts = Number(j && j.closeTime);
+  if (!Number.isFinite(p) || p <= 0 || !Number.isFinite(ts) || ts <= 0) throw new Error('binance bad price/timestamp');
+  return { source: 'binance', price: p, ts };
 }
 async function coingeckoPrice(symbol) {
   const coinId = COINGECKO_IDS[symbol];
   if (!coinId) throw new Error('coingecko mapping missing for ' + symbol + ' (configure PERP_COINGECKO_IDS)');
-  const j = await fetchJson('https://api.coingecko.com/api/v3/simple/price?ids=' + encodeURIComponent(coinId) + '&vs_currencies=usdt', FETCH_TIMEOUT_MS);
+  const j = await fetchJson('https://api.coingecko.com/api/v3/simple/price?ids=' + encodeURIComponent(coinId) + '&vs_currencies=usdt&include_last_updated_at=true', FETCH_TIMEOUT_MS);
   const p = Number(j && j[coinId] && j[coinId].usdt);
-  if (!Number.isFinite(p) || p <= 0) throw new Error('coingecko bad price');
-  return { source: 'coingecko', price: p, ts: Date.now() };
+  const updatedAtSec = Number(j && j[coinId] && j[coinId].last_updated_at);
+  const ts = updatedAtSec * 1000;
+  if (!Number.isFinite(p) || p <= 0 || !Number.isFinite(ts) || ts <= 0) throw new Error('coingecko bad price/timestamp');
+  return { source: 'coingecko', price: p, ts };
 }
 async function recordMark(symbol, indexPrice, markPrice, sources, maxAgeSec) {
   const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/perp_record_mark_price', {
