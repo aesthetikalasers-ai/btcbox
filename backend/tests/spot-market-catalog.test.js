@@ -3,12 +3,44 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const vm = require('node:vm');
 const assert = require('node:assert/strict');
 
 const root = path.resolve(__dirname, '..');
 const backend = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
 const api = fs.readFileSync(path.resolve(root, '../frontend/src/lib/api.ts'), 'utf8');
 const pages = fs.readFileSync(path.resolve(root, '../frontend/src/features/pages/Pages.tsx'), 'utf8');
+
+function createSpotCatalogHarness(readSpotMarketCatalog, clock) {
+  const sandbox = {
+    readSpotMarketCatalog,
+    Date: { now: clock },
+    DEFAULT_SYMBOLS: ['BTC', 'ETH'],
+    PUBLIC_SPOT_CATALOG_CACHE_MAX_AGE_MS: 15 * 60 * 1000,
+  };
+  vm.createContext(sandbox);
+  const start = backend.indexOf('async function readPublicSpotMarketCatalog()');
+  const end = backend.indexOf('// Keep this list aligned with spot pair support', start);
+  assert.ok(start >= 0 && end > start, 'production catalogue helper must be extractable');
+  const productionHelper = backend.slice(start, end);
+  vm.runInContext(
+    'let lastKnownSpotMarketCatalog = null; let spotMarketCatalogReadGeneration = 0; let lastSuccessfulSpotMarketCatalogReadGeneration = 0; ' +
+      productionHelper + '; globalThis.readPublicSpotMarketCatalog = readPublicSpotMarketCatalog;',
+    sandbox
+  );
+  return {
+    read: () => sandbox.readPublicSpotMarketCatalog(),
+    setReader: reader => { sandbox.readSpotMarketCatalog = reader; },
+  };
+}
+
+function catalogMarket(baseAsset) {
+  return {
+    base_asset: baseAsset, quote_asset: 'USDT', enabled: true,
+    price_tick: '0.01', quantity_step: '0.001', min_quantity: '0.001',
+    min_notional: '1', min_limit_price: null, max_limit_price: null,
+  };
+}
 
 test('public USDT/USD FX route is exposed by the shared Vercel API handler', () => {
   const route = backend.indexOf("if (path === 'fx/usdt-usd' && method === 'GET')");
@@ -178,4 +210,61 @@ test('legacy market and depth polling suppress overlapping requests and never re
   assert.ok(depth.includes('state.depthUnavailable=true;'));
   assert.ok(depth.includes('state.depthCache=null;'));
   assert.ok(tradeView.includes("state.depthUnavailable?'Order book unavailable"));
+});
+
+test('public catalogue recovers to database authority and degrades safely after a later outage', async () => {
+  let now = 1_000;
+  const harness = createSpotCatalogHarness(async () => { throw new Error('database unavailable'); }, () => now);
+
+  const coldFallback = await harness.read();
+  assert.equal(coldFallback.source, 'static-fallback');
+  assert.equal(coldFallback.tradingEnabled, false);
+
+  harness.setReader(async () => [catalogMarket('BTC')]);
+  const recovered = await harness.read();
+  assert.equal(recovered.source, 'database');
+  assert.equal(recovered.tradingEnabled, true);
+  assert.deepEqual(recovered.markets.map(market => market.base_asset), ['BTC']);
+  assert.equal(recovered.markets[0].trading_enabled, true);
+
+  harness.setReader(async () => { throw new Error('database unavailable again'); });
+  const outage = await harness.read();
+  assert.equal(outage.source, 'stale-cache');
+  assert.equal(outage.tradingEnabled, false);
+  assert.deepEqual(outage.markets.map(market => market.base_asset), ['BTC']);
+  assert.equal(outage.markets[0].trading_enabled, false);
+
+  now += 15 * 60 * 1000 + 1;
+  const expired = await harness.read();
+  assert.equal(expired.source, 'static-fallback');
+  assert.equal(expired.tradingEnabled, false);
+  assert.deepEqual(expired.markets.map(market => market.base_asset), ['BTC', 'ETH']);
+});
+
+test('an older concurrent database response cannot overwrite a newer successful catalogue', async () => {
+  let resolveOlder;
+  let resolveNewer;
+  let requestCount = 0;
+  const harness = createSpotCatalogHarness(() => new Promise(resolve => {
+    requestCount += 1;
+    if (requestCount === 1) resolveOlder = resolve;
+    else resolveNewer = resolve;
+  }), () => 5_000);
+
+  const olderRequest = harness.read();
+  const newerRequest = harness.read();
+  assert.equal(requestCount, 2);
+
+  resolveNewer([catalogMarket('ETH')]);
+  const newerResult = await newerRequest;
+  assert.deepEqual(newerResult.markets.map(market => market.base_asset), ['ETH']);
+
+  resolveOlder([catalogMarket('BTC')]);
+  const olderResult = await olderRequest;
+  assert.deepEqual(olderResult.markets.map(market => market.base_asset), ['ETH']);
+
+  harness.setReader(async () => { throw new Error('database unavailable'); });
+  const afterOutage = await harness.read();
+  assert.equal(afterOutage.source, 'stale-cache');
+  assert.deepEqual(afterOutage.markets.map(market => market.base_asset), ['ETH']);
 });
