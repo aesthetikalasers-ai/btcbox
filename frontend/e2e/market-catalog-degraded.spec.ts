@@ -77,5 +77,7 @@ test("degraded public catalogue keeps fresh quotes visible but disables all new 
   // A degraded catalogue is explicitly read-only even if the general trading
   // status endpoint says the matching engine is enabled.
   await expect(page.getByText("Trading is temporarily unavailable.", { exact: true }).first()).toBeVisible();
-  // This browser scenario is intentionally unauthenticated: the order form must\n  // remain behind its sign-in gate while the degraded-catalogue warning is shown.\n  await expect(page.getByRole("button", { name: "Login / Register to Trade" })).toBeVisible();
+  // This browser scenario is intentionally unauthenticated: the order form must
+  // remain behind its sign-in gate while the degraded-catalogue warning is shown.
+  await expect(page.getByRole("button", { name: "Login / Register to Trade" })).toBeVisible();
 });
