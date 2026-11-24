@@ -1562,7 +1562,7 @@ export function AdminPage() {
         <Button block disabled={busy||!adminTargetUserId||(!adminMemberships.some(item=>item.user_id===adminTargetUserId)&&!adminPermissions.length)||!adminReason.trim()} onClick={()=>{const existing=adminMemberships.find(item=>item.user_id===adminTargetUserId);void submitAdminMembershipChange(existing?"set_permissions":"provision",adminTargetUserId,existing?.revision||0,adminPermissions);}}>{adminMemberships.some(item=>item.user_id===adminTargetUserId)?adminText("Save permissions"):adminText("Provision administrator")}</Button>
       </CardContent></Card>
     </div> : null}
-    {pendingDeletePayoutAddress ? <div className="fixed inset-0 z-[100] flex items-center justify-center bg-brand-bg/80 p-4" role="presentation"><section role="dialog" aria-modal="true" aria-labelledby="delete-payout-title" className="w-full max-w-md rounded-xl border border-brand-border bg-brand-surface p-5 shadow-2xl"><h2 id="delete-payout-title" className="text-lg font-semibold">{adminText("Delete bank payout details?")}</h2><p className="mt-2 text-sm text-brand-text-muted">{pendingDeletePayoutAddress.bank_name} · {pendingDeletePayoutAddress.account_holder}. {adminText("This action cannot be undone and will be recorded in the audit log.")}</p><div className="mt-5 flex justify-end gap-2"><Button variant="outline" disabled={busy} onClick={()=>setPendingDeletePayoutAddress(null)}>{adminText("Cancel")}</Button><Button variant="destructive" disabled={busy||!hasPermission("payout_addresses.manage")} onClick={()=>void deletePayoutAddress(pendingDeletePayoutAddress)}>{adminText("Confirm delete")}</Button></div></section></div>:null}
+    {pendingDeletePayoutAddress ? <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-brand-bg/80 p-4 sm:items-center" role="presentation"><section role="dialog" aria-modal="true" aria-labelledby="delete-payout-title" className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto overscroll-contain rounded-xl border border-brand-border bg-brand-surface p-4 shadow-2xl sm:p-5"><h2 id="delete-payout-title" className="text-lg font-semibold">{adminText("Delete bank payout details?")}</h2><p className="mt-2 text-sm text-brand-text-muted">{pendingDeletePayoutAddress.bank_name} · {pendingDeletePayoutAddress.account_holder}. {adminText("This action cannot be undone and will be recorded in the audit log.")}</p><div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><Button variant="outline" disabled={busy} onClick={()=>setPendingDeletePayoutAddress(null)}>{adminText("Cancel")}</Button><Button variant="destructive" disabled={busy||!hasPermission("payout_addresses.manage")} onClick={()=>void deletePayoutAddress(pendingDeletePayoutAddress)}>{adminText("Confirm delete")}</Button></div></section></div>:null}
     {reviewDialog ? <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-brand-bg/80 p-4"
       role="presentation"
@@ -1573,7 +1573,7 @@ export function AdminPage() {
         aria-modal="true"
         aria-labelledby="review-dialog-title"
         aria-describedby="review-dialog-description"
-        className="w-full max-w-lg rounded-xl border border-brand-border bg-brand-surface p-5 shadow-2xl"
+        className="max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto overscroll-contain rounded-xl border border-brand-border bg-brand-surface p-4 shadow-2xl sm:p-5"
       >
         <div className="mb-4">
           <h2 id="review-dialog-title" className="text-lg font-semibold text-brand-text">
