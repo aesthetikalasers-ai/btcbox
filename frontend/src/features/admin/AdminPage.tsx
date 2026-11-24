@@ -1564,7 +1564,7 @@ export function AdminPage() {
     </div> : null}
     {pendingDeletePayoutAddress ? <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-brand-bg/80 p-4 sm:items-center" role="presentation"><section role="dialog" aria-modal="true" aria-labelledby="delete-payout-title" className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto overscroll-contain rounded-xl border border-brand-border bg-brand-surface p-4 shadow-2xl sm:p-5"><h2 id="delete-payout-title" className="text-lg font-semibold">{adminText("Delete bank payout details?")}</h2><p className="mt-2 text-sm text-brand-text-muted">{pendingDeletePayoutAddress.bank_name} · {pendingDeletePayoutAddress.account_holder}. {adminText("This action cannot be undone and will be recorded in the audit log.")}</p><div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><Button variant="outline" disabled={busy} onClick={()=>setPendingDeletePayoutAddress(null)}>{adminText("Cancel")}</Button><Button variant="destructive" disabled={busy||!hasPermission("payout_addresses.manage")} onClick={()=>void deletePayoutAddress(pendingDeletePayoutAddress)}>{adminText("Confirm delete")}</Button></div></section></div>:null}
     {reviewDialog ? <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-brand-bg/80 p-4"
+      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-brand-bg/80 p-4 sm:items-center"
       role="presentation"
       onMouseDown={event => { if (event.target === event.currentTarget && !busy) { setReviewDialog(null); setReviewReason(""); } }}
     >
