@@ -1707,7 +1707,9 @@
   "Minimum notional": "Giá trị lệnh tối thiểu",
   "Market trading rules are unavailable. Order entry is disabled.": "Không thể tải quy tắc giao dịch của thị trường. Đã tắt chức năng đặt lệnh.",
   "Price must follow the market tick; quantity must follow the step and minimum order rules.": "Giá phải tuân theo bước giá của thị trường; khối lượng phải tuân theo bước khối lượng và giới hạn lệnh tối thiểu.",
-  "Spot reference": "Giá tham chiếu giao ngay",
+  "Spot reference": "Giá tham chiếu giao ngay",,
+  "Bootstrap reference": "Giá tham chiếu khởi tạo",
+  "Bootstrap": "Khởi tạo"
   "Underlying spot order book": "Sổ lệnh giao ngay cơ sở",
   "Spot reference only — not the perpetual execution book.": "Chỉ là giá tham chiếu giao ngay — không phải sổ lệnh khớp của hợp đồng vĩnh cửu.",
   "Spot reference depth": "Độ sâu tham chiếu giao ngay",
