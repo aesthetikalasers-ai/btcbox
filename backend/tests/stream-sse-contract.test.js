@@ -86,6 +86,8 @@ test('sets the SSE response headers', async () => {
     assert.match(res.joined, /DEPTH_DATA_UNAVAILABLE/);
     assert.doesNotMatch(res.joined, /"bids":\[\[/);
     req.emit('close');
+    assert.strictEqual(res.writableEnded, false, 'request completion must not close the SSE response');
+    res.emit('close');
     await pending;
   } finally {
     global.fetch = originalFetch;
@@ -104,6 +106,7 @@ test('emits hello frame with channel and interval', async () => {
     assert.match(res.joined, /"channel":"trades"/);
     assert.match(res.joined, /"symbol":"ETHUSDT"/);
     req.emit('close');
+    res.emit('close');
     await pending;
   } finally {
     global.fetch = originalFetch;
@@ -130,7 +133,7 @@ test('cleans up timers when the client disconnects', async () => {
     const req = createReq('/api/stream/depth?symbol=BTCUSDT');
     const pending = streamApi(req, res);
     await new Promise((resolve) => setImmediate(resolve));
-    req.emit('close');
+    res.emit('close');
     await pending;
     assert.strictEqual(res.writableEnded, true, 'response must be closed on client disconnect');
   } finally {
