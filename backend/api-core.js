@@ -2497,6 +2497,41 @@ async function handleRequest(event, context) {
     return json({ ok: false, msg: 'User-submitted deposit amounts are not accepted. BTCBOX staff verify incoming transfers and manually credit the account.' }, 403);
   }
 
+  // ---------- GET /api/withdrawal/status?request_id=... ----------
+  // Reconcile an ambiguous customer request against the authenticated user's canonical PostgreSQL row.
+  // This endpoint is read-only and never decides balance or payout state from legacy account snapshots.
+  if (path === 'withdrawal/status' && method === 'GET') {
+    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
+    const requestId = String((event.queryStringParameters && event.queryStringParameters.request_id) || '').trim();
+    if (!/^[A-Za-z0-9_-]{16,80}$/.test(requestId)) return json({ ok: false, code: 'INVALID_WITHDRAWAL_REQUEST_ID', msg: 'Invalid withdrawal request ID.' }, 400);
+    if (!financialPostgresReadsEnabled() || !supabaseStorageConfigured()) {
+      return json({ ok: false, code: 'WITHDRAWAL_HISTORY_UNAVAILABLE', msg: 'Withdrawal history is temporarily unavailable. Keep the original request ID and do not submit a new withdrawal.' }, 503);
+    }
+    try {
+      const query = new URLSearchParams({
+        select: 'id,request_id,asset,amount,fee,network,status,created_at',
+        user_id: 'eq.' + String(user.uid),
+        request_id: 'eq.' + requestId,
+        limit: '1'
+      });
+      const base = process.env.SUPABASE_URL.replace(/\\/+$/, '');
+      const response = await fetch(base + '/rest/v1/withdrawal_requests?' + query.toString(), {
+        method: 'GET', headers: supabaseHeaders(), signal: AbortSignal.timeout(5000)
+      });
+      const rows = await response.json().catch(() => null);
+      if (!response.ok || !Array.isArray(rows)) throw new Error('Withdrawal history read failed');
+      if (!rows.length) return json({ ok: true, found: false, request_id: requestId });
+      const row = rows[0];
+      return json({ ok: true, found: true, withdrawal: {
+        withdrawal_id: String(row.id || ''), request_id: String(row.request_id || requestId),
+        coin: String(row.asset || ''), amount: String(row.amount || ''), fee: String(row.fee || ''),
+        network: String(row.network || ''), status: String(row.status || ''), created_at: String(row.created_at || '')
+      } });
+    } catch (_) {
+      return json({ ok: false, code: 'WITHDRAWAL_HISTORY_UNAVAILABLE', msg: 'Withdrawal history could not be confirmed. Keep the original request ID and do not submit a new withdrawal.' }, 503);
+    }
+  }
+
   // ---------- GET /api/withdrawal/config ----------
   // Expose only the public withdrawal form contract and fail-closed availability.
   if (path === 'withdrawal/config' && method === 'GET') {
