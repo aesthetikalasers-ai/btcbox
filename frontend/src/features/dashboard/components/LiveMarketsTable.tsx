@@ -123,7 +123,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
     if (assetCatalog.length > 0 && (!assetConfig || !assetConfig.enabled || !assetConfig.visible || !assetConfig.spot_enabled)) return false;
     if (favoritesOnly && !favorites.includes(item.sym)) return false;
     if (!query) return true;
-    return item.sym.toLowerCase().includes(query) || (assetNames[assetCodeFromMarketSymbol(item.sym)] || names[item.sym] || getAssetName(item.sym)).toLowerCase().includes(query);
+    return item.sym.toLowerCase().includes(query) || (assetNames[assetCodeFromMarketSymbol(item.sym)] || names[assetCodeFromMarketSymbol(item.sym)] || getAssetName(item.sym)).toLowerCase().includes(query);
   }).sort((a, b) => sort === "change" ? b.chg - a.chg : sort === "price" ? b.price - a.price : Number(b.vol) - Number(a.vol)), [displayMarkets, assetCatalog, query, favoritesOnly, favorites, sort, assetNames]);
   return (
     <Card className="flex flex-col overflow-hidden p-0 md:p-0">
