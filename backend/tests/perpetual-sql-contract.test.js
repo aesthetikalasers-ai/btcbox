@@ -129,6 +129,11 @@ test('liquidation: deterministic idem key (position id), stale-mark pause, loss 
   assert.ok(sql.includes("'liquidation'"));
 });
 
+test('perpetual schema grants only the identity sequence it creates', () => {
+  assert.ok(sql.includes('grant usage, select on sequence public.perpetual_mark_price_feed_id_seq to service_role'));
+  assert.ok(!sql.includes('grant usage, select on all sequences in schema public to service_role'));
+});
+
 test('all perpetual tables are RLS-enabled, revoked from public/anon/authenticated, granted to service_role', () => {
   assert.ok(sql.includes('enable row level security'));
   assert.ok(sql.includes("revoke all on public.%I from public, anon, authenticated"));
