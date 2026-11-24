@@ -17,6 +17,10 @@ const tradeHub = fs.readFileSync(path.resolve(root, '../../frontend/src/features
 const spotPage = fs.readFileSync(path.resolve(root, '../../frontend/src/features/pages/Pages.tsx'), 'utf8');
 const contractPage = fs.readFileSync(path.resolve(root, '../../frontend/src/features/pages/ContractPage.tsx'), 'utf8');
 const secondsPage = fs.readFileSync(path.resolve(root, '../../frontend/src/features/pages/SecondsPage.tsx'), 'utf8');
+const dashboardPage = fs.readFileSync(path.resolve(root, '../../frontend/src/features/dashboard/Dashboard.tsx'), 'utf8');
+const publicMarketFilter = fs.readFileSync(path.resolve(root, '../../frontend/src/lib/publicAssetMarkets.ts'), 'utf8');
+const tokenIcon = fs.readFileSync(path.resolve(root, '../../frontend/src/components/ui/TokenIcon.tsx'), 'utf8');
+const frontendPackage = JSON.parse(fs.readFileSync(path.resolve(root, '../../frontend/package.json'), 'utf8'));
 
 test('public asset catalogue exposes only display metadata and never wallet or account data', () => {
   const start = api.indexOf("if (path === 'assets' && method === 'GET')");
@@ -155,4 +159,33 @@ test('trade product navigation requires an actual enabled spot pair', () => {
   assert.ok(tradeNav.includes('getSpotMarketPairs(controller.signal)'));
   assert.ok(tradeNav.includes('setHasSpotPairs(pairs.length > 0)'));
   assert.ok(tradeNav.includes('if (key === "spot" && !hasSpotPairs) return false'));
+});
+
+
+test('public market surfaces share a fail-closed asset catalogue filter', () => {
+  assert.ok(publicMarketFilter.includes('if (!assets) return [];'));
+  assert.ok(publicMarketFilter.includes('quote.enabled && quote.visible && quote.spot_enabled'));
+  assert.ok(publicMarketFilter.includes('base.enabled && base.visible && base.spot_enabled'));
+  assert.ok(marketsPage.includes('filterPublicSpotMarkets(markets, assetCatalog)'));
+  assert.ok(marketsPage.includes('if (assetCatalog === null)'));
+  assert.ok(dashboardMarkets.includes('filterPublicSpotMarkets(displayMarkets, assetCatalog)'));
+  assert.ok(dashboardMarkets.includes('assetCatalog === null ? ('));
+  assert.ok(dashboardPage.includes('filterPublicSpotMarkets(markets, assetCatalog)'));
+  assert.ok(dashboardPage.includes('<BannerCarousel markets={publicMarkets}'));
+});
+
+test('homepage product shortcuts and banners follow public module availability', () => {
+  assert.ok(dashboardPage.includes('hasSpot={publicMarkets.length > 0}'));
+  assert.ok(dashboardPage.includes('hasPerpetual={hasPerpetual}'));
+  assert.ok(dashboardPage.includes('hasSeconds={hasSeconds}'));
+  assert.ok(dashboardPage.includes('hasEarn={hasEarn}'));
+  assert.ok(dashboardPage.includes('if (slide.to === "/earn") return hasEarn'));
+  assert.ok(dashboardPage.includes('if (slide.to === "/trade-hub") return hasTrading'));
+});
+
+test('token icon rendering uses packaged crypto SVGs with a non-fabricated fallback', () => {
+  assert.ok(frontendPackage.dependencies['cryptocurrency-icons']);
+  assert.ok(tokenIcon.includes('cryptocurrency-icons/svg/color/*.svg'));
+  assert.ok(tokenIcon.includes('onError={() => setHasError(true)}'));
+  assert.ok(tokenIcon.includes('normalizeSymbol(symbol).substring(0, 3)'));
 });
