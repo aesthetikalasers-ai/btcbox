@@ -303,6 +303,9 @@ test('funding market settlement is atomic, market-locked and advances only after
   assert.ok(fn.includes('public.perp_settle_funding_one'));
   assert.ok(fn.includes('update public.perpetual_funding_rates set settled=true'));
   assert.ok(fn.includes('set next_funding_at=p_funding_at +'));
+  assert.ok(fn.includes('if p_funding_at > now()'));
+  assert.ok(fn.includes('abs(v_rate.rate) > v_market.funding_rate_cap'));
+  assert.ok(fn.includes('non-zero funding requires recorded mark and index prices'));
   assert.ok(migration.includes('check (clearing_delta = -payment_delta)'));
   assert.ok(migration.includes('perpetual_funding_clearing_ledger'));
 });
