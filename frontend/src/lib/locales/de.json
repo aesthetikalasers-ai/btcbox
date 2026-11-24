@@ -1831,7 +1831,6 @@
   "Re-enter fund password": "Fondspasswort erneut eingeben",
   "Current login password": "Aktuelles Anmeldepasswort",
   "Enter current login password": "Aktuelles Anmeldepasswort eingeben",
-  "Authenticator code": "Authentifizierungscode",
   "6-digit code": "6-stelliger Code",
   "OAuth accounts must enable two-factor authentication before setting a fund password.": "OAuth-Konten müssen vor dem Festlegen eines Fondspassworts die Zwei-Faktor-Authentifizierung aktivieren.",
   "Open security settings": "Sicherheitseinstellungen öffnen",
