@@ -1677,9 +1677,10 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
    squeezed and risked a wrap on 320–430px viewports.
    Touch height is unified with every other quick-select pill site-wide
    (percent chips, ratio chips): 36px min-height + 6px radius. */
-.spot-quick-prices { margin-top: -2px; gap: 6px; }
+.spot-quick-prices { margin-top: -2px; gap: 6px; justify-items: center; }
 .spot-quick-prices button {
-  min-height: 36px;
+  width: min(100%, 52px);
+  min-height: 34px;
   padding-inline: 4px;
   border-radius: var(--bf-radius-sm);
   font-size: 10px;
@@ -1687,6 +1688,8 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+.spot-percent-steps { justify-items: center; }
+.spot-percent-steps button { width: min(100%, 56px); min-height: 34px; height: 34px; padding-inline: 4px; }
 
 /* Perpetual chart dialog.
    Radix `Dialog.Content` renders in a portal with no positioning of its own, so

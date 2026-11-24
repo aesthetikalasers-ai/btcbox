@@ -871,11 +871,11 @@ export function ContractPage() {
         </button>
       </div>
       {/* 杠杆档位：4 列等宽网格（10× / 20× / 50× / 100×），窄屏不截断 */}
-      <div className="grid h-9 items-center gap-1 rounded-lg bg-brand-surface-2 p-1" role="group" aria-label={t("Leverage")}
+      <div className="grid h-8 items-center justify-items-center gap-1 rounded-lg bg-brand-surface-2 p-1" role="group" aria-label={t("Leverage")} data-testid="perp-leverage-pills"
         style={{ gridTemplateColumns: `repeat(${leverageOptions.length}, minmax(0, 1fr))` }}>
         {leverageOptions.map((n) => (
           <button key={n} type="button" onClick={() => setLeveragePills(n)}
-            className={cn("flex h-full min-w-0 items-center justify-center rounded-md px-0.5 text-[11px] font-semibold leading-none tabular-nums transition-colors",
+            className={cn("flex h-full w-full max-w-[34px] min-w-0 items-center justify-center rounded-md px-0.5 text-[10px] font-semibold leading-none tabular-nums transition-colors",
               effectiveLeverage === n ? "bg-brand-accent text-[#05201A]" : "text-brand-text-muted hover:text-brand-text")}>
             {n}×
           </button>
@@ -1174,7 +1174,7 @@ export function ContractPage() {
           <>
             <div className="lg:hidden">
               {/* 左右双栏：左下单 + 右紧凑盘口（底边严格齐平），顶部加呼吸间距 */}
-              <div className="compact-trade-form mt-2.5 grid grid-cols-[1.18fr_1fr] items-start gap-2 border-t border-brand-border/40 px-4 pt-2">
+              <div data-testid="perp-mobile-workspace" className="compact-trade-form mt-2.5 grid grid-cols-2 items-start gap-2 border-t border-brand-border/40 px-4 pt-2">
                 {/* 左：移动端紧凑下单表单 */}
                 <div className="flex min-w-0 flex-col">{mobileOrderEntry}</div>
 
