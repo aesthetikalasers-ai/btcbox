@@ -36,6 +36,13 @@ test('public spot-market catalogue is sourced from operator configuration', () =
   assert.ok(backend.includes('DEFAULT_SYMBOLS.map'));
   assert.ok(backend.includes('trading_enabled: false'), 'degraded catalogue pairs must be display-only');
   assert.ok(routeBlock.includes('markets: catalog.markets'));
+  const catalogHelper = backend.slice(backend.indexOf('async function readPublicSpotMarketCatalog()'), backend.indexOf('// Keep this list aligned with spot pair support'));
+  assert.ok(catalogHelper.includes("const source = useCached ? 'stale-cache' : 'static-fallback'"));
+  assert.ok(catalogHelper.includes('tradingEnabled: false'), 'all degraded catalogue responses must disable trading');
+  assert.ok(catalogHelper.includes('trading_enabled: false'), 'degraded pairs must be explicitly read-only');
+  assert.ok(catalogHelper.includes('cached.markets'), 'a recent validated catalogue may be reused for display');
+  assert.ok(catalogHelper.includes('DEFAULT_SYMBOLS.map'), 'cold starts must have a bounded provider-independent display fallback');
+  assert.ok(catalogHelper.includes('Date.now() - cached.fetchedAt <= PUBLIC_SPOT_CATALOG_CACHE_MAX_AGE_MS'), 'stale cache must expire instead of becoming durable configuration');
   assert.ok(backend.includes("market.quote_asset !== 'USDT'"));
   assert.ok(backend.includes("quoteAsset !== 'USDT'"));
   assert.ok(!backend.includes("DEFAULT_SPOT_CATALOG"), "catalogue read failures must not activate a seeded market list");
