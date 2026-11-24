@@ -1819,5 +1819,22 @@
   "Unable to load open orders. Refresh to try again.": "未約定注文を読み込めません。更新して再試行してください。",
   "Unable to load order history. Refresh to try again.": "注文履歴を読み込めません。更新して再試行してください。",
   "Unable to load trade history. Refresh to try again.": "取引履歴を読み込めません。更新して再試行してください。",
-  "Unable to load funding history. Refresh to try again.": "資金調達履歴を読み込めません。更新して再試行してください。"
+  "Unable to load funding history. Refresh to try again.": "資金調達履歴を読み込めません。更新して再試行してください。",
+  "Set or change fund password": "資金パスワードの設定・変更",
+  "Create a separate password for account fund security. It is not your login password.": "資金の保護に使う専用パスワードを作成します。ログインパスワードとは別のものです。",
+  "Account security details could not be verified. Refresh the page before changing your fund password.": "アカウントのセキュリティ情報を確認できませんでした。資金パスワードを変更する前にページを更新してください。",
+  "Account verification": "アカウント確認",
+  "Fund password is stored separately from your login password. Never share it with anyone.": "資金パスワードはログインパスワードとは別に保存されます。誰にも共有しないでください。",
+  "New fund password": "新しい資金パスワード",
+  "At least 8 characters, letters and numbers": "8文字以上、英字と数字を含む",
+  "Confirm fund password": "資金パスワードを確認",
+  "Re-enter fund password": "資金パスワードを再入力",
+  "Current login password": "現在のログインパスワード",
+  "Enter current login password": "現在のログインパスワードを入力",
+  "Authenticator code": "認証アプリのコード",
+  "6-digit code": "6桁のコード",
+  "OAuth accounts must enable two-factor authentication before setting a fund password.": "OAuthアカウントで資金パスワードを設定するには、先に2要素認証を有効にしてください。",
+  "Open security settings": "セキュリティ設定を開く",
+  "Saving…": "保存中…",
+  "Save fund password": "資金パスワードを保存"
 }
