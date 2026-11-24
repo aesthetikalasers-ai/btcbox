@@ -4494,7 +4494,7 @@ async function handleRequest(event, context) {
         return json({ ok: false, code: 'FINANCIAL_READ_UNAVAILABLE', msg: 'Canonical deposit records are unavailable until PostgreSQL financial reads are enabled.' }, 503);
       }
       try {
-        const base = String(process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
+        const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
         if (!base || !supabaseStorageConfigured()) throw new Error('PostgreSQL financial store unavailable');
         const query = new URLSearchParams({
           select: 'id,user_id,asset,network,amount,txid,status,created_at',
