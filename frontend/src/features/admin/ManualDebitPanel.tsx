@@ -26,6 +26,9 @@ export function ManualDebitPanel({ token, actorId, user, coins, canAdjust, onCom
   useEffect(() => {
     setError("");
     setNotice("");
+    setAmount("");
+    setRequestId("");
+    setRequestIntent("");
     try {
       const saved = JSON.parse(window.localStorage.getItem(storageKey) || "null");
       if (saved && saved.version === 1 && saved.actor_id === actorId &&
