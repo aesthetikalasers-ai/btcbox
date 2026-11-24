@@ -143,7 +143,8 @@ test('trade hub only renders product cards with eligible configured assets', () 
 
 test('direct trading routes fail closed when their configured asset markets are unavailable', () => {
   assert.ok(spotPage.includes('getSpotMarketPairs(controller.signal)'));
-  assert.ok(spotPage.includes('setPairSymbols(pairResult.value.filter(pair=>pair.quote_asset==="USDT").map(pair=>pair.base_asset+pair.quote_asset))'));
+  assert.ok(spotPage.includes('pairResult.value.filter(pair => pair.enabled === true && pair.quote_asset === "USDT")'));
+  assert.ok(spotPage.includes('enabledSpotPairs.some(pair => pair.base_asset === baseAssetCode(item.sym))'));
   assert.ok(spotPage.includes('if(!spotPairEnabled&&!pendingIntent)'));
   assert.ok(spotPage.includes('disabled={pairSymbols.length===0}'));
   assert.ok(spotPage.includes('pairSymbols.map(pair=>'));
@@ -157,7 +158,8 @@ test('direct trading routes fail closed when their configured asset markets are 
 
 test('trade product navigation requires an actual enabled spot pair', () => {
   assert.ok(tradeNav.includes('getSpotMarketPairs(controller.signal)'));
-  assert.ok(tradeNav.includes('setHasSpotPairs(pairs.length > 0)'));
+  assert.ok(tradeNav.includes('setFirstSpotPair(firstEnabled ? firstEnabled.base_asset + firstEnabled.quote_asset : "")'));
+  assert.ok(tradeNav.includes('to: `/trade/${firstSpotPair}`'));
   assert.ok(tradeNav.includes('if (key === "spot" && !hasSpotPairs) return false'));
 });
 
@@ -176,6 +178,7 @@ test('public market surfaces share a fail-closed asset catalogue filter', () => 
 
 test('homepage product shortcuts and banners follow public module availability', () => {
   assert.ok(dashboardPage.includes('hasSpot={publicMarkets.length > 0}'));
+  assert.ok(dashboardPage.includes('spotTo={publicMarkets[0] ? `/trade/${pairSymbol(publicMarkets[0].sym)}` : "/markets"}'));
   assert.ok(dashboardPage.includes('hasPerpetual={hasPerpetual}'));
   assert.ok(dashboardPage.includes('hasSeconds={hasSeconds}'));
   assert.ok(dashboardPage.includes('hasEarn={hasEarn}'));
