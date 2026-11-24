@@ -219,6 +219,8 @@ The operator workflow is intentionally minimal:
 - A confirmed deposit credit can increase an already-negative available balance, including a partial offset that remains below zero.
 - The manual-debit UI is available only when the selected user's balance source is confirmed as `postgres_financial_ledger` and the administrator has the existing `financial_adjustment.request` permission plus balance-read access.
 - The existing manual-credit flow remains separate and unchanged.
+- The admin account-balance list reader now accepts finite negative `free` values from the ledger while continuing to reject negative frozen balances, so a negative debit result remains visible in the Admin user centre.
+
 
 ### Safety and rollout
 
