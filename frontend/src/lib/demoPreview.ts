@@ -105,6 +105,7 @@ export function getDemoMarketPairs(): SpotMarketPair[] {
     price_tick: sym === "PEPE" ? "0.000001" : sym === "XRP" || sym === "DOGE" || sym === "MATIC" || sym === "TRX" ? "0.0001" : "0.01",
     quantity_step: "0.0001",
     min_quantity: "0.0001",
+    min_notional: "5",
     min_notional: "10",
     min_limit_price: null,
     max_limit_price: null,
