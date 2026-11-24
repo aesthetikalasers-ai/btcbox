@@ -148,6 +148,17 @@ async function recordMark(symbol, indexPrice, markPrice, freshSources, maxAgeSec
   if (!r.ok || !j || j.ok !== true) throw new Error('perp_record_mark_price failed: ' + r.status + ' ' + JSON.stringify(j));
   return j;
 }
+async function recordBootstrapMark(symbol, indexPrice, freshSources, maxAgeSec) {
+  const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/perp_record_bootstrap_mark_price', {
+    method: 'POST', headers: headers(),
+    body: JSON.stringify({ p_symbol: symbol, p_index_price: String(indexPrice), p_sources: freshSources, p_max_age_sec: maxAgeSec })
+  });
+  const j = await r.json().catch(() => null);
+  if (!r.ok || !j || j.ok !== true || j.status !== 'bootstrap') {
+    throw new Error('perp_record_bootstrap_mark_price failed: ' + r.status + ' ' + JSON.stringify(j));
+  }
+  return j;
+}
 async function main() {
   if (!SUPABASE_URL || !SERVICE_KEY) { console.error('[perp-mark] SUPABASE_URL/SERVICE_KEY not configured; exit.'); process.exit(1); }
   const markets = await restGetAll('perpetual_markets?select=symbol,base_asset,quote_asset,mark_price_stale_sec,circuit_breaker_deviation_pct&enabled=eq.true&order=symbol.asc');
@@ -183,13 +194,21 @@ async function main() {
     const mean = prices.reduce((a, b) => a + b, 0) / prices.length;
     const maxDevPct = Math.max(...prices.map(p => Math.abs((p - mean) / mean) * 100));
     const indexPrice = mean; // independent multi-source spot index
-    let markPrice;
     try {
-      // Mark is derived from the fresh BTCBOX perpetual best-bid/best-ask midpoint,
-      // not copied from the external spot index. If the book is empty/stale/wide,
-      // do not manufacture a zero-premium mark row.
-      markPrice = await perpetualBookMidPrice(symbol);
-      const res = await recordMark(symbol, indexPrice, markPrice, freshSources, maxAgeSec);
+      let res;
+      let markPrice;
+      try {
+        // Once the market has a two-sided, multi-level executable book, use its
+        // independent midpoint. Empty/shallow startup books use a separately
+        // labelled bootstrap anchor from the validated external spot index.
+        markPrice = await perpetualBookMidPrice(symbol);
+        res = await recordMark(symbol, indexPrice, markPrice, freshSources, maxAgeSec);
+      } catch (bookError) {
+        if (!/insufficient two-level/.test(bookError.message)) throw bookError;
+        markPrice = indexPrice;
+        res = await recordBootstrapMark(symbol, indexPrice, freshSources, maxAgeSec);
+        console.warn('[perp-mark]', symbol, 'bootstrap anchor active; order book is not yet deep enough; funding snapshots remain blocked.');
+      }
       console.log('[perp-mark]', symbol, 'index=' + indexPrice, 'mark=' + markPrice, 'sources=' + freshSources.length,
         'deviation_pct=' + maxDevPct.toFixed(3), 'db_status=' + res.status, 'ts=' + new Date().toISOString());
       if (maxDevPct > breakerPct) console.warn('[perp-mark] CIRCUIT BREAKER: sources disagree >' + breakerPct + '% for ' + symbol + '; DB order-entry status is degraded.');
