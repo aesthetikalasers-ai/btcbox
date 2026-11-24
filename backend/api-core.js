@@ -3826,8 +3826,9 @@ async function handleRequest(event, context) {
       const allUsers = Object.values(db.users || {});
       const identityOwnerCounts = new Map();
       allUsers.forEach(function (candidate) {
-        getUserLinkedIdentityIds(candidate).forEach(function (identityId) {
-          const normalizedId = String(identityId).toLowerCase();
+        const normalizedIds = new Set(getUserLinkedIdentityIds(candidate)
+          .filter(isSupabaseUserId).map(function (identityId) { return identityId.toLowerCase(); }));
+        normalizedIds.forEach(function (normalizedId) {
           identityOwnerCounts.set(normalizedId, (identityOwnerCounts.get(normalizedId) || 0) + 1);
         });
       });
@@ -3851,11 +3852,16 @@ async function handleRequest(event, context) {
         try { await getLiveUsdtPrices(priceBases); } catch (_) {}
       }
       return json({ ok: true, source: 'btcbox_state_user_directory', completeness: matchedCount > list.length ? 'limit_reached' : 'snapshot', matched_count: matchedCount, returned_count: list.length, users: list.map(function (u) {
-        const linkedIdentityIds = getUserLinkedIdentityIds(u);
+        const rawIdentityIds = getUserLinkedIdentityIds(u);
+        const linkedIdentityIds = Array.from(new Set(rawIdentityIds.filter(isSupabaseUserId)
+          .map(function (identityId) { return identityId.toLowerCase(); })));
+        const hasInvalidIdentity = rawIdentityIds.some(function (identityId) { return !isSupabaseUserId(identityId); });
         const hasDuplicateIdentity = linkedIdentityIds.some(function (identityId) {
-          return (identityOwnerCounts.get(String(identityId).toLowerCase()) || 0) > 1;
+          return (identityOwnerCounts.get(identityId) || 0) > 1;
         });
-        const record = { uid: u.uid, email: u.email || '', auth_identity_link_status: hasDuplicateIdentity ? 'duplicate_mapping' : linkedIdentityIds.length ? 'linked' : 'missing', auth_identity_count: linkedIdentityIds.length, admin_auth_user_id: adminMembership.is_super_admin === true ? String(u.supabase_user_id || (Array.isArray(u.supabase_user_ids) ? u.supabase_user_ids[0] : '') || '') : '', kyc_status: (u.kyc && u.kyc.status) || 'unverified', created_at: u.created_at || '', frozen: !!u.frozen, twofa: !!u.twofa_enabled };
+        const identityLinkStatus = hasDuplicateIdentity ? 'duplicate_mapping' :
+          hasInvalidIdentity ? 'invalid_mapping' : linkedIdentityIds.length ? 'linked' : 'missing';
+        const record = { uid: u.uid, email: u.email || '', auth_identity_link_status: identityLinkStatus, auth_identity_count: linkedIdentityIds.length, admin_auth_user_id: adminMembership.is_super_admin === true ? String(u.supabase_user_id || (Array.isArray(u.supabase_user_ids) ? u.supabase_user_ids[0] : '') || '') : '', kyc_status: (u.kyc && u.kyc.status) || 'unverified', created_at: u.created_at || '', frozen: !!u.frozen, twofa: !!u.twofa_enabled };
         if (canReadFinancialAudit) {
           const balances = normalizedBalances ? (normalizedBalances[String(u.uid)] || {}) : (u.balances || {});
           record.total_usdt = totalUsdt(balances, livePriceCache.prices);
