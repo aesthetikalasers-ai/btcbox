@@ -337,74 +337,53 @@ async function raceProviders(candidates, run, isUsable) {
  * come from ONE provider, never averaged across sources.
  */
 async function getMarket({ symbols = DEFAULT_SYMBOLS, timeoutMs = 6000 } = {}) {
-  const bases = symbols.map((s) => String(s).toUpperCase().replace(/USDT$/, ''));
+  const bases = [...new Set(symbols.map((s) => String(s).toUpperCase().replace(/USDT$/, '')))]
+    .filter((base) => /^[A-Z0-9]{2,12}$/.test(base) && base !== 'USDT');
   const candidates = providerOrder().filter((id) => PROVIDERS[id].supports.includes('market'));
   const threshold = Math.max(1, Math.ceil(bases.length * 0.6));
-  const snapshotKey = [...new Set(bases)].sort().join(',');
-
+  const snapshotKey = [...bases].sort().join(',');
   const run = (id) => {
     const provider = PROVIDERS[id];
     const reader = id === 'coinbase' ? coinbaseMarket : binanceMarket;
     return cached(`market:${id}:${bases.join(',')}`, TICKER_TTL_MS, () => reader(provider, bases, timeoutMs));
   };
 
-  // Fast path: return the first provider that covers most of the request.
-  const { winner } = await raceProviders(
-    candidates,
-    run,
-    (payload) => Array.isArray(payload.markets) && payload.markets.length >= threshold,
-  );
-  if (winner) {
-    rememberGoodMarket(winner, bases);
-    return winner;
+  // Primary-first, fallback-second: never call every upstream on every poll.
+  // This is the critical protection against request amplification on Vercel.
+  const successes = [];
+  for (const id of candidates) {
+    try {
+      const payload = await run(id);
+      if (!payload || !Array.isArray(payload.markets) || !payload.markets.length) continue;
+      successes.push({ id, payload });
+      if (payload.markets.length >= threshold) {
+        rememberGoodMarket(payload, bases);
+        return payload;
+      }
+    } catch (_) {
+      // Move to the next provider. Provider errors never become fabricated data.
+    }
   }
 
-  // Slow path: no single provider was complete. Re-collect whatever succeeded
-  // (cache makes the re-run nearly free) and merge per symbol.
-  const settled = await Promise.all(
-    candidates.map(async (id) => {
-      try {
-        return { id, payload: await run(id) };
-      } catch (error) {
-        return { id, error };
-      }
-    }),
-  );
-  const wins = settled.filter((r) => r.payload);
-  if (wins.length) {
-    const merged = mergeMarketPayloads(wins.map((r) => r.payload), bases);
+  if (successes.length) {
+    const merged = mergeMarketPayloads(successes.map((r) => r.payload), bases);
     if (merged.markets.length) {
       rememberGoodMarket(merged, bases);
       return merged;
     }
   }
 
-  // Everything failed. Serve the last good snapshot rather than a blank page —
-  // a minute-old quote is strictly more useful than "no data" on a trading UI.
+  // All live providers failed: return the last known snapshot as explicitly
+  // degraded data. The frontend still enforces its 90-second freshness rule.
   const stale = lastGoodMarkets.get(snapshotKey);
   if (stale) {
     const requested = new Set(bases);
     const markets = stale.markets.filter((row) => requested.has(String(row.sym || '').toUpperCase()));
     const data = Object.fromEntries(Object.entries(stale.data || {}).filter(([symbol]) => requested.has(String(symbol).toUpperCase())));
-    if (markets.length) {
-      return {
-        ...stale,
-        markets,
-        data,
-        stale: true,
-        degraded: true,
-        msg: 'Live market data is temporarily unavailable. Showing the last known snapshot.',
-      };
-    }
+    if (markets.length) return { ...stale, markets, data, stale: true, degraded: true, msg: 'Live market data is temporarily unavailable. Showing the last known snapshot.' };
   }
 
-  const lastError = settled.map((r) => r.error).filter(Boolean).pop();
-  return {
-    ok: false,
-    code: 'MARKET_DATA_UNAVAILABLE',
-    msg: lastError ? String(lastError.message || lastError) : 'Market data unavailable.',
-    source: 'unavailable',
-  };
+  return { ok: false, code: 'MARKET_DATA_UNAVAILABLE', msg: 'Market data unavailable.', source: 'unavailable' };
 }
 
 /**
