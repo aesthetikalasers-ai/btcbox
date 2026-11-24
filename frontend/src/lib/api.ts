@@ -1763,7 +1763,7 @@ export async function getPerpTrades(symbol: string, signal?: AbortSignal): Promi
   const query = new URLSearchParams({ symbol });
   const payload = await readAuthenticated<{ ok: true; trades: PerpTrade[] }>(`perpetual/trades?${query.toString()}`, signal);
   if (!Array.isArray(payload.trades)) throw new ApiError("Perpetual trade history is unavailable.", 502, "INVALID_PERP_TRADES");
-  return payload.trades;
+  return payload.trades.filter((trade) => trade.symbol === symbol);
 }
 export async function getPerpFundingHistory(symbol: string, signal?: AbortSignal): Promise<PerpFundingRecord[]> {
   if (DEMO_PREVIEW_ACTIVE) return [];
