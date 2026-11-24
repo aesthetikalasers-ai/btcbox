@@ -72,23 +72,25 @@ export function FundPasswordPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {loading ? <p className="text-sm text-brand-text-muted" role="status">{t("Loading account security…")}</p> : (
+            {loading ? <p className="text-sm text-brand-text-muted" role="status">{t("Loading account security…")}</p> : !account ? (
+              <p className="text-sm text-brand-danger" role="alert">{t("Account security details could not be verified. Refresh the page before changing your fund password.")}</p>
+            ) : (
               <form className="space-y-4" onSubmit={submit} autoComplete="off" aria-busy={busy}>
                 <div className="rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text-secondary">
                   <div className="flex items-center gap-2 font-semibold text-brand-text"><ShieldCheck className="h-4 w-4 text-brand-success" />{t("Account verification")}</div>
                   <p className="mt-1">{t("Fund password is stored separately from your login password. Never share it with anyone.")}</p>
                 </div>
                 <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("New fund password")}</span>
-                  <Input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" minLength={8} maxLength={128} required />
+                  <Input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" minLength={8} maxLength={128} placeholder={t("At least 8 characters, letters and numbers")} required />
                 </label>
                 <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Confirm fund password")}</span>
-                  <Input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={8} maxLength={128} required />
+                  <Input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={8} maxLength={128} placeholder={t("Re-enter fund password")} required />
                 </label>
                 {!oauthAccount && <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Current login password")}</span>
-                  <Input type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} autoComplete="current-password" required />
+                  <Input type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} autoComplete="current-password" placeholder={t("Enter current login password")} required />
                 </label>}
                 {requiresTwoFactor && <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Authenticator code")}</span>
-                  <Input value={twoFactorCode} onChange={(event) => setTwoFactorCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="000000" required />
+                  <Input value={twoFactorCode} onChange={(event) => setTwoFactorCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder={t("6-digit code")} required />
                 </label>}
                 {oauthAccount && !account?.twofa_enabled && <p className="text-sm text-brand-danger" role="alert">{t("OAuth accounts must enable two-factor authentication before setting a fund password.")} <Link className="underline" to="/settings">{t("Open security settings")}</Link></p>}
                 {error && <p className="text-sm text-brand-danger" role="alert">{t(error)}</p>}
