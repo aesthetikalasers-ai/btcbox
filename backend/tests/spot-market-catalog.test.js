@@ -101,7 +101,7 @@ test('public ticker snapshots use a short shared-cache window and clients bypass
   assert.ok(pages.includes('window.setInterval(refreshMarketData,5000)'));
 });
 
-test('order book snapshots normalize provider levels and expose source-specific freshness', () => {
+test('order book snapshots normalize provider levels and preserve server-side freshness', () => {
   const depthStart = backend.indexOf("if (path === 'depth' && method === 'GET')");
   const authBoundary = backend.indexOf('// ---------- 以下接口需要登录 ----------', depthStart);
   const route = backend.slice(depthStart, authBoundary);
@@ -113,26 +113,27 @@ test('order book snapshots normalize provider levels and expose source-specific 
   assert.ok(route.includes('snapshotTs: Math.floor(Date.now() / 1000), providerTs'));
   assert.ok(api.includes('const normalizeLevels = (rows: unknown[])'));
   assert.ok(api.includes('INVALID_ORDER_BOOK'));
-  assert.ok(pages.includes('const providerTimestampMs=ticker?.providerTs?ticker.providerTs*1000:null;'));
   assert.ok(pages.includes('!serverSnapshotTimestampMs||!Number.isFinite(serverSnapshotTimestampMs)'));
   assert.ok(pages.includes('(!ticker||marketSnapshotStale)&&!pendingIntent'));
-  assert.ok(pages.includes('displayTicker?.source'), 'ticker provider source must be visible to the trader');
+  assert.ok(!pages.includes('providerTimestampMs'), 'provider event time must not replace server snapshot freshness');
+  assert.ok(!pages.includes('displayTicker?.source'), 'ticker source must not be rendered in customer UI');
   assert.ok(pages.includes('const orderBookSnapshotStale=!!book&&(!book.snapshotTs||marketClockNow-book.snapshotTs*1000>90_000)'));
   assert.ok(pages.includes('const streamDepthFresh=liveDepth.updatedAt!==null&&Date.now()-liveDepth.updatedAt<=90_000'));
   assert.ok(pages.includes('const displayBook=streamDepthFresh?liveDepth.data:(orderBookSnapshotStale?null:book)'));
   // A stale stream frame cannot shadow a newer polled provider snapshot.
   assert.ok(pages.includes('orderBookSnapshotStale?null:book'), 'stale polled book must not be rendered as live');
-  // Ticker and depth provider source badges are visible for feed traceability.
-  assert.ok(pages.includes('displayBook?.source'), 'order book provider source must be visible to the trader');
+  // Source metadata stays in API snapshots but is not rendered in the customer UI.
+  assert.ok(!pages.includes('displayBook?.source'), 'order book source must not be rendered in customer UI');
+  assert.ok(!pages.includes('t("Source")'), 'internal feed labels must not be rendered');
 });
 
-test('spot chart preserves provider provenance and rejects impossible OHLC ranges', () => {
+test('spot chart preserves internal provider provenance and rejects impossible OHLC ranges', () => {
   const normalizer = fs.readFileSync(path.resolve(root, '../frontend/src/lib/klineData.ts'), 'utf8');
   assert.ok(normalizer.includes('high < Math.max(open, close, low)'));
   assert.ok(normalizer.includes('low > Math.min(open, close, high)'));
   assert.ok(normalizer.includes('source: typeof candle.source === "string" ? candle.source : fallbackSource'));
   assert.ok(api.includes('normalizeKlines(payload.klines, payload.source)'));
-  assert.ok(pages.includes('candles[candles.length-1]?.source'), 'chart provider source must be visible to the trader');
+  assert.ok(!pages.includes('candles[candles.length-1]?.source'), 'chart provider source must stay internal');
   assert.ok(pages.includes('setCandles([]);setChartFeedWarning(t("Chart data is temporarily unavailable."))'));
   assert.ok(!pages.includes("showing the last confirmed candles"));
 });

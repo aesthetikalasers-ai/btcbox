@@ -86,9 +86,12 @@ test("mobile chart refreshes verified candles while the drawer is expanded", asy
 
   await page.goto("/trade/BTCUSDT");
   await expect.poll(() => klineRequests).toBe(1);
-  await expect(page.locator(".spot-quote-source")).toContainText("binance-vision");
+  await expect(page.locator(".spot-quote-source")).toHaveCount(0);
+  await expect(page.getByText(/binance-vision|Provider updated|Snapshot checked|Tick size|Quantity step|Minimum quantity|Minimum notional/i)).toHaveCount(0);
   await page.locator("#trade-chart-open").click();
-  await expect(page.getByRole("region", { name: "Price chart" })).toBeVisible();
+  const chart = page.getByRole("region", { name: "Price chart" });
+  await expect(chart).toBeVisible();
+  await expect(chart.getByText(/binance-vision|Source:/i)).toHaveCount(0);
   await page.clock.fastForward(30000);
   await expect.poll(() => klineRequests).toBe(2);
 });
