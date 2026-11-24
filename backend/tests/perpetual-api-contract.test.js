@@ -140,6 +140,19 @@ test('admin perpetual market routes are reachable only through explicit system-c
   assert.ok(writeRoute.includes("compareMoney(minNotional,'0')<=0"));
 });
 
+test('perpetual market changes require a bounded audit reason and persist audit before market upsert', () => {
+  const start = api.indexOf("perpSub === 'market' && method === 'POST'");
+  const route = api.slice(start, start + 5000);
+  assert.ok(route.includes("const reason = String(body.reason || '').trim()"));
+  assert.ok(route.includes('reason.length < 5 || reason.length > 500'));
+  assert.ok(route.includes("await auditAdmin('perpetual_market_upsert'"));
+  assert.ok(route.includes('await saveDB(db)'));
+  assert.ok(route.includes('await flushAdminAuditOutbox()'));
+  assert.ok(route.indexOf("await auditAdmin('perpetual_market_upsert'") < route.indexOf("fetch(base + '/rest/v1/perpetual_markets"));
+  assert.ok(route.includes('fundingInterval !== 28800'));
+  assert.ok(route.includes('fundingCap > 0.0075'));
+});
+
 test('admin perpetual liquidations & insurance endpoints gated by financial_audit.read', () => {
   assert.ok(api.includes("perpSub === 'liquidations' && method === 'GET'"));
   assert.ok(api.includes("perpSub === 'insurance' && method === 'GET'"));
