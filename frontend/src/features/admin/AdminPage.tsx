@@ -1394,7 +1394,7 @@ export function AdminPage() {
     if (!spotAssets.includes(draft.base_asset) || ["USDT", "USDC"].includes(draft.base_asset) ||
         !positive(draft.price_tick) || !positive(draft.quantity_step) || !positive(draft.min_quantity) ||
         !positive(draft.min_notional) || !positive(draft.market_quantity_step) || !positive(draft.market_min_quantity) ||
-        !optionalPositive(draft.market_max_quantity) || !optionalPositive(draft.max_quantity) || !positive(draft.max_position_notional) ||
+        !optionalPositive(draft.market_max_quantity) || !optionalPositive(draft.max_quantity) || !positive(draft.max_position_notional) || Number(draft.max_position_notional) < Number(draft.min_notional) ||
         (draft.market_max_quantity.trim() && Number(draft.market_max_quantity) < Number(draft.market_min_quantity)) ||
         !Number.isInteger(maxLeverage) || maxLeverage < 1 || maxLeverage > 100 ||
         !Number.isFinite(mmr) || mmr <= 0 || mmr > 0.5 ||
