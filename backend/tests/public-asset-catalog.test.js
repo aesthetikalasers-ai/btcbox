@@ -20,6 +20,7 @@ const secondsPage = fs.readFileSync(path.resolve(root, '../../frontend/src/featu
 const dashboardPage = fs.readFileSync(path.resolve(root, '../../frontend/src/features/dashboard/Dashboard.tsx'), 'utf8');
 const publicMarketFilter = fs.readFileSync(path.resolve(root, '../../frontend/src/lib/publicAssetMarkets.ts'), 'utf8');
 const tokenIcon = fs.readFileSync(path.resolve(root, '../../frontend/src/components/ui/TokenIcon.tsx'), 'utf8');
+const marketData = fs.readFileSync(path.resolve(root, '../../frontend/src/lib/marketData.ts'), 'utf8');
 const frontendPackage = JSON.parse(fs.readFileSync(path.resolve(root, '../../frontend/package.json'), 'utf8'));
 
 test('public asset catalogue exposes only display metadata and never wallet or account data', () => {
@@ -191,4 +192,16 @@ test('token icon rendering uses packaged crypto SVGs with a non-fabricated fallb
   assert.ok(tokenIcon.includes('cryptocurrency-icons/svg/color/*.svg'));
   assert.ok(tokenIcon.includes('onError={() => setHasError(true)}'));
   assert.ok(tokenIcon.includes('normalizeSymbol(symbol).substring(0, 3)'));
+});
+
+
+test('fallback display names cover all 26 configured assets', () => {
+  const codes = [...api.slice(api.indexOf('const ASSET_CATALOG_DEFAULTS = ['), api.indexOf('function normalizeAdminAssetCatalog')).matchAll(/\['([A-Z0-9]+)'/g)].map((match) => match[1]);
+  assert.equal(codes.length, 26);
+  const marketNames = marketData.slice(marketData.indexOf('export const ASSET_NAMES'), marketData.indexOf('};', marketData.indexOf('export const ASSET_NAMES')));
+  const walletNames = assetsPage.slice(assetsPage.indexOf('const COIN_NAMES'), assetsPage.indexOf('};', assetsPage.indexOf('const COIN_NAMES')));
+  for (const code of codes) {
+    assert.match(marketNames, new RegExp('\\b' + code + ':'));
+    assert.match(walletNames, new RegExp('\\b' + code + ':'));
+  }
 });
