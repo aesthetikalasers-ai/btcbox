@@ -7,6 +7,65 @@ ALTER TABLE public.financial_accounts
 ALTER TABLE public.financial_ledger
   DROP CONSTRAINT IF EXISTS financial_ledger_available_after_check;
 
+-- Keep the negative-balance exception scoped even though the original CHECK
+-- constraints must be relaxed. The transaction-local operation marker is set
+-- only by apply_financial_operation before it updates an account.
+CREATE OR REPLACE FUNCTION public.guard_negative_financial_available_v1()
+RETURNS trigger
+LANGUAGE plpgsql SECURITY INVOKER SET search_path = ''
+AS $
+DECLARE
+  v_operation_id text;
+BEGIN
+  IF NEW.available < 0 THEN
+    v_operation_id := current_setting('btcbox.financial_operation_id', true);
+    IF coalesce(v_operation_id, '') = '' OR NOT EXISTS (
+      SELECT 1 FROM public.financial_operations o
+       WHERE o.id::text = v_operation_id
+         AND o.user_id = NEW.user_id
+         AND o.asset = NEW.asset
+         AND o.operation_type = 'admin_adjustment'
+         AND o.metadata->>'reason' = 'admin_manual_debit'
+    ) THEN
+      RAISE EXCEPTION 'negative available balance requires a marked admin manual debit';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$;
+
+CREATE OR REPLACE FUNCTION public.guard_negative_financial_ledger_v1()
+RETURNS trigger
+LANGUAGE plpgsql SECURITY INVOKER SET search_path = ''
+AS $
+BEGIN
+  IF NEW.available_after < 0 AND NOT EXISTS (
+    SELECT 1 FROM public.financial_operations o
+     WHERE o.id = NEW.operation_id
+       AND o.user_id = NEW.user_id
+       AND o.asset = NEW.asset
+       AND o.operation_type = 'admin_adjustment'
+       AND o.metadata->>'reason' = 'admin_manual_debit'
+  ) THEN
+    RAISE EXCEPTION 'negative ledger balance requires a marked admin manual debit';
+  END IF;
+  RETURN NEW;
+END;
+$;
+
+DROP TRIGGER IF EXISTS financial_accounts_negative_balance_guard ON public.financial_accounts;
+CREATE TRIGGER financial_accounts_negative_balance_guard
+  BEFORE INSERT OR UPDATE ON public.financial_accounts
+  FOR EACH ROW EXECUTE FUNCTION public.guard_negative_financial_available_v1();
+
+DROP TRIGGER IF EXISTS financial_ledger_negative_balance_guard ON public.financial_ledger;
+CREATE TRIGGER financial_ledger_negative_balance_guard
+  BEFORE INSERT ON public.financial_ledger
+  FOR EACH ROW EXECUTE FUNCTION public.guard_negative_financial_ledger_v1();
+
+REVOKE ALL ON FUNCTION public.guard_negative_financial_available_v1() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.guard_negative_financial_ledger_v1() FROM PUBLIC, anon, authenticated;
+
 CREATE OR REPLACE FUNCTION public.apply_financial_operation(
   p_idempotency_key text, p_user_id text, p_asset text, p_operation_type text,
   p_available_delta numeric, p_frozen_delta numeric, p_request_hash text,
@@ -66,6 +125,8 @@ BEGIN
      OR v_frozen + p_frozen_delta < 0 THEN
     RAISE EXCEPTION 'insufficient funds';
   END IF;
+
+  PERFORM set_config('btcbox.financial_operation_id', v_op.id::text, true);
 
   UPDATE public.financial_accounts
      SET available = available + p_available_delta,
