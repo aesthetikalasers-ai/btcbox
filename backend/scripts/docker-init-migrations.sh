@@ -69,6 +69,7 @@ FILES=(
   0049_btcbox_complete_26_asset_registry_v1.sql
   0050_perpetual_bootstrap_mark_price_v1.sql
   0051_perpetual_market_min_notional_v1.sql
+  0052_perpetual_two_source_median_bootstrap_v1.sql
 )
 
 for file in "${FILES[@]}"; do
