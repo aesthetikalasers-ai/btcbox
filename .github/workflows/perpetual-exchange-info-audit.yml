@@ -25,6 +25,7 @@ jobs:
         run: node --test backend/tests/perp-exchange-info-audit.test.js
       - name: Fetch current Binance USD-M filters (read-only)
         run: |
+          set -o pipefail
           node backend/scripts/audit-binance-usdm-market-filters.js | tee /tmp/perp-usdm-filters.json
           {
             echo '### Binance USD-M perpetual filter snapshot'
