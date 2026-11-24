@@ -53,6 +53,8 @@ declare
   v_frozen_before numeric(38,18);
   v_avail_delta numeric(38,18) := 0;
   v_frozen_delta numeric(38,18) := 0;
+  v_from_avail numeric(38,18);
+  v_from_margin numeric(38,18);
 begin
   if coalesce(p_user_id,'') = '' or p_symbol is null
      or p_symbol !~ '^[A-Z0-9]{3,20}$' or p_funding_at is null then
@@ -143,19 +145,17 @@ begin
       v_avail_delta := v_payment;
     else
       -- Consume only this isolated position's collateral for the shortfall.
-      declare v_from_avail numeric(38,18) := -v_avail_before;
-              v_from_margin numeric(38,18) := v_payment - v_from_avail;
-      begin
-        update public.financial_accounts set available=0, frozen=frozen+v_from_margin, version=version+1, updated_at=now()
-         where user_id=p_user_id and asset='USDT' and frozen >= -v_from_margin;
-        if not found then raise exception 'funding debit invariant failed'; end if;
-        update public.perpetual_positions
-           set isolated_margin=isolated_margin + v_from_margin, updated_at=now()
-         where id=v_pos.id and isolated_margin >= -v_from_margin;
-        if not found then raise exception 'funding isolated margin invariant failed'; end if;
-        v_avail_delta := v_from_avail;
-        v_frozen_delta := v_from_margin;
-      end;
+      v_from_avail := -v_avail_before;
+      v_from_margin := v_payment - v_from_avail;
+      update public.financial_accounts set available=0, frozen=frozen+v_from_margin, version=version+1, updated_at=now()
+       where user_id=p_user_id and asset='USDT' and frozen >= -v_from_margin;
+      if not found then raise exception 'funding debit invariant failed'; end if;
+      update public.perpetual_positions
+         set isolated_margin=isolated_margin + v_from_margin, updated_at=now()
+       where id=v_pos.id and isolated_margin >= -v_from_margin;
+      if not found then raise exception 'funding isolated margin invariant failed'; end if;
+      v_avail_delta := v_from_avail;
+      v_frozen_delta := v_from_margin;
     end if;
   elsif v_payment > 0 then
     update public.financial_accounts set available=available+v_payment, version=version+1, updated_at=now()
