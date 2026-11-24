@@ -146,9 +146,11 @@ begin
   select * into v_mark from public.perp_latest_mark_price(p_symbol, v_market.mark_price_stale_sec);
   if v_mark is null or v_mark.status='stale'
      or (v_mark.age_sec > v_market.mark_price_stale_sec) then
-    raise exception 'mark price unavailable or stale';
-  end if;
-  if v_mark.max_deviation_pct > v_market.circuit_breaker_deviation_pct and not p_reduce_only then
+    if not coalesce(p_reduce_only,false) then
+      raise exception 'mark price unavailable or stale';
+    end if;
+  elsif v_mark.max_deviation_pct > v_market.circuit_breaker_deviation_pct
+     and not coalesce(p_reduce_only,false) then
     raise exception 'price deviation circuit breaker active — reduce/close only';
   end if;
   if not p_reduce_only and not p_close_position
