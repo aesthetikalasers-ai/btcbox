@@ -16,13 +16,22 @@ test('admin navigation groups the existing tabs by business centre without dupli
   const expected = [
     'tabs: ["overview"]',
     'tabs: ["users", "kyc"]',
-    'tabs: ["deposits", "withdrawals", "payout-addresses"]',
+    'tabs: ["deposits", "withdrawals", "financial-adjustments", "payout-addresses"]',
     'tabs: ["orders", "markets", "seconds"]',
     'tabs: ["support", "support-faq"]',
     'tabs: ["audit"]',
     'tabs: ["admins"]',
   ];
   for (const item of expected) assert.ok(groups.includes(item), 'missing business-centre group ' + item);
+  assert.ok(registry.includes('"financial-adjustments"'));
+  const userStart = page.indexOf('!loading && tab === "users"');
+  const financeStart = page.indexOf('!loading && tab === "financial-adjustments"');
+  const userBlock = page.slice(userStart, financeStart);
+  const financeEnd = page.indexOf('!loading && tab === "deposits"', financeStart);
+  const financeBlock = page.slice(financeStart, financeEnd);
+  assert.ok(userBlock.includes('setTab("financial-adjustments")'), 'opening a user should enter the finance module');
+  assert.ok(!userBlock.includes('ManualDebitPanel') && !userBlock.includes('manualCredit(event,coin)'), 'user directory must not contain financial action forms');
+  assert.ok(financeBlock.includes('ManualDebitPanel') && financeBlock.includes('manualCredit(event,coin)'), 'finance module must own both manual actions');
   assert.ok(page.includes('ADMIN_TAB_GROUPS.map'));
   assert.ok(page.includes('allowedTabs.filter(item => group.tabs.includes(item.id))'));
   assert.ok(page.includes('if (!visibleItems.length) return null'));
