@@ -9,6 +9,19 @@ import { TokenIcon } from "../../components/ui/TokenIcon";
 import { useAuth } from "../../lib/auth";
 import { DEV_OPEN_ACCOUNT_PAGES } from "../../lib/devAccess";
 
+function formatConfiguredAssetAmount(value: number | string | undefined, locale: string, precision: number) {
+  const safePrecision = Number.isInteger(precision) ? Math.max(0, Math.min(18, precision)) : 8;
+  if (typeof value === "string") {
+    const match = value.trim().match(/^(-?)(\\d+)(?:\\.(\\d+))?$/);
+    if (match) {
+      const fraction = (match[3] || "").slice(0, safePrecision);
+      const normalized = match[1] + match[2] + (fraction ? "." + fraction : "");
+      return formatDecimalAmount(normalized, locale, safePrecision);
+    }
+  }
+  return formatDecimalAmount(value, locale, safePrecision);
+}
+
 const PINNED_COINS = ["BTC", "ETH", "USDT"];
 
 /** Display names shown under each asset symbol (Binance-style asset list). */
@@ -209,6 +222,7 @@ export function AssetsPage() {
             const assetConfig = assetCatalog.find(asset => asset.code === coin.toUpperCase());
             const coinName = assetConfig?.display_name || assetConfig?.name || COIN_NAMES[coin] || coin;
             const hasEnabledSpotPair = enabledSpotPairs.some(pair => pair.base_asset === coin.toUpperCase() && pair.quote_asset === "USDT" && pair.enabled);
+            const displayPrecision = assetConfig?.display_precision ?? 8;
             return (
               <div key={coin} className="px-4 py-3.5 transition-colors hover:bg-white/[0.02]">
                 <div className="flex items-start gap-3">
@@ -218,8 +232,8 @@ export function AssetsPage() {
                     <p className="mt-0.5 truncate text-[11px] text-brand-text-muted">{t(coinName)}</p>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="font-mono text-sm font-bold tabular-nums text-brand-text">{formatDecimalAmount(balance.free, numberLocale)}</p>
-                    <p className="mt-0.5 text-[11px] tabular-nums text-brand-text-muted">{t("In orders")}: {formatDecimalAmount(balance.frozen, numberLocale)}</p>
+                    <p className="font-mono text-sm font-bold tabular-nums text-brand-text">{formatConfiguredAssetAmount(balance.free, numberLocale, displayPrecision)}</p>
+                    <p className="mt-0.5 text-[11px] tabular-nums text-brand-text-muted">{t("In orders")}: {formatConfiguredAssetAmount(balance.frozen, numberLocale, displayPrecision)}</p>
                     {balance.valuation_available === true && balance.usdt !== undefined ? <p className="mt-0.5 text-[11px] tabular-nums text-brand-text-muted">{formatDecimalAmount(balance.usdt, numberLocale)} USDT</p> : null}
                   </div>
                 </div>
