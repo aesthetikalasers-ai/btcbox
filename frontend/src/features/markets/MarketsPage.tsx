@@ -349,7 +349,8 @@ export function MarketsPage() {
   const visibleMarkets = useMemo(() => {
     const needle = query.trim().toUpperCase();
     const rows = markets.filter((market) => {
-      if (needle && !market.sym.toUpperCase().includes(needle)) return false;
+      const configuredName = assetNames[market.sym] || getAssetName(market.sym);
+      if (needle && !market.sym.toUpperCase().includes(needle) && !configuredName.toUpperCase().includes(needle)) return false;
       if (filter === "favorites") return favorites.includes(market.sym);
       if (filter === "gainers") return market.chg > 0;
       if (filter === "losers") return market.chg < 0;
@@ -360,7 +361,7 @@ export function MarketsPage() {
       if (sort === "price") return b.price - a.price;
       return Number(b.vol) - Number(a.vol);
     });
-  }, [markets, query, filter, favorites, sort]);
+  }, [markets, query, filter, favorites, sort, assetNames]);
 
 
   return (
