@@ -132,6 +132,50 @@ test('provider order falls back when the first provider fails', async () => {
   }
 });
 
+test('partial primary coverage is merged with the batched Bybit fallback without replacing primary rows', async () => {
+  const now = Date.now();
+  const primary = [{ ...TICKER_ROWS[0], closeTime: now }];
+  const bybitRows = [
+    { symbol: 'BTCUSDT', lastPrice: '64201', highPrice24h: '65447', lowPrice24h: '63336', price24hPcnt: '-0.0102', turnover24h: '1286341428.69' },
+    { symbol: 'ETHUSDT', lastPrice: '1803', highPrice24h: '1836', lowPrice24h: '1780', price24hPcnt: '0.0055', turnover24h: '482300000.00' },
+  ];
+  const restore = stubFetch(async (url) => {
+    const href = String(url);
+    if (href.includes('data-api.binance.vision')) return jsonResponse(primary);
+    if (href.includes('api.bybit.com/v5/market/tickers')) return jsonResponse({ time: now, result: { list: bybitRows } });
+    throw new Error('unexpected provider request');
+  });
+  try {
+    const gw = freshGateway({ MARKET_PROVIDER_ORDER: 'binance-vision,bybit' });
+    const snapshot = await gw.getMarket({ symbols: ['BTC', 'ETH'] });
+    assert.equal(snapshot.ok, true);
+    assert.deepEqual(snapshot.markets.map((row) => row.sym), ['BTC', 'ETH']);
+    assert.equal(snapshot.markets[0].source, 'binance-vision');
+    assert.equal(snapshot.markets[1].source, 'bybit');
+    assert.ok(snapshot.data.ETH.providerTs > 0);
+  } finally {
+    restore();
+  }
+});
+
+test('Bybit market fallback rejects missing, stale and future response timestamps', async () => {
+  const now = Date.now();
+  for (const time of [undefined, now - 120_000, now + 60_000]) {
+    const restore = stubFetch(async () => jsonResponse({
+      ...(time === undefined ? {} : { time }),
+      result: { list: [{ symbol: 'BTCUSDT', lastPrice: '64200', highPrice24h: '65447', lowPrice24h: '63336', price24hPcnt: '0.01', turnover24h: '10' }] },
+    }));
+    try {
+      const gw = freshGateway({ MARKET_PROVIDER_ORDER: 'bybit' });
+      const snapshot = await gw.getMarket({ symbols: ['BTC'] });
+      assert.equal(snapshot.ok, false);
+      assert.equal(snapshot.code, 'MARKET_DATA_UNAVAILABLE');
+    } finally {
+      restore();
+    }
+  }
+});
+
 test('an unavailable provider yields an explicit failure, never synthetic prices', async () => {
   const restore = stubFetch(async () => {
     throw new Error('network down');
