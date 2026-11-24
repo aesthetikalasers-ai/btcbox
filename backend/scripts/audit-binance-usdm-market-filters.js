@@ -58,7 +58,7 @@ function extractUsdmMarketFilters(payload, symbols = CANDIDATE_SYMBOLS) {
       price_precision_reference_only: row.pricePrecision ?? null,
       quantity_precision_reference_only: row.quantityPrecision ?? null,
     };
-    const missing = ['price_tick','quantity_step','min_quantity','min_notional'].filter(key => !positive(item[key]));
+    const missing = ['price_tick','quantity_step','min_quantity','market_quantity_step','market_min_quantity','min_notional'].filter(key => !positive(item[key]));
     if (missing.length) invalid.push({ symbol, missing });
     markets.push(item);
   }
