@@ -124,6 +124,9 @@ test("market quote provenance never invents provider timestamps", () => {
   assert.ok(getMarkets.includes(": undefined"));
   assert.ok(getMarkets.includes(": null"));
   assert.ok(!getMarkets.includes("Math.floor(Date.now() / 1000)"));
+  assert.ok(getMarkets.includes("const snapshotStale = snapshotInvalid || providerTimestampInvalid"));
+  assert.ok(!getMarkets.includes("nowSeconds - row.providerTs > 90"), "an old last-trade timestamp on one quiet pair must not invalidate the whole fresh server snapshot");
+  assert.ok(getMarkets.includes("row.providerTs > nowSeconds + 30"), "impossible future provider timestamps remain rejected");
 });
 
 test("live market stream preserves provider provenance and does not invent quote metrics", () => {
