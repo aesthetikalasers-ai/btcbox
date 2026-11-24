@@ -284,6 +284,14 @@ test('funding worker calls one atomic market RPC and never advances the boundary
   assert.ok(fundingSql.includes('where symbol=p_symbol for update'));
 });
 
+test('mark feed keeps external spot index independent from the perpetual-book mark premium', () => {
+  const markFn = sql.slice(sql.indexOf('create or replace function public.perp_record_mark_price'));
+  assert.ok(markFn.includes('index price must match the validated external spot source mean'));
+  assert.ok(markFn.includes('BTCBOX perpetual-book midpoint'));
+  assert.ok(markFn.includes('v_mark_deviation := abs(p_mark_price-p_index_price)/p_index_price*100'));
+  assert.ok(!markFn.includes('abs(p_mark_price-v_mean)/v_mean > 0.0001'));
+});
+
 test('mark-price source validation requires unique trusted provider identities', () => {
   assert.ok(sql.includes("v_source_name not in ('binance','okx','coingecko')"));
   assert.ok(sql.includes('v_source_name = any(v_sources_seen)'));
