@@ -3562,6 +3562,10 @@ async function handleRequest(event, context) {
       if (route === 'audit-logs' && verb === 'GET') return 'financial_audit.read';
       if (route === 'spot-markets' && verb === 'GET') return 'system_config.read';
       if (route === 'spot-markets' && verb === 'POST') return 'system_config.write';
+      if (route === 'perpetual/markets' && verb === 'GET') return 'system_config.read';
+      if (route === 'perpetual/market' && verb === 'POST') return 'system_config.write';
+      if (route === 'perpetual/liquidations' && verb === 'GET') return 'financial_audit.read';
+      if (route === 'perpetual/insurance' && verb === 'GET') return 'financial_audit.read';
       if (route === 'config' && verb === 'GET') return 'system_config.read';
       if (route === 'config' && verb === 'POST') return 'system_config.write';
       if (route === 'seconds-policy' && verb === 'GET') return 'seconds_policy.read';
