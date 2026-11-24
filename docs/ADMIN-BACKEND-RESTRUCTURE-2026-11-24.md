@@ -235,3 +235,17 @@ The operator workflow is intentionally minimal:
 - Search results are bounded to 500 messages, with at most 100 messages per selected conversation. The browser does not download every retained conversation to search locally.
 - Message IDs and usernames are visible in the inbox. Existing read-cursor, unread-count, and reply actions remain in place; full-thread unanswered status is supplied by the backend so a narrow search result does not mislabel the conversation.
 - Search remains within the existing `support.read` permission boundary. Reply still requires `support.reply`.
+
+## Admin module navigation structure (2026-11-24)
+
+The Admin workspace navigation is now grouped by business ownership rather than one flat tab strip:
+
+- Workspace: overview
+- User centre: user directory and KYC
+- Finance centre: deposit configuration, withdrawal queue, bank payout details
+- Trading operations: orders, spot markets, Seconds
+- Support centre: support inbox and help centre
+- Audit centre: financial audit log
+- System: administrator membership
+
+Groups are permission-filtered: a group is hidden when the current administrator has no visible tabs in it. This is navigation organization only; it does not grant permissions or expose the unwired Perpetual admin routes. Manual debit and manual credit remain distinct actions and are not re-labelled as deposit review.
