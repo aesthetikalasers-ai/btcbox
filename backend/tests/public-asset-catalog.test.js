@@ -7,22 +7,22 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const api = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
-const client = fs.readFileSync(path.resolve(root, '../../frontend/src/lib/api.ts'), 'utf8');
-const assetsPage = fs.readFileSync(path.resolve(root, '../../frontend/src/features/assets/AssetsPage.tsx'), 'utf8');
-const marketsPage = fs.readFileSync(path.resolve(root, '../../frontend/src/features/markets/MarketsPage.tsx'), 'utf8');
-const dashboardMarkets = fs.readFileSync(path.resolve(root, '../../frontend/src/features/dashboard/components/LiveMarketsTable.tsx'), 'utf8');
-const admin = fs.readFileSync(path.resolve(root, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
-const tradeNav = fs.readFileSync(path.resolve(root, '../../frontend/src/features/trade/TradeProductNav.tsx'), 'utf8');
-const tradeHub = fs.readFileSync(path.resolve(root, '../../frontend/src/features/pages/TradeHubPage.tsx'), 'utf8');
-const spotPage = fs.readFileSync(path.resolve(root, '../../frontend/src/features/pages/Pages.tsx'), 'utf8');
-const contractPage = fs.readFileSync(path.resolve(root, '../../frontend/src/features/pages/ContractPage.tsx'), 'utf8');
-const secondsPage = fs.readFileSync(path.resolve(root, '../../frontend/src/features/pages/SecondsPage.tsx'), 'utf8');
-const dashboardPage = fs.readFileSync(path.resolve(root, '../../frontend/src/features/dashboard/Dashboard.tsx'), 'utf8');
-const publicMarketFilter = fs.readFileSync(path.resolve(root, '../../frontend/src/lib/publicAssetMarkets.ts'), 'utf8');
-const tokenIcon = fs.readFileSync(path.resolve(root, '../../frontend/src/components/ui/TokenIcon.tsx'), 'utf8');
-const localTokenIconFiles = fs.readdirSync(path.resolve(root, '../../frontend/public/token-icons')).filter((file) => file.endsWith('.svg'));
-const marketData = fs.readFileSync(path.resolve(root, '../../frontend/src/lib/marketData.ts'), 'utf8');
-const frontendPackage = JSON.parse(fs.readFileSync(path.resolve(root, '../../frontend/package.json'), 'utf8'));
+const client = fs.readFileSync(path.resolve(root, '../frontend/src/lib/api.ts'), 'utf8');
+const assetsPage = fs.readFileSync(path.resolve(root, '../frontend/src/features/assets/AssetsPage.tsx'), 'utf8');
+const marketsPage = fs.readFileSync(path.resolve(root, '../frontend/src/features/markets/MarketsPage.tsx'), 'utf8');
+const dashboardMarkets = fs.readFileSync(path.resolve(root, '../frontend/src/features/dashboard/components/LiveMarketsTable.tsx'), 'utf8');
+const admin = fs.readFileSync(path.resolve(root, '../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+const tradeNav = fs.readFileSync(path.resolve(root, '../frontend/src/features/trade/TradeProductNav.tsx'), 'utf8');
+const tradeHub = fs.readFileSync(path.resolve(root, '../frontend/src/features/pages/TradeHubPage.tsx'), 'utf8');
+const spotPage = fs.readFileSync(path.resolve(root, '../frontend/src/features/pages/Pages.tsx'), 'utf8');
+const contractPage = fs.readFileSync(path.resolve(root, '../frontend/src/features/pages/ContractPage.tsx'), 'utf8');
+const secondsPage = fs.readFileSync(path.resolve(root, '../frontend/src/features/pages/SecondsPage.tsx'), 'utf8');
+const dashboardPage = fs.readFileSync(path.resolve(root, '../frontend/src/features/dashboard/Dashboard.tsx'), 'utf8');
+const publicMarketFilter = fs.readFileSync(path.resolve(root, '../frontend/src/lib/publicAssetMarkets.ts'), 'utf8');
+const tokenIcon = fs.readFileSync(path.resolve(root, '../frontend/src/components/ui/TokenIcon.tsx'), 'utf8');
+const localTokenIconFiles = fs.readdirSync(path.resolve(root, '../frontend/public/token-icons')).filter((file) => file.endsWith('.svg'));
+const marketData = fs.readFileSync(path.resolve(root, '../frontend/src/lib/marketData.ts'), 'utf8');
+const frontendPackage = JSON.parse(fs.readFileSync(path.resolve(root, '../frontend/package.json'), 'utf8'));
 
 test('public asset catalogue exposes only display metadata and never wallet or account data', () => {
   const start = api.indexOf("if (path === 'assets' && method === 'GET')");
