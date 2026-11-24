@@ -1,8 +1,7 @@
 -- 0044_withdrawal_operation_type_compatibility_v1.sql
--- Forward-only compatibility repair after 0041_perpetual_contract_v1.sql.
--- 0041 replaced the operation_type CHECK and accidentally omitted withdrawal
--- operation types. Preserve historical withdraw_settle while new payouts use
--- withdraw_paid. Do not rewrite historical rows or move customer balances.
+-- Forward-only compatibility repair for the populated BTCBOX financial schema.
+-- Preserve historical withdraw_settle while new payouts use withdraw_paid.
+-- This migration does not rewrite historical rows or move customer balances.
 --
 -- Before applying this migration, run the SELECT-only
 -- diagnostics/withdrawal-settle-compatibility-preflight.sql in every target
@@ -15,35 +14,52 @@
 alter table public.withdrawal_requests
   add column if not exists payout_operation_id uuid references public.financial_operations(id);
 
-alter table public.financial_operations
-  drop constraint if exists financial_operations_operation_type_check;
-
-alter table public.financial_operations
-  add constraint financial_operations_operation_type_check
-  check (operation_type in (
-    'deposit_credit',
-    'withdraw_freeze',
-    'withdraw_approve',
-    'withdraw_reject',
-    'withdraw_settle',
-    'withdraw_paid',
-    'earn_subscribe',
-    'earn_redeem',
-    'admin_adjustment',
-    'spot_trade',
-    'spot_order_reserve',
-    'spot_order_cancel',
-    'seconds_open',
-    'seconds_settle',
-    'migration_opening_balance',
-    'perp_order_reserve',
-    'perp_trade',
-    'perp_order_cancel',
-    'perp_funding',
-    'perp_liquidation',
-    'perp_insurance_cover',
-    'perp_bad_debt'
-  ));
+-- Keep the old check until its replacement is installed. NOT VALID skips the
+-- initial table scan but still checks every new/updated row; validation follows.
+do $constraint$
+begin
+  perform set_config('lock_timeout','3s',true);
+  perform set_config('statement_timeout','30s',true);
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid='public.financial_operations'::regclass
+      and conname='financial_operations_operation_type_check_v2'
+  ) then
+    alter table public.financial_operations
+      add constraint financial_operations_operation_type_check_v2
+      check (operation_type in (
+        'deposit_credit',
+        'withdraw_freeze',
+        'withdraw_approve',
+        'withdraw_reject',
+        'withdraw_settle',
+        'withdraw_paid',
+        'earn_subscribe',
+        'earn_redeem',
+        'admin_adjustment',
+        'spot_trade',
+        'spot_order_reserve',
+        'spot_order_cancel',
+        'seconds_open',
+        'seconds_settle',
+        'migration_opening_balance',
+        'perp_order_reserve',
+        'perp_trade',
+        'perp_order_cancel',
+        'perp_funding',
+        'perp_liquidation',
+        'perp_insurance_cover',
+        'perp_bad_debt'
+      )) not valid;
+  end if;
+  alter table public.financial_operations
+    drop constraint if exists financial_operations_operation_type_check;
+  alter table public.financial_operations
+    rename constraint financial_operations_operation_type_check_v2 to financial_operations_operation_type_check;
+  alter table public.financial_operations
+    validate constraint financial_operations_operation_type_check;
+end
+$constraint$;
 
 CREATE OR REPLACE FUNCTION public.apply_financial_operation(
   p_idempotency_key text,
@@ -64,7 +80,7 @@ DECLARE
 BEGIN
   IF p_idempotency_key IS NULL OR length(p_idempotency_key) < 16 OR length(p_idempotency_key) > 128
      OR p_user_id IS NULL OR p_user_id = '' OR p_asset IS NULL OR p_asset !~ '^[A-Z0-9]{2,16}$'
-     OR p_operation_type NOT IN ('deposit_credit','withdraw_freeze','withdraw_approve','withdraw_reject','withdraw_settle','withdraw_paid','earn_subscribe','earn_redeem','admin_adjustment','spot_trade','spot_order_reserve','spot_order_cancel','seconds_open','seconds_settle','migration_opening_balance','perp_order_reserve','perp_trade','perp_order_cancel','perp_funding','perp_liquidation','perp_insurance_cover','perp_bad_debt')
+     OR p_operation_type NOT IN ('deposit_credit','withdraw_freeze','withdraw_approve','withdraw_reject','withdraw_settle','withdraw_paid','earn_subscribe','earn_redeem','admin_adjustment','spot_trade','spot_order_reserve','spot_order_cancel','seconds_open','seconds_settle','migration_opening_balance')
      OR p_request_hash IS NULL OR p_request_hash = ''
      OR p_metadata IS NULL OR jsonb_typeof(p_metadata) <> 'object'
      OR p_available_delta IS NULL OR p_frozen_delta IS NULL

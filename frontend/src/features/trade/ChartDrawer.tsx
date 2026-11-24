@@ -227,7 +227,7 @@ export function ChartDrawer({ symbol = "BTC/USDT", marketType = "perpetual", ope
   });
 
   return (
-    <div className={cn("trade-drawer-root", isDragging && "is-dragging")} role="region" aria-label={t("Price chart")}>
+    <div className={cn("trade-drawer-root", marketType === "perpetual" ? "trade-drawer-root--perpetual" : "trade-drawer-root--spot", isDragging && "is-dragging")} role="region" aria-label={t("Price chart")}>
       <div
         className={cn(
           "trade-drawer-panel transition-all",

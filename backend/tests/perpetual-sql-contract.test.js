@@ -9,6 +9,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const sql = fs.readFileSync(path.join(root, 'supabase/sql/0041_perpetual_contract_v1.sql'), 'utf8');
+const fundingSql = fs.readFileSync(path.join(root, 'supabase/sql/0046_perpetual_funding_atomic_clearing_v1.sql'), 'utf8');
+const fundingWorker = fs.readFileSync(path.join(root, 'scripts/perp-funding-worker.js'), 'utf8');
+const markWorker = fs.readFileSync(path.join(root, 'scripts/perp-mark-price-worker.js'), 'utf8');
+const liquidationAccountingSql = fs.readFileSync(path.join(root, 'supabase/sql/0047_perpetual_liquidation_accounting_closure_v1.sql'), 'utf8');
 
 test('0041 extends operation_type with perp_* and reuses financial_accounts/operations/ledger', () => {
   assert.ok(sql.includes("'perp_order_reserve'"));
@@ -125,6 +129,11 @@ test('liquidation: deterministic idem key (position id), stale-mark pause, loss 
   assert.ok(sql.includes("'liquidation'"));
 });
 
+test('perpetual schema grants only the identity sequence it creates', () => {
+  assert.ok(sql.includes('grant usage, select on sequence public.perpetual_mark_price_feed_id_seq to service_role'));
+  assert.ok(!sql.includes('grant usage, select on all sequences in schema public to service_role'));
+});
+
 test('all perpetual tables are RLS-enabled, revoked from public/anon/authenticated, granted to service_role', () => {
   assert.ok(sql.includes('enable row level security'));
   assert.ok(sql.includes("revoke all on public.%I from public, anon, authenticated"));
@@ -155,4 +164,214 @@ test('no check constraint weakened: max_leverage bounded 1-100, mmr bounded, fee
   assert.ok(sql.includes("side in ('long','short')"));
   assert.ok(sql.includes('maker_fee_rate >= 0'));
   assert.ok(sql.includes('taker_fee_rate >= 0'));
+});
+
+test('financial operation type expansion is additive, atomic, and preserves legacy operation types', () => {
+  assert.ok(sql.includes('financial_operations_operation_type_check_v2'));
+  assert.ok(sql.includes('not valid'));
+  assert.ok(sql.includes('validate constraint financial_operations_operation_type_check'));
+  assert.ok(sql.includes("'withdraw_paid'"));
+  assert.ok(sql.includes("'migration_opening_balance'"));
+  assert.ok(!sql.includes('drop constraint if exists financial_operations_operation_type_check;\nalter table public.financial_operations add constraint'));
+});
+
+test('position fill helper validates direct service-role inputs before changing positions', () => {
+  assert.ok(sql.includes("raise exception 'invalid perpetual position fill'"));
+  assert.ok(sql.includes("p_fill_direction is null or p_fill_direction not in ('buy','sell')"));
+  assert.ok(sql.includes('p_symbol is null or p_symbol !~'));
+  assert.ok(sql.includes('p_fill_qty is null or p_fill_qty <= 0'));
+  assert.ok(sql.includes('p_fill_price is null or p_fill_price <= 0'));
+  assert.ok(sql.includes('p_leverage > 100'));
+});
+
+test('liquidation fails closed when market configuration is missing', () => {
+  assert.ok(sql.includes("raise exception 'invalid perpetual liquidation identity'"));
+  assert.ok(sql.includes("raise exception 'perpetual market configuration missing'"));
+});
+
+test('bad debt is platform-owned and is not represented as a fake zero-delta customer ledger row', () => {
+  assert.ok(liquidationAccountingSql.includes("values ('perp-bad-debt-'||v_pos.id::text,'__perp_platform__','USDT','perp_bad_debt'"));
+  assert.ok(!liquidationAccountingSql.includes('bad-debt ledger audit marker'));
+  assert.ok(!liquidationAccountingSql.includes('select v_bad_debt_op,p_user_id'));
+  assert.ok(liquidationAccountingSql.includes('platform_risk_absorption'));
+  assert.ok(liquidationAccountingSql.includes("'affected_user_id',p_user_id"));
+  assert.ok(liquidationAccountingSql.includes('perpetual_liquidation_journal'));
+});
+
+test('liquidation writes separate user, insurance and platform operations with a balanced risk journal', () => {
+  assert.ok(liquidationAccountingSql.includes("'perp-insurance-cover-'||v_pos.id::text"));
+  assert.ok(liquidationAccountingSql.includes("'perp_insurance_cover'"));
+  assert.ok(liquidationAccountingSql.includes('select v_insurance_op,v_market.insurance_user_id'));
+  assert.ok(liquidationAccountingSql.includes('insurance_operation_id'));
+  assert.ok(liquidationAccountingSql.includes('unique (event_id,line_no)'));
+  assert.ok(liquidationAccountingSql.includes('v_journal_debits <> v_journal_credits'));
+  assert.ok(liquidationAccountingSql.includes('v_journal_debits <> v_loss'));
+  assert.ok(liquidationAccountingSql.includes('least(v_loss,v_pos.isolated_margin)'));
+  assert.ok(liquidationAccountingSql.includes('v_bad_debt := v_excess - v_insurance_cover'));
+});
+
+test('general financial operation RPC remains scoped to generic single-account movements', () => {
+  const compatibility = fs.readFileSync(path.join(root, 'supabase/sql/0044_withdrawal_operation_type_compatibility_v1.sql'), 'utf8');
+  const fnStart = compatibility.indexOf('CREATE OR REPLACE FUNCTION public.apply_financial_operation(');
+  const fnEnd = compatibility.indexOf('$$;', fnStart);
+  const fn = compatibility.slice(fnStart, fnEnd);
+  assert.ok(fn.includes('p_operation_type NOT IN'));
+  assert.ok(!fn.includes("'perp_trade'"));
+  assert.ok(!fn.includes("'perp_bad_debt'"));
+  assert.ok(liquidationAccountingSql.includes('create or replace function public.perp_liquidate_position'));
+});
+
+test('order idempotency binds reduce-only and close-position flags', () => {
+  assert.ok(sql.includes('v_existing.reduce_only is distinct from coalesce(p_reduce_only,false)'));
+  assert.ok(sql.includes('v_existing.close_position is distinct from coalesce(p_close_position,false)'));
+});
+
+test('reduce-only and market IOC responses return the persisted final remainder after cancellation', () => {
+  const finalized = sql.indexOf('select remaining_quantity into v_remaining');
+  const response = sql.indexOf("'remaining_quantity',v_remaining", finalized);
+  assert.ok(finalized >= 0, 'final persisted remaining quantity must be re-read');
+  assert.ok(response > finalized, 'response must use the re-read persisted quantity');
+});
+
+test('perpetual markets reference the canonical asset registry and match the base/USDT symbol', () => {
+  assert.ok(sql.includes('base_asset text not null references public.btcbox_assets(asset_code)'));
+  assert.ok(sql.includes("quote_asset text not null default 'USDT' references public.btcbox_assets(asset_code)"));
+  assert.ok(sql.includes('check (symbol = base_asset || quote_asset)'));
+});
+
+
+test('funding settlement is market-atomic and shares the order-entry advisory lock', () => {
+  assert.ok(fundingSql.includes("pg_advisory_xact_lock(hashtextextended('perp-market:'||p_symbol, 0))"));
+  assert.ok(fundingSql.includes('for update'));
+  assert.ok(fundingSql.includes('for v_pos in'));
+  assert.ok(fundingSql.includes('public.perp_settle_funding_one(p_symbol,p_funding_at,v_rate.rate,v_pos.user_id)'));
+  assert.ok(fundingSql.includes('update public.perpetual_markets'));
+  assert.ok(fundingSql.includes('next_funding_at=p_funding_at + (v_market.funding_interval_sec * interval'));
+  assert.ok(fundingSql.includes("revoke all on function public.perp_settle_funding_market(text,timestamptz) from public, anon, authenticated"));
+  assert.ok(fundingSql.includes("grant execute on function public.perp_settle_funding_market(text,timestamptz) to service_role"));
+});
+
+test('funding boundary fails closed without a persisted validated non-zero-or-zero rate snapshot', () => {
+  assert.ok(fundingSql.includes('validated funding rate snapshot missing'));
+  assert.ok(fundingSql.includes('funding snapshot is incomplete'));
+  assert.ok(fundingSql.includes('funding snapshot has insufficient source samples'));
+  assert.ok(!fundingSql.includes('values (p_symbol,p_funding_at,0,0,false)'));
+  assert.ok(!fundingSql.includes('intentionally records zero funding'));
+  assert.ok(fundingSql.includes('v_rate.premium_index is null'));
+  assert.ok(fundingSql.includes('v_rate.settled'));
+  assert.ok(fundingSql.includes('funding source samples are invalid or stale'));
+  assert.ok(fundingSql.includes('funding snapshot samples are invalid or stale'));
+  assert.ok(fundingSql.includes('v_market.mark_price_stale_sec*1000'));
+});
+
+test('liquidation settles due funding before reloading position and calculating maintenance margin', () => {
+  const settleAt = liquidationAccountingSql.indexOf('public.perp_settle_funding_market(p_symbol, v_market.next_funding_at)');
+  const reloadAt = liquidationAccountingSql.indexOf('select * into v_pos from public.perpetual_positions', settleAt);
+  const riskAt = liquidationAccountingSql.indexOf('v_mm := v_notional * v_market.maintenance_margin_rate');
+  assert.ok(settleAt >= 0, 'liquidation must settle the due funding boundary');
+  assert.ok(reloadAt > settleAt, 'position must be reloaded after funding changes margin');
+  assert.ok(riskAt > reloadAt, 'maintenance margin check must use post-funding position state');
+  assert.ok(liquidationAccountingSql.includes('due funding boundary could not be settled before liquidation'));
+});
+
+test('funding clearing ledger writes an equal-and-opposite counter-entry and backfills prior history', () => {
+  assert.ok(fundingSql.includes('create table if not exists public.perpetual_funding_clearing_ledger'));
+  assert.ok(fundingSql.includes('check (clearing_delta = -payment_delta)'));
+  assert.ok(fundingSql.includes('values (v_op,p_symbol,p_funding_at,p_user_id,v_payment,-v_payment)'));
+  assert.ok(fundingSql.includes('from public.perpetual_funding_history'));
+  assert.ok(fundingSql.includes('on conflict do nothing'));
+  assert.ok(fundingSql.includes('alter table public.perpetual_funding_clearing_ledger enable row level security'));
+});
+
+test('funding worker calls one atomic market RPC and never advances the boundary with REST PATCH', () => {
+  assert.ok(fundingWorker.includes("rpc('perp_settle_funding_market'"));
+  assert.ok(!fundingWorker.includes("rpc('perp_settle_funding_one'"));
+  assert.ok(!fundingWorker.includes("method: 'PATCH'"));
+  assert.ok(!fundingWorker.includes('perpetual_positions?select=user_id,symbol'));
+  assert.ok(fundingWorker.includes('next_funding_at=not.is.null'));
+  assert.ok(!fundingWorker.includes('&enabled=eq.true'));
+  assert.ok(fundingSql.includes('where symbol=p_symbol for update'));
+});
+
+test('mark worker sends the fresh source array and uses an independent perpetual order-book midpoint', () => {
+  assert.ok(markWorker.includes('p_sources: freshSources'));
+  assert.ok(!markWorker.includes('p_sources: sources'));
+  assert.ok(markWorker.includes('perpetualBookMidPrice'));
+  assert.ok(markWorker.includes('side=eq.buy'));
+  assert.ok(markWorker.includes('side=eq.sell'));
+  assert.ok(markWorker.includes('calculateBookDepthMidPrice'));
+  assert.ok(markWorker.includes('remaining_quantity=gt.0'));
+  assert.ok(markWorker.includes('limit=50'));
+  assert.ok(!markWorker.includes('updated_at=gte.'));
+  assert.ok(markWorker.includes('insufficient two-level'));
+});
+
+test('mark feed keeps external spot index independent from the perpetual-book mark premium', () => {
+  const markFn = sql.slice(sql.indexOf('create or replace function public.perp_record_mark_price'));
+  assert.ok(markFn.includes('index price must match the validated external spot source mean'));
+  assert.ok(markFn.includes('BTCBOX perpetual-book midpoint'));
+  assert.ok(markFn.includes('v_mark_deviation := abs(p_mark_price-p_index_price)/p_index_price*100'));
+  assert.ok(!markFn.includes('abs(p_mark_price-v_mean)/v_mean > 0.0001'));
+});
+
+test('mark-price source validation requires unique trusted provider identities', () => {
+  assert.ok(sql.includes("v_source_name not in ('binance','okx','coingecko')"));
+  assert.ok(sql.includes('v_source_name = any(v_sources_seen)'));
+  assert.ok(sql.includes('mark price sources must be unique trusted providers'));
+});
+
+test('perpetual migration reuses and preserves the canonical BTCBOX asset registry', () => {
+  assert.ok(sql.includes('create table if not exists public.btcbox_assets'));
+  assert.ok(sql.includes('on conflict (asset_code) do nothing'));
+  assert.ok(sql.includes("to_regclass('auth.users')"));
+  assert.ok(sql.includes('populated project asset registry is incomplete'));
+  assert.ok(sql.includes("('ADA','Cardano','crypto',6,true)"));
+  assert.ok(sql.includes('public.btcbox_assets(asset_code)'));
+  assert.ok(sql.includes('Deliberately do not create the legacy btcbox_asset_seed_wallet_accounts_v1'));
+});
+
+
+const fundingRateSql = fs.readFileSync(path.join(root, 'supabase/sql/0048_perpetual_funding_rate_producer_v1.sql'), 'utf8');
+const fundingRateWorker = fs.readFileSync(path.join(root, 'scripts/perp-funding-rate-worker.js'), 'utf8');
+
+test('fixed funding formula is versioned, database-calculated, bounded and auditable', () => {
+  assert.ok(fundingRateSql.includes("'btcbox-funding-v1'"));
+  assert.ok(fundingRateSql.includes('v_interest constant numeric(12,10) := 0.0001'));
+  assert.ok(fundingRateSql.includes('v_adjustment constant numeric(12,10) := 0.0005'));
+  assert.ok(fundingRateSql.includes('v_absolute_cap constant numeric(12,10) := 0.0075'));
+  assert.ok(fundingRateSql.includes('v_premium := ((v_mid / v_feed.index_price) - 1)'));
+  assert.ok(fundingRateSql.includes('v_interest - v_premium'));
+  assert.ok(fundingRateSql.includes('impact_bid_price'));
+  assert.ok(fundingRateSql.includes('impact_ask_price'));
+  assert.ok(fundingRateSql.includes('calculated_at'));
+  assert.ok(fundingRateSql.includes("v_feed.status <> 'ok'"));
+  assert.ok(fundingRateSql.includes('v_feed.created_at < now()'));
+  assert.ok(fundingRateSql.includes('on conflict (symbol,funding_at) do update'));
+});
+
+test('funding financial operations reject unversioned or stale snapshots', () => {
+  assert.ok(fundingRateSql.includes("v_rate.formula_version is distinct from 'btcbox-funding-v1'"));
+  assert.ok(fundingRateSql.includes("v_rate.interest_rate is distinct from 0.0001::numeric"));
+  assert.ok(fundingRateSql.includes("v_rate.calculated_at < now() - interval '2 minutes'"));
+  assert.ok(fundingRateSql.includes('before insert on public.financial_operations'));
+  assert.ok(fundingRateSql.includes("new.operation_type <> 'perp_funding'"));
+});
+
+test('funding snapshot settlement validates version and freshness even when there are no positions', () => {
+  assert.ok(fundingRateSql.includes('create or replace function public.perp_guard_funding_snapshot_settlement_v1()'));
+  assert.ok(fundingRateSql.includes("new.formula_version is distinct from 'btcbox-funding-v1'"));
+  assert.ok(fundingRateSql.includes("new.calculated_at < now() - interval '2 minutes'"));
+  assert.ok(fundingRateSql.includes('new.premium_index is distinct from v_expected_premium'));
+  assert.ok(fundingRateSql.includes('new.rate is distinct from v_expected_rate'));
+  assert.ok(fundingRateSql.includes('before update of settled on public.perpetual_funding_rates'));
+  assert.ok(fundingRateSql.includes('new.settled = true'));
+});
+
+test('funding-rate producer is separate from the settlement worker and never changes balances', () => {
+  assert.ok(fundingRateWorker.includes("rpc/perp_record_funding_rate_snapshot"));
+  assert.ok(fundingRateWorker.includes('calculateImpactPrices'));
+  assert.ok(fundingRateWorker.includes('perpetual_orders?select=price,remaining_quantity'));
+  assert.ok(!fundingRateWorker.includes('perp_settle_funding_market'));
+  assert.ok(!fundingRateWorker.includes('financial_accounts'));
+  assert.ok(!fundingRateWorker.includes("method:'PATCH'"));
 });

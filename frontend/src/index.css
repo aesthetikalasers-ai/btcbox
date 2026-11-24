@@ -432,8 +432,8 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
    padded by AppLayout's main, so this only adds the drawer clearance — the last
    order row can no longer sit underneath the chart bar. */
 @media (max-width:1023px) {
-  /* Reserve the collapsed K-line bar (36px) plus breathing room so the last
-     block — the recent-trades card — is never sliced by the drawer. */
+  /* Reserve the collapsed K-line bar plus breathing room so the final order
+     panel is never hidden behind the drawer. */
   .spot-terminal { padding-bottom: calc(var(--bf-chart-bar-h) + 48px); }
 }
 @media (min-width:1024px) {
@@ -512,8 +512,8 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .exchange-workspace { display:grid; grid-template-columns:minmax(0,43fr) minmax(0,57fr); gap:12px; align-items:start; }
 .exchange-pairs { display:none; }
 .exchange-chart,.exchange-entry,.exchange-depth,.exchange-orders { min-width:0; border-radius:6px; box-shadow:none; }
-.exchange-entry { grid-column:2; grid-row:1; display:flex; flex-direction:column; }
-.exchange-depth { grid-column:1; grid-row:1; display:flex; flex-direction:column; }
+.exchange-entry { grid-column:1; grid-row:1; display:flex; flex-direction:column; }
+.exchange-depth { grid-column:2; grid-row:1; display:flex; flex-direction:column; }
 .exchange-depth > div:last-child { display:flex; flex-direction:column; flex:1; }
 .exchange-orders { grid-column:1 / -1; grid-row:2; margin-top:8px; }
 .exchange-book-levels { display:flex; flex-direction:column; gap:6px; }
@@ -591,7 +591,11 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
    `max-width: 767.98px` so the 4-column desktop workspace is unaffected.
    ======================================================================== */
 @media (max-width: 767.98px) {
-  /* --- Mobile workspace: dual-column order entry and depth ladder ----------- */
+  /* --- Mobile workspace: balanced dual-column order entry and depth ladder -- */
+  .spot-terminal .exchange-workspace {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+  }
 
   /* --- Compact inline chart inside the header-triggered drawer ------------ */
   .exchange-chart--compact {
@@ -1575,6 +1579,20 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .trade-drawer-root.is-dragging .trade-drawer-panel { transition: none; }
 .trade-drawer-handle { touch-action: none; cursor: grab; }
 .trade-drawer-handle:active { cursor: grabbing; }
+/* Tablet compact mode has no fixed mobile navigation, so dock the chart to the viewport edge. */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .trade-drawer-root { bottom: 0; }
+  .trade-drawer-panel { max-width: min(900px, 100%); }
+  .trade-drawer-root--perpetual .trade-drawer-panel,
+  .trade-drawer-root--spot .trade-drawer-panel { width: 100%; }
+}
+/* Extend full-width tablet treatment to perpetual only from 600px; preserve spot layout. */
+@media (min-width: 600px) and (max-width: 767px) {
+  .trade-drawer-root--perpetual .trade-drawer-panel {
+    width: 100%;
+    max-width: min(900px, 100%);
+  }
+}
 /* Desktop: the drawer is not used (chart is inline), hide it above 1024px. */
 @media (min-width: 1024px) {
   .trade-drawer-root { display: none; }
@@ -1669,9 +1687,10 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
    squeezed and risked a wrap on 320–430px viewports.
    Touch height is unified with every other quick-select pill site-wide
    (percent chips, ratio chips): 36px min-height + 6px radius. */
-.spot-quick-prices { margin-top: -2px; gap: 6px; }
+.spot-quick-prices { margin-top: -2px; gap: 6px; justify-items: center; }
 .spot-quick-prices button {
-  min-height: 36px;
+  width: min(100%, 52px);
+  min-height: 34px;
   padding-inline: 4px;
   border-radius: var(--bf-radius-sm);
   font-size: 10px;
@@ -1679,6 +1698,8 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+.spot-percent-steps { justify-items: center; }
+.spot-percent-steps button { width: min(100%, 56px); min-height: 34px; height: 34px; padding-inline: 4px; }
 
 /* Perpetual chart dialog.
    Radix `Dialog.Content` renders in a portal with no positioning of its own, so
@@ -1880,6 +1901,203 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
     background: color-mix(in srgb, var(--color-brand-accent) 10%, transparent);
   }
   .term-pair-dialog__empty { grid-column: 1 / -1; padding: 16px 8px; text-align: center; font-size: 12px; color: var(--color-brand-text-muted); }
+
+  /* Responsive market picker: desktop market table, compact touch-first mobile list.
+     This dialog is independent from the K-line ChartDrawer and must never become a bottom sheet. */
+  .term-pair-dialog {
+    top: 96px;
+    width: min(360px, calc(100vw - 24px));
+    max-height: min(60vh, 520px);
+    border-radius: 10px;
+  }
+  .term-pair-dialog__head { padding: 14px 18px; }
+  .term-pair-dialog__title { font-size: 15px; }
+  .term-pair-dialog__search { padding: 12px 16px 0; }
+  .term-pair-dialog__search input { height: 40px; font-size: 13px; }
+  .term-pair-dialog__filters {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 10px 12px 0;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+  .term-pair-dialog__filters::-webkit-scrollbar { display: none; }
+  .term-pair-dialog__filters button {
+    flex: 0 0 auto;
+    min-height: 28px;
+    padding: 0 9px;
+    border: 1px solid var(--color-brand-border);
+    border-radius: 5px;
+    color: var(--color-brand-text-muted);
+    font-size: 10.5px;
+    white-space: nowrap;
+  }
+  .term-pair-dialog__filters button.is-active {
+    border-color: color-mix(in srgb, var(--color-brand-accent) 45%, transparent);
+    background: color-mix(in srgb, var(--color-brand-accent) 12%, transparent);
+    color: var(--color-brand-accent);
+  }
+  .term-pair-dialog__columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(72px, .65fr) 24px;
+    align-items: center;
+    column-gap: 6px;
+    padding: 10px 10px 6px;
+    color: var(--color-brand-text-muted);
+    font-size: 11px;
+    text-align: right;
+  }
+  .term-pair-dialog__columns > span:first-child { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+  .term-pair-dialog__columns small { font-size: 9px; color: var(--color-brand-text-faint); }
+  .term-pair-dialog__list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 0 8px 8px;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .term-pair-option {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 24px;
+    align-items: center;
+    column-gap: 4px;
+    width: 100%;
+    min-height: 58px;
+    padding: 7px 4px 7px 8px;
+    border-bottom: 1px solid var(--color-brand-border);
+    border-radius: 0;
+    background: transparent;
+  }
+  .term-pair-option__select {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(72px, .65fr);
+    align-items: center;
+    column-gap: 6px;
+    min-width: 0;
+    min-height: 44px;
+    width: 100%;
+    padding: 0;
+    text-align: right;
+    background: transparent;
+    color: var(--color-brand-text-secondary);
+  }
+  .term-pair-option__select:hover { color: var(--color-brand-text); }
+  .term-pair-option__label { display: flex; min-width: 0; align-items: center; gap: 7px; text-align: left; }
+  .term-pair-option__details { display: flex; min-width: 0; flex: 1 1 auto; flex-direction: column; gap: 3px; }
+  .term-pair-option__symbol { overflow: hidden; max-width: 100%; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 650; }
+  .term-pair-option__volume { overflow: hidden; max-width: 100%; text-overflow: ellipsis; white-space: nowrap; font-size: 9px; color: var(--color-brand-text-faint); font-weight: 400; }
+  .term-pair-option__price { min-width: 0; font-size: 11.5px; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .term-pair-option__chg {
+    justify-self: end;
+    min-width: 0;
+    padding: 5px 4px;
+    border-radius: 5px;
+    font-size: 11px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+  .term-pair-option__favorite {
+    display: inline-flex;
+    width: 24px;
+    height: 28px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 5px;
+    color: var(--color-brand-text-faint);
+  }
+  .term-pair-option__favorite:hover,
+  .term-pair-option__favorite.is-active { color: var(--color-brand-accent); }
+  .term-pair-option__favorite:focus-visible,
+  .term-pair-option__select:focus-visible { outline: 2px solid var(--color-brand-accent); outline-offset: 1px; border-radius: 5px; }
+  .term-pair-option.is-active { background: color-mix(in srgb, var(--color-brand-accent) 7%, transparent); }
+  .term-pair-option__chg.is-up { color: var(--color-profit); background: color-mix(in srgb, var(--color-profit) 13%, transparent); }
+  .term-pair-option__chg.is-down { color: var(--color-loss); background: color-mix(in srgb, var(--color-loss) 13%, transparent); }
+  .term-pair-option.is-active { background: color-mix(in srgb, var(--color-brand-accent) 7%, transparent); }
+  .term-pair-dialog__empty { padding: 28px 12px; }
+
+  @media (max-width: 767px) {
+    .term-pair-dialog {
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: calc(100vw - 24px);
+      max-width: 560px;
+      max-height: min(82dvh, 680px);
+      border-radius: 12px;
+    }
+    .term-pair-dialog__head { padding: 12px 14px; }
+    .term-pair-dialog__search { padding: 10px 12px 0; }
+    .term-pair-dialog__search input { height: 42px; font-size: 14px; }
+    .term-pair-dialog__filters { gap: 4px; padding-inline: 10px; }
+    .term-pair-dialog__filters button { min-height: 30px; padding-inline: 8px; font-size: 10px; }
+    .term-pair-dialog__columns {
+      grid-template-columns: minmax(0, 1fr) 28px;
+      padding: 10px 12px 6px;
+      font-size: 10px;
+    }
+    .term-pair-dialog__columns > span:first-child { gap: 1px; }
+    .term-pair-dialog__columns > span:nth-child(2) {
+      display: block;
+      grid-column: 2;
+      font-size: 0;
+      text-align: center;
+    }
+    .term-pair-dialog__columns > span:nth-child(2)::after {
+      content: attr(data-mobile-label);
+      font-size: 9px;
+    }
+    .term-pair-dialog__columns > span:nth-child(n+3) { display: none; }
+    .term-pair-dialog__list { padding: 0 8px 8px; }
+    .term-pair-option {
+      grid-template-columns: minmax(0, 1fr) 28px;
+      column-gap: 4px;
+      min-height: 60px;
+      padding: 8px 4px 8px 8px;
+    }
+    .term-pair-option__select {
+      grid-template-columns: minmax(0, 1fr) minmax(88px, .8fr);
+      column-gap: 8px;
+    }
+    .term-pair-option__label > div { width: 24px; height: 24px; }
+    .term-pair-option__symbol { font-size: 13px; }
+    .term-pair-option__volume { font-size: 9px; }
+    .term-pair-option__price {
+      grid-column: 2;
+      grid-row: 1;
+      font-size: 12px;
+      text-align: right;
+    }
+    .term-pair-option__chg {
+      grid-column: 2;
+      grid-row: 2;
+      justify-self: end;
+      min-width: 0;
+      padding: 0;
+      background: transparent;
+      font-size: 11px;
+      text-align: right;
+    }
+    .term-pair-option__favorite { width: 28px; }
+    .term-pair-option__chg.is-up,
+    .term-pair-option__chg.is-down { background: transparent; }
+    .term-pair-option.is-active { border-radius: 7px; }
+  }
+
+  @media (max-width: 380px) {
+    .term-pair-dialog { width: calc(100vw - 16px); max-height: 86dvh; }
+    .term-pair-dialog__head { padding-inline: 10px; }
+    .term-pair-dialog__search { padding-inline: 8px; }
+    .term-pair-option__select { grid-template-columns: minmax(0, 1fr) minmax(78px, .72fr); }
+    .term-pair-option__symbol { font-size: 12px; }
+    .term-pair-option__price { font-size: 11px; }
+  }
+
+
   .term-top-price {
     /* Spec §1.2: the last price is the dominant figure — 24px/700. */
     font-size: 24px;
@@ -2005,7 +2223,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   /* --- Three-column workspace ----------------------------------------- */
   .term-layout {
     display: grid;
-    /* Market rail | chart + orders | book + tape | order form.
+    /* Market rail | chart + orders | full-height order book | order form.
        The rail was 172px, which truncated "BTC/USDT" to "BTC/…". 260px shows
        the full pair name plus the price and 24h columns without clipping. */
     grid-template-columns: 260px minmax(0, 44fr) minmax(260px, 20fr) minmax(300px, 22fr);
@@ -2173,11 +2391,9 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   .term-bottom-tabs { padding: 0 10px; gap: 18px; }
   .term-tab-body { overflow-y: auto; min-height: 0; padding: 2px 10px 8px; }
 
-  /* --- Middle column: order book + trades ------------------------------ */
-  /* "Expand book" control: sits on the column edge, desktop only (the phone
-     layout has no tape column to reclaim). */
+  /* --- Middle column: full-height order book --------------------------- */
+  /* "Expand book" control: sits on the column edge, desktop only. */
   .term-col--book { position: relative; }
-  .term-col--book.is-expanded > .term-rt { display: none; }
   .term-col--book.is-expanded > div:first-of-type { flex: 1 1 auto; height: auto; min-height: 0; }
   .term-book-expand {
     position: absolute;
@@ -2346,29 +2562,9 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
     font-size: 10px;
     color: var(--color-brand-text-faint);
   }
-  /* Recent trades sits under the book and scrolls on its own. */
-  /* The book is the primary reference: it takes the flexible share of the
-     middle column (rendering all 10+10 levels plus the mid price), and the
-     tape claims the remainder. `flex: 1 1 auto` on the ladder and a fixed
-     minimum on the tape gives the book room to grow while the tape never
-     collapses to zero. */
-  .term-col--book > div:first-child { flex: 1 1 auto; height: auto; min-height: 0; }
-  .term-rt { flex: 0 0 auto; height: 240px; min-height: 160px; overflow: hidden; display: flex; flex-direction: column; }
-  .term-rt > div {
-    flex: 1 1 auto;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    border: 0;
-    border-top: 1px solid var(--color-brand-border);
-    border-radius: 0;
-    overflow: hidden;
-  }
-  .term-rt table { display: block; overflow-y: auto; min-height: 0; }
-  .term-rt thead { display: table; width: 100%; table-layout: fixed; }
-  .term-rt tbody { display: table; width: 100%; table-layout: fixed; }
-  /* Recent-trades header reads as a panel title, matching the book header. */
-  .term-rt > div > div:first-child { min-height: 30px; padding: 0 10px; }
+  /* The order book is the sole middle-column panel and fills its available height. */
+  .term-col--book > div:first-of-type { flex: 1 1 auto; height: auto; min-height: 0; }
+  .term-col--book .term-book-body { flex: 1 1 auto; min-height: 0; height: auto; max-height: none; }
 
   /* --- Right column: order form --------------------------------------- */
   .term-form { display: flex; flex-direction: column; gap: 8px; min-width: 0; position: relative; }
@@ -2698,28 +2894,17 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
      dead space underneath. */
   .term-col--main,
   .term-col--entry { align-self: start; }
-  /* `.term-col--book` is `display:flex` by default; as a block its two panes
-     stack at their declared heights instead of competing for the row. */
-  .term-col--book { align-self: start; display: block; }
+  /* The order book stretches to the same row height as the chart + orders column. */
+  .term-col--book { align-self: stretch; display: flex; flex-direction: column; }
   .term-col--book > * { width: 100%; }
+  .term-col--book > div:first-of-type { flex: 1 1 auto; min-height: 0; }
 
-  /* Chart + orders panel set the row height, so the middle column is sized to
-     match: a bounded level area + a bounded tape + their headers/footers. */
+  /* Chart + orders panel set the row height; the book stretches alongside it. */
   .term-col--main { grid-template-rows: minmax(300px, 40vh) auto; }
   .term-chart-body { min-height: 260px; }
-  /* `flex:1` alone lets the level list expand to every fetched row (20 levels)
-     and push the tape away; a fixed height keeps ~10 levels visible and lets
-     the rest scroll inside. Sizes are chosen so the middle column (book +
-     tape) matches the left column (chart + orders panel) instead of setting a
-     taller row that forces extra page scroll. */
-  .term-book-body { flex: 0 0 auto; height: 210px; max-height: 210px; }
-  .term-rt { flex: 0 0 auto; height: 186px; min-height: 170px; }
-  /* Expanded book overrides the short-viewport caps: the tape is hidden, so the
-     ladder can take the full natural height instead of staying at 210px. The
-     column is `display: block` here, so this is a plain height override, not a
-     flex change. */
+  .term-book-body { flex: 1 1 auto; height: auto; max-height: none; }
   .term-col--book.is-expanded > div:first-of-type { height: auto; }
-  .term-col--book.is-expanded .term-book-body { flex: 0 0 auto; height: auto; max-height: none; }
+  .term-col--book.is-expanded .term-book-body { flex: 1 1 auto; height: auto; max-height: none; }
 }
 
 
@@ -2729,19 +2914,19 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 @media (min-width: 768px) and (max-width: 1279px) {
   .spot-terminal .exchange-workspace {
     display: grid;
-    grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     grid-template-rows: auto auto;
     gap: 12px;
     min-width: 0;
   }
   .spot-terminal .exchange-workspace > .exchange-depth {
-    grid-column: 1;
+    grid-column: 2;
     grid-row: 1;
     min-width: 0;
     width: auto;
   }
   .spot-terminal .exchange-workspace > .exchange-entry {
-    grid-column: 2;
+    grid-column: 1;
     grid-row: 1;
     min-width: 0;
     width: auto;

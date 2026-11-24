@@ -3,10 +3,11 @@ import fs from "node:fs";
 import path from "node:path";
 
 const fixedWidths = [768, 1024, 1279, 1280, 1366, 1440, 1920];
-const mobileWidths = [320, 360, 375, 390, 430];
+const mobileWidths = [320, 360, 375, 390, 414, 430, 600];
 const continuityWidths = [
-  768, 820, 860, 899, 900, 960, 1024, 1100, 1180, 1279, 1280, 1366,
-  1440, 1536, 1680, 1920,
+  320, 360, 375, 390, 414, 430, 480, 540, 600, 680, 767, 768, 820, 860,
+  899, 900, 960, 1023, 1024, 1100, 1180, 1279, 1280, 1366, 1440, 1536,
+  1680, 1920,
 ];
 const routes = [
   { path: "/login", heading: "Welcome back" },
@@ -63,8 +64,12 @@ async function installVisualApiMocks(page: Page) {
             email: "visual@example.invalid",
             username: "visual_qa",
             has_login_password: true,
-            balances: {},
-            totalUsdt: "0",
+            balances: {
+              BTC: { free: "0.125", frozen: "0.025", usdt: "8125", valuation_available: true },
+              ETH: { free: "1.5", frozen: "0.1", usdt: "4800", valuation_available: true },
+              USDT: { free: "2500", frozen: "100", usdt: "2600", valuation_available: true },
+            },
+            totalUsdt: "15525",
             valuation_complete: true,
             unpriced_assets: [],
             kyc: { status: "not_submitted" },
@@ -72,6 +77,48 @@ async function installVisualApiMocks(page: Page) {
           }),
         });
       }
+      return;
+    }
+    if (pathname === "/api/perpetual/markets") {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, markets: [{ symbol: "BTCUSDT", base_asset: "BTC", quote_asset: "USDT", status: "trading", max_leverage: 100, price_tick: "0.01", quantity_step: "0.000001", min_quantity: "0.000001", funding_interval_sec: 28800, funding_rate_cap: 0.0075, mark_price: "65000", index_price: "65000" }] }) });
+      return;
+    }
+    if (pathname === "/api/perpetual/positions") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, positions: [] }),
+      });
+      return;
+    }
+    if (pathname === "/api/perpetual/orders") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, orders: [] }),
+      });
+      return;
+    }
+    if (pathname === "/api/perpetual/funding") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, funding: [] }),
+      });
+      return;
+    }
+    if (pathname === "/api/depth") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          source: "visual-qa",
+          snapshotTs: Math.floor(Date.now() / 1000),
+          bids: [["64999.00", "0.25"], ["64998.00", "0.40"]],
+          asks: [["65001.00", "0.20"], ["65002.00", "0.35"]],
+        }),
+      });
       return;
     }
     if (pathname === "/api/market" || pathname === "/api/market/pairs") {
@@ -183,6 +230,22 @@ async function installInteractiveTradeApiMocks(page: Page) {
       bids: [["64999.00", "0.25"], ["64998.00", "0.40"]],
     }),
   }));
+  // Chart rendering checks require verified candle data. The isolated
+  // visual fixture intentionally returns empty klines; override it here for
+  // interactive trading QA so lightweight-charts can mount a real canvas.
+  await page.route("**/api/kline**", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      ok: true,
+      source: "e2e",
+      klines: [
+        { time: now - 7200, open: 64900, high: 65020, low: 64880, close: 64980, volume: 12, source: "e2e" },
+        { time: now - 3600, open: 64980, high: 65080, low: 64950, close: 65030, volume: 18, source: "e2e" },
+        { time: now, open: 65030, high: 65100, low: 65000, close: 65060, volume: 15, source: "e2e" },
+      ],
+    }),
+  }));
   await page.route("**/api/trading/status**", (route) => route.fulfill({
     status: 200,
     contentType: "application/json",
@@ -250,6 +313,72 @@ async function assertPageAtWidth(
   if (route.path === "/markets") {
     await expect(page.getByText("No market pairs are currently available.", { exact: true })).toBeVisible();
   }
+  if (route.path === "/assets") {
+    const list = page.getByTestId("asset-balance-list");
+    await expect(list).toBeVisible();
+    await expect(list.locator(":scope > div > div")).toHaveCount(3);
+    for (const coin of ["BTC", "ETH", "USDT"]) await expect(list.getByText(coin, { exact: true })).toBeVisible();
+    const style = await list.evaluate((element) => {
+      const css = getComputedStyle(element);
+      return { borderWidth: css.borderTopWidth, background: css.backgroundColor, shadow: css.boxShadow, radius: css.borderRadius };
+    });
+    expect(style.borderWidth, "Asset rows must not be wrapped in a visible card border.").toBe("0px");
+    expect(style.background, "Asset list must blend into the page background.").toBe("rgba(0, 0, 0, 0)");
+    expect(style.shadow, "Asset list must not cast a card shadow.").toBe("none");
+    expect(style.radius, "Asset list must not have a card radius.").toBe("0px");
+  }
+  if (route.path === "/trade/BTCUSDT") {
+    await expect(page.getByText(/^(Latest trades|Recent trades)$/i)).toHaveCount(0);
+  }
+  if (route.path === "/contract" && width < 1024) {
+    const workspace = page.getByTestId("perp-mobile-workspace");
+    await expect(workspace).toBeVisible();
+    const entry = workspace.locator(":scope > div").first();
+    const book = workspace.locator(":scope > div").nth(1);
+    await expect(entry).toBeVisible();
+    await expect(book).toBeVisible();
+    const [entryBox, bookBox] = await Promise.all([entry.boundingBox(), book.boundingBox()]);
+    expect(entryBox).not.toBeNull();
+    expect(bookBox).not.toBeNull();
+    const entryShare = entryBox!.width / (entryBox!.width + bookBox!.width);
+    expect(Math.abs(entryShare - 0.5), "Perpetual responsive columns must be balanced at approximately 50:50.").toBeLessThanOrEqual(0.015);
+    expect(Math.abs(entryBox!.y - bookBox!.y), "Perpetual entry and depth must stay on the same row.").toBeLessThanOrEqual(8);
+    if (width >= 600) {
+      const workspaceBox = await workspace.boundingBox();
+      expect(workspaceBox, "Perpetual tablet workspace must have a layout box.").not.toBeNull();
+      expect(workspaceBox!.width, "Perpetual tablet must use available page width, not a 430px phone container.").toBeGreaterThan(width * 0.85);
+    }
+    await expect(workspace.getByTestId("perp-leverage-pills")).toBeVisible();
+    const chartDrawer = page.locator(".trade-drawer-root");
+    await expect(chartDrawer, "Perpetual chart drawer must remain available below 1024px.").toBeVisible();
+    if (width >= 600) {
+      const drawerBox = await chartDrawer.locator(".trade-drawer-panel").boundingBox();
+      expect(drawerBox, "Tablet chart drawer must have a layout box.").not.toBeNull();
+      expect(drawerBox!.width, "Tablet chart drawer must use the available page width.").toBeGreaterThan(width * 0.85);
+    }
+    await chartDrawer.getByRole("button", { name: "Expand chart" }).click();
+    await expect(chartDrawer.getByRole("button", { name: "Collapse chart" }).first()).toBeVisible();
+    const chartBody = chartDrawer.locator(".trade-drawer-panel > .relative.min-h-0.flex-1");
+    await expect(chartBody, "Expanded perpetual chart body must be visible.").toBeVisible();
+    await expect.poll(async () => {
+      const box = await chartBody.boundingBox();
+      return box ? box.width * box.height : 0;
+    }, { message: "Expanded perpetual chart container must have non-zero width and height." }).toBeGreaterThan(0);
+    const chartCanvas = chartBody.locator("canvas").first();
+    await expect.poll(
+      () => chartBody.locator("canvas").count(),
+      { message: "Perpetual lightweight-charts must mount a canvas inside the expanded drawer." },
+    ).toBeGreaterThan(0);
+    await expect.poll(async () => {
+      const box = await chartCanvas.boundingBox();
+      return box ? box.width * box.height : 0;
+    }, { message: "Perpetual chart canvas must have non-zero rendered dimensions." }).toBeGreaterThan(0);
+    await chartDrawer.getByRole("button", { name: "Collapse chart" }).first().click();
+    await expect(page.getByRole("alert")).toHaveCount(0);
+    await expect(page.getByText("Order book is temporarily unavailable.", { exact: true })).toHaveCount(0);
+    await expect(page.getByText(/^(Latest trades|Recent trades)$/i)).toHaveCount(0);
+  }
+
   if (route.path === "/trade-hub") {
     await expect(page.getByTestId("spot-availability")).toHaveText("Unavailable");
   }
@@ -309,11 +438,62 @@ async function assertPageAtWidth(
     expect(formBox).not.toBeNull();
     expect(ordersBox).not.toBeNull();
     const bookShare = bookBox!.width / (bookBox!.width + formBox!.width);
-    expect(Math.abs(bookShare - 0.55), "Rendered tablet columns must measure 55:45 (order book:order entry).").toBeLessThanOrEqual(0.015);
-    expect(bookBox!.x + bookBox!.width).toBeLessThanOrEqual(formBox!.x + 2);
+    expect(Math.abs(bookShare - 0.5), "Rendered tablet columns must be approximately 50:50.").toBeLessThanOrEqual(0.015);
+    expect(formBox!.x + formBox!.width).toBeLessThanOrEqual(bookBox!.x + 2);
     expect(Math.abs(bookBox!.y - formBox!.y)).toBeLessThanOrEqual(8);
+    if (width < 1024) await expect(page.locator(".trade-drawer-root")).toBeVisible();
+    else await expect(page.locator(".trade-drawer-root")).toHaveCount(0);
     expect(ordersBox!.y).toBeGreaterThanOrEqual(Math.max(bookBox!.y + bookBox!.height, formBox!.y + formBox!.height) - 1);
-    await expect(page.locator("#trade-chart-open")).toBeVisible();
+    const chartTrigger = page.locator("#trade-chart-open");
+    await expect(chartTrigger).toBeVisible();
+    if (width < 1024) {
+      const chartDrawer = page.locator(".trade-drawer-root");
+      await expect(chartDrawer, "Spot chart drawer must be visible below 1024px.").toBeVisible();
+      await chartDrawer.getByRole("button", { name: "Expand chart" }).click();
+      await expect(chartDrawer.getByRole("button", { name: "Collapse chart" }).first()).toBeVisible();
+      await chartDrawer.getByRole("button", { name: "Collapse chart" }).first().click();
+    } else {
+      const bodyOverflowBeforeOpen = await page.locator("body").evaluate((node) => (node as HTMLElement).style.overflow);
+      await chartTrigger.click();
+      const chartDialog = page.locator(".spot-chart-drawer");
+      await expect(chartDialog, "Compact desktop chart trigger must open the chart panel.").toBeVisible();
+      const chartSurface = chartDialog.locator(".trade-candles");
+      await expect(chartSurface).toBeVisible();
+      await expect.poll(async () => {
+        const box = await chartSurface.boundingBox();
+        return box ? box.width * box.height : 0;
+      }, { message: "The opened chart surface must have non-zero width and height." }).toBeGreaterThan(0);
+      await expect.poll(
+        () => chartSurface.locator("canvas").count(),
+        { message: "lightweight-charts must mount its canvas inside the visible chart surface." },
+      ).toBeGreaterThan(0);
+      const chartCanvas = chartSurface.locator("canvas").first();
+      await expect.poll(async () => {
+        const box = await chartCanvas.boundingBox();
+        return box ? box.width * box.height : 0;
+      }, { message: "The chart canvas must have non-zero rendered dimensions." }).toBeGreaterThan(0);
+      await chartDialog.getByRole("button", { name: "Close chart" }).click();
+      await expect(chartDialog).toHaveCount(0);
+      await expect(chartTrigger, "Closing the chart must restore focus to its trigger.").toBeFocused();
+      await expect.poll(
+        () => page.locator("body").evaluate((node) => (node as HTMLElement).style.overflow),
+        { message: "Closing the chart must restore the background scroll lock state." },
+      ).toBe(bodyOverflowBeforeOpen);
+      // Reopen, then dismiss through the backdrop to cover both close paths.
+      await chartTrigger.click();
+      await expect(chartDialog).toBeVisible();
+      await expect.poll(async () => {
+        const box = await chartDialog.locator(".trade-candles").boundingBox();
+        return box ? box.width * box.height : 0;
+      }).toBeGreaterThan(0);
+      await chartDialog.locator(".trade-candles").waitFor({ state: "visible" });
+      await page.locator(".spot-chart-overlay").click({ position: { x: 8, y: 8 } });
+      await expect(chartDialog).toHaveCount(0);
+      await expect(chartTrigger, "Backdrop dismissal must restore focus to the chart trigger.").toBeFocused();
+      await expect.poll(
+        () => page.locator("body").evaluate((node) => (node as HTMLElement).style.overflow),
+      ).toBe(bodyOverflowBeforeOpen);
+    }
   }
 
   if (route.path === "/trade/BTCUSDT" && width < 768) {
@@ -384,7 +564,8 @@ async function assertPageAtWidth(
     expect(formBox!.width, "Phone order entry must retain usable width.").toBeGreaterThan(120);
     expect(bookBox!.width, "Phone order book must retain usable width.").toBeGreaterThan(100);
     const formShare = formBox!.width / (formBox!.width + bookBox!.width);
-    expect(Math.abs(formShare - 0.55), "Rendered phone columns must measure 55:45 (order entry:order book).").toBeLessThanOrEqual(0.015);
+    const expectedFormShare = width < 360 ? 0.55 : 0.5;
+    expect(Math.abs(formShare - expectedFormShare), "Rendered phone columns must be balanced, with a narrow-phone allowance.").toBeLessThanOrEqual(0.015);
     expect(formBox!.x + formBox!.width, "Order entry must occupy the left column.").toBeLessThanOrEqual(bookBox!.x + 2);
     expect(Math.abs(formBox!.y - bookBox!.y), "Order entry and order book must share the same row.").toBeLessThanOrEqual(8);
     expect(
@@ -417,10 +598,33 @@ async function assertPageAtWidth(
       async () => (await drawerPanel.boundingBox())?.height ?? 0,
       { message: "The K-line drawer must expand after the trigger is pressed.", timeout: 5000 },
     ).toBeGreaterThan(44);
+    const chartViewport = drawerPanel.locator(":scope > .relative").last();
+    await expect.poll(async () => {
+      const box = await chartViewport.boundingBox();
+      return box ? box.width * box.height : 0;
+    }, { message: "The expanded mobile chart container must have non-zero dimensions." }).toBeGreaterThan(0);
+    const drawerCanvas = drawerPanel.locator("canvas").first();
+    await expect.poll(() => drawerPanel.locator("canvas").count(), {
+      message: "lightweight-charts must mount a canvas in the expanded mobile drawer.",
+    }).toBeGreaterThan(0);
+    await expect.poll(async () => {
+      const box = await drawerCanvas.boundingBox();
+      return box ? box.width * box.height : 0;
+    }, { message: "The mobile chart canvas must have non-zero rendered dimensions." }).toBeGreaterThan(0);
     await chartRegion.getByRole("button", { name: "Collapse chart" }).first().click();
     await expect.poll(
       async () => (await drawerPanel.boundingBox())?.height ?? Number.POSITIVE_INFINITY,
       { message: "The K-line drawer must collapse cleanly.", timeout: 5000 },
+    ).toBeLessThanOrEqual(50);
+    await chartRegion.getByRole("button", { name: "Expand chart" }).click();
+    await expect.poll(
+      async () => (await drawerPanel.boundingBox())?.height ?? 0,
+      { message: "The K-line drawer must reopen without stale state.", timeout: 5000 },
+    ).toBeGreaterThan(44);
+    await expect.poll(() => drawerPanel.locator("canvas").count()).toBeGreaterThan(0);
+    await chartRegion.getByRole("button", { name: "Collapse chart" }).first().click();
+    await expect.poll(
+      async () => (await drawerPanel.boundingBox())?.height ?? Number.POSITIVE_INFINITY,
     ).toBeLessThanOrEqual(50);
   }
 
@@ -535,13 +739,24 @@ test("trade interaction QA mobile spot market selection and order-book handoff",
   await expect(options.nth(2)).toContainText("SOL/USDT");
   const listedPrices = await options.locator(".term-pair-option__price").allTextContents();
   expect(new Set(listedPrices).size, "Each market option must show its own ticker price, not the active pair price.").toBe(3);
+  await expect(options.first().locator(".term-pair-option__volume")).toContainText("USDT");
+
+  const solOption = options.filter({ hasText: "SOL/USDT" });
+  const solFavorite = solOption.locator(".term-pair-option__favorite");
+  await solFavorite.click();
+  await expect(solFavorite).toHaveAttribute("aria-pressed", "true");
+  await dialog.getByRole("tab", { name: "Favorites" }).click();
+  await expect(options).toHaveCount(1);
+  await expect(options.first()).toContainText("SOL/USDT");
+  await dialog.getByRole("tab", { name: "All" }).click();
+  await expect(options).toHaveCount(3);
 
   const search = dialog.getByRole("searchbox", { name: "Search BTCBOX" });
   await search.fill("ETH");
   await expect(options).toHaveCount(1);
   await expect(options.first()).toContainText("ETH/USDT");
   await search.fill("");
-  await options.filter({ hasText: "SOL/USDT" }).click();
+  await options.filter({ hasText: "SOL/USDT" }).locator(".term-pair-option__select").click();
   await expect(page).toHaveURL(/\/trade\/SOLUSDT$/);
 });
 
@@ -583,7 +798,7 @@ test("trade interaction QA desktop order-book side and price handoff", async ({ 
 // passing only at the seven required snapshot widths. These are desktop-browser
 // viewport sweeps; independent touch-device coverage is provided above.
 for (const route of routes.filter((item) => [
-  "/home", "/markets", "/trade/BTCUSDT", "/trade-hub", "/assets",
+  "/home", "/markets", "/trade/BTCUSDT", "/trade-hub", "/assets", "/contract",
 ].includes(item.path))) {
   test("continuous responsive sweep " + route.path, async ({ page }) => {
     test.setTimeout(300_000);
@@ -591,6 +806,11 @@ for (const route of routes.filter((item) => [
     const output = path.resolve(process.cwd(), "test-results/visual-qa");
     fs.mkdirSync(path.join(output, "continuous"), { recursive: true });
     await installVisualApiMocks(page);
+    // The continuous spot sweep also opens the compact chart at 1024–1279px;
+    // provide verified candles there instead of the empty visual-only fixture.
+    if (route.path === "/trade/BTCUSDT") {
+      await installInteractiveTradeApiMocks(page);
+    }
     for (const width of continuityWidths) {
       await assertPageAtWidth(page, route, width, output, "continuous");
     }

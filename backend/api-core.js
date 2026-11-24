@@ -442,7 +442,11 @@ async function matchingRpc(name, payload) {
 // every write returns 503/409 and market reads return an empty list with a
 // perpetual_enabled=false flag. Never fake availability.
 function perpetualEngineEnabled() {
-  return process.env.FINANCIAL_PERPETUAL_ENGINE_ENABLED === '1' && financialWritesEnabled();
+  // A write cutover also requires an explicit operator acknowledgement that
+  // mark-price, funding and liquidation workers are deployed and monitored.
+  return process.env.FINANCIAL_PERPETUAL_ENGINE_ENABLED === '1'
+    && process.env.FINANCIAL_PERPETUAL_WORKERS_READY === '1'
+    && financialWritesEnabled();
 }
 function perpetualEngineRequested() {
   return process.env.FINANCIAL_PERPETUAL_ENGINE_ENABLED === '1';
@@ -466,8 +470,10 @@ async function perpRpc(name, payload) {
 async function perpRestGet(pathAndQuery) {
   const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
   const response = await fetch(base + '/rest/v1/' + pathAndQuery, { method: 'GET', headers: supabaseHeaders() });
-  if (!response.ok) return [];
-  return response.json().catch(() => []);
+  if (!response.ok) throw new Error('Perpetual database read failed: ' + response.status);
+  const rows = await response.json().catch(() => null);
+  if (!Array.isArray(rows)) throw new Error('Perpetual database read returned an invalid payload');
+  return rows;
 }
 
 // Seconds-contract reference price. The server always fetches the open/settle
@@ -3045,12 +3051,35 @@ async function handleRequest(event, context) {
   // ---------- GET /api/perpetual/markets (public) ----------
   if (path === 'perpetual/markets' && method === 'GET') {
     if (!perpetualEngineRequested() || !supabaseStorageConfigured()) {
-      return json({ ok: true, perpetual_enabled: false, markets: [], msg: 'Perpetual trading is not enabled yet.' });
+      return json({ ok: false, code: 'PERPETUAL_MARKETS_DISABLED', perpetual_enabled: false, markets: [],
+        msg: 'Perpetual markets are not enabled. No contract market is currently available.' }, 503);
     }
     try {
       const markets = await perpRestGet('perpetual_markets?select=symbol,base_asset,quote_asset,enabled,status,price_tick,quantity_step,min_quantity,max_quantity,max_position_notional,max_leverage,maintenance_margin_rate,maker_fee_rate,taker_fee_rate,funding_interval_sec,funding_rate_cap,next_funding_at,mark_price_stale_sec&enabled=eq.true&order=symbol.asc');
-      return json({ ok: true, perpetual_enabled: perpetualEngineEnabled(), markets: markets });
-    } catch (e) { return json({ ok: true, perpetual_enabled: false, markets: [] }, 200); }
+      const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
+      const withPrices = await Promise.all(markets.map(async (market) => {
+        try {
+          const response = await fetch(base + '/rest/v1/rpc/perp_latest_mark_price', {
+            method: 'POST', headers: supabaseHeaders(),
+            body: JSON.stringify({ p_symbol: market.symbol, p_max_age_sec: market.mark_price_stale_sec })
+          });
+          const rows = await response.json().catch(() => []);
+          const row = Array.isArray(rows) ? rows[0] : null;
+          const age = Number(row && row.age_sec);
+          const fresh = response.ok && row && ['ok', 'degraded'].includes(row.status) &&
+            Number.isFinite(age) && age >= 0 && age <= Number(market.mark_price_stale_sec) &&
+            Number(row.mark_price) > 0 && Number(row.index_price) > 0;
+          return { ...market, mark_price: fresh ? String(row.mark_price) : null, index_price: fresh ? String(row.index_price) : null,
+            mark_price_status: fresh ? row.status : 'stale' };
+        } catch (_) {
+          return { ...market, mark_price: null, index_price: null, mark_price_status: 'unavailable' };
+        }
+      }));
+      return json({ ok: true, perpetual_enabled: perpetualEngineEnabled(), markets: withPrices });
+    } catch (e) {
+      return json({ ok: false, code: 'PERPETUAL_MARKETS_UNAVAILABLE', perpetual_enabled: false, markets: [],
+        msg: 'Perpetual market configuration or price feed is unavailable. No contract market can be used.' }, 503);
+    }
   }
   // ---------- POST /api/perpetual/order (auth) ----------
   if (path === 'perpetual/order' && method === 'POST') {
@@ -3147,7 +3176,7 @@ async function handleRequest(event, context) {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
     if (!perpetualEngineRequested()) return json({ ok: true, positions: [], perpetual_enabled: false });
     try {
-      const positions = await perpRestGet('perpetual_positions?select=symbol,side,quantity,entry_price,isolated_margin,realized_pnl,funding_paid,last_mark_price,created_at&user_id=eq.' + encodeURIComponent(String(user.uid)) + '&closed_at=is.null&order=symbol.asc');
+      const positions = await perpRestGet('perpetual_positions?select=id,symbol,side,quantity,entry_price,isolated_margin,realized_pnl,funding_paid,last_mark_price,created_at&user_id=eq.' + encodeURIComponent(String(user.uid)) + '&closed_at=is.null&order=symbol.asc');
       const out = [];
       for (const p of positions) {
         let mark = null, unrealized = null, estLiqPrice = null, roePct = null;
@@ -3166,7 +3195,7 @@ async function handleRequest(event, context) {
             estLiqPrice = p.side === 'long' ? entry * (1 - margin / notional) : entry * (1 + margin / notional);
           }
         } catch (_) { /* mark unavailable; return position without estimate */ }
-        out.push({ symbol: p.symbol, side: p.side, quantity: p.quantity, entry_price: p.entry_price,
+        out.push({ position_id: p.id, symbol: p.symbol, side: p.side, quantity: p.quantity, entry_price: p.entry_price,
           isolated_margin: p.isolated_margin, realized_pnl: p.realized_pnl, funding_paid: p.funding_paid,
           mark_price: mark, unrealized_pnl_est: unrealized, roe_pct_est: roePct, liquidation_price_est: estLiqPrice,
           created_at: p.created_at });
@@ -3182,7 +3211,21 @@ async function handleRequest(event, context) {
       const uid = encodeURIComponent(String(user.uid));
       const asMaker = await perpRestGet('perpetual_trades?select=id,symbol,maker_order_id,taker_order_id,price,quantity,quote_amount,maker_fee,taker_fee,created_at&maker_user_id=eq.' + uid + '&order=created_at.desc&limit=100');
       const asTaker = await perpRestGet('perpetual_trades?select=id,symbol,maker_order_id,taker_order_id,price,quantity,quote_amount,maker_fee,taker_fee,created_at&taker_user_id=eq.' + uid + '&order=created_at.desc&limit=100');
-      const trades = [...asMaker.map(t => ({ ...t, role: 'maker' })), ...asTaker.map(t => ({ ...t, role: 'taker' }))]
+      const combined = [...asMaker.map(t => ({ ...t, role: 'maker' })), ...asTaker.map(t => ({ ...t, role: 'taker' }))];
+      const orderIds = [...new Set(combined.flatMap(t => [t.maker_order_id, t.taker_order_id]).filter(Boolean))];
+      const orderRows = orderIds.length
+        ? await perpRestGet('perpetual_orders?select=id,side&id=in.(' + orderIds.map(id => encodeURIComponent(String(id))).join(',') + ')')
+        : [];
+      const orderSides = new Map(orderRows.map(order => [order.id, order.side]));
+      const trades = combined.map(t => {
+        const maker = t.role === 'maker';
+        const orderId = maker ? t.maker_order_id : t.taker_order_id;
+        return {
+          trade_id: t.id, symbol: t.symbol, side: orderSides.get(orderId),
+          price: t.price, quantity: t.quantity,
+          fee: maker ? t.maker_fee : t.taker_fee, role: t.role, created_at: t.created_at
+        };
+      }).filter(t => t.side === 'buy' || t.side === 'sell')
         .sort((a, b) => (a.created_at < b.created_at ? 1 : -1)).slice(0, 100);
       return json({ ok: true, trades: trades });
     } catch (e) { return json({ ok: false, code: 'PERPETUAL_READ_UNAVAILABLE' }, 503); }
@@ -4702,7 +4745,9 @@ async function handleRequest(event, context) {
         const fundingCap = body.funding_rate_cap === undefined ? 0.0075 : Number(body.funding_rate_cap);
         const status = String(body.status || 'paused').toLowerCase();
         const enabled = body.enabled === true;
-        if (!/^[A-Z0-9]{3,20}$/.test(symbol) || !priceTick || compareMoney(priceTick,'0')<=0 || !quantityStep || compareMoney(quantityStep,'0')<=0
+        if (!/^[A-Z0-9]{3,20}$/.test(symbol) || !/^[A-Z0-9]{2,16}$/.test(baseAsset)
+            || symbol !== baseAsset + 'USDT'
+            || !priceTick || compareMoney(priceTick,'0')<=0 || !quantityStep || compareMoney(quantityStep,'0')<=0
             || !minQuantity || compareMoney(minQuantity,'0')<=0 || !Number.isInteger(maxLeverage) || maxLeverage < 1 || maxLeverage > 100
             || !['trading','paused','open_only','liquidation_only'].includes(status)
             || mmr === null || mmr < 0 || mmr > 0.5 || makerFee < 0 || takerFee < 0 || fundingInterval <= 0 || fundingCap <= 0) {

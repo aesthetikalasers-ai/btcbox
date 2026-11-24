@@ -483,4 +483,168 @@ BEGIN
 END
 $financial_tests$;
 
+
+-- Perpetual settlement: execute real RPCs in this disposable, rolled-back PostgreSQL transaction.
+DO $perpetual_settlement_tests$
+DECLARE
+  v_at timestamptz := clock_timestamp()-interval '1 second';
+  v_ts text := floor(extract(epoch from clock_timestamp())*1000)::text;
+  v_result jsonb;
+  v_balance numeric;
+  v_frozen numeric;
+  v_margin numeric;
+  v_paid numeric;
+  v_rows integer;
+  v_debit numeric;
+  v_credit numeric;
+  v_failed boolean := false;
+  v_bad_debt numeric;
+  v_insurance numeric;
+BEGIN
+  INSERT INTO public.perpetual_markets(
+    symbol,base_asset,quote_asset,enabled,status,price_tick,quantity_step,min_quantity,
+    funding_interval_sec,funding_rate_cap,mark_price_stale_sec,next_funding_at
+  ) VALUES ('BTCUSDT','BTC','USDT',true,'trading',0.01,0.001,0.001,28800,0.0075,300,v_at)
+  ON CONFLICT(symbol) DO UPDATE SET enabled=true,status='trading',
+    funding_interval_sec=28800,funding_rate_cap=0.0075,mark_price_stale_sec=300,next_funding_at=excluded.next_funding_at;
+
+  PERFORM pg_temp.test_credit('MD-PERP-L','perp-long-ci','USDT',1000,'perp-long-credit-0001','long-ref','perp CI');
+  PERFORM pg_temp.test_credit('MD-PERP-S','perp-short-ci','USDT',1000,'perp-short-credit-0001','short-ref','perp CI');
+  UPDATE public.financial_accounts SET available=available-100,frozen=frozen+100
+   WHERE user_id IN ('perp-long-ci','perp-short-ci') AND asset='USDT';
+  INSERT INTO public.perpetual_positions(user_id,symbol,side,quantity,entry_price,isolated_margin)
+  VALUES ('perp-long-ci','BTCUSDT','long',1,1000,100),('perp-short-ci','BTCUSDT','short',1,1000,100);
+  INSERT INTO public.perpetual_mark_price_feed(
+    symbol,index_price,mark_price,sources,source_count,max_deviation_pct,status
+  ) VALUES ('BTCUSDT',1000,1000,jsonb_build_array(
+    jsonb_build_object('source','binance','price','1000','ts',v_ts),
+    jsonb_build_object('source','okx','price','1001','ts',v_ts)),2,0.1,'ok');
+  v_result := public.perp_record_funding_rate_snapshot('BTCUSDT',v_at,1001,1002);
+  IF v_result->>'ok'<>'true' OR v_result->>'formula_version'<>'btcbox-funding-v1'
+     OR (v_result->>'rate')::numeric<>0.001
+     OR (v_result->>'premium_index')::numeric<>0.0015 THEN
+    RAISE EXCEPTION 'fixed funding formula producer returned an unexpected snapshot: %',v_result;
+  END IF;
+  v_result := public.perp_settle_funding_market('BTCUSDT',v_at);
+  IF v_result->>'ok'<>'true' OR (v_result->>'settled')::integer<>2 THEN
+    RAISE EXCEPTION 'funding batch failed: %',v_result;
+  END IF;
+  SELECT available,frozen INTO v_balance,v_frozen FROM public.financial_accounts WHERE user_id='perp-long-ci' AND asset='USDT';
+  SELECT isolated_margin,funding_paid INTO v_margin,v_paid FROM public.perpetual_positions WHERE user_id='perp-long-ci' AND symbol='BTCUSDT';
+  IF v_balance<>899 OR v_frozen<>100 OR v_margin<>100 OR v_paid<>1 THEN
+    RAISE EXCEPTION 'long positive-rate payment mismatch: %, %, %, %',v_balance,v_frozen,v_margin,v_paid;
+  END IF;
+  SELECT available,frozen INTO v_balance,v_frozen FROM public.financial_accounts WHERE user_id='perp-short-ci' AND asset='USDT';
+  SELECT isolated_margin,funding_paid INTO v_margin,v_paid FROM public.perpetual_positions WHERE user_id='perp-short-ci' AND symbol='BTCUSDT';
+  IF v_balance<>901 OR v_frozen<>100 OR v_margin<>100 OR v_paid<>-1 THEN
+    RAISE EXCEPTION 'short positive-rate receipt mismatch: %, %, %, %',v_balance,v_frozen,v_margin,v_paid;
+  END IF;
+  SELECT count(*) INTO v_rows FROM public.perpetual_funding_history WHERE symbol='BTCUSDT' AND funding_at=v_at;
+  SELECT coalesce(sum(payment_delta),0),coalesce(sum(clearing_delta),0) INTO v_debit,v_credit
+   FROM public.perpetual_funding_clearing_ledger WHERE symbol='BTCUSDT' AND funding_at=v_at;
+  IF v_rows<>2 OR v_debit<>0 OR v_credit<>0 THEN
+    RAISE EXCEPTION 'funding history/clearing mismatch: rows %, payment sum %, clearing sum %',v_rows,v_debit,v_credit;
+  END IF;
+  v_result := public.perp_settle_funding_market('BTCUSDT',v_at);
+  IF v_result->>'stale_boundary'<>'true' THEN RAISE EXCEPTION 'funding replay not rejected: %',v_result; END IF;
+  SELECT count(*) INTO v_rows FROM public.perpetual_funding_history WHERE symbol='BTCUSDT' AND funding_at=v_at;
+  IF v_rows<>2 THEN RAISE EXCEPTION 'funding replay duplicated history'; END IF;
+
+  -- Missing snapshot must fail and preserve the due boundary.
+  v_at := clock_timestamp()-interval '1 second';
+  UPDATE public.perpetual_markets SET next_funding_at=v_at WHERE symbol='BTCUSDT';
+  BEGIN
+    PERFORM public.perp_settle_funding_market('BTCUSDT',v_at);
+  EXCEPTION WHEN OTHERS THEN
+    v_failed := SQLERRM LIKE '%validated funding rate snapshot missing%';
+  END;
+  IF NOT v_failed OR (SELECT next_funding_at FROM public.perpetual_markets WHERE symbol='BTCUSDT')<>v_at THEN
+    RAISE EXCEPTION 'missing funding snapshot did not fail closed without advancing boundary';
+  END IF;
+
+  -- A market with no positions must not advance its funding boundary on a
+  -- stale or unversioned snapshot: no financial_operations row would exist to
+  -- invoke the per-operation guard, so the snapshot settlement trigger is vital.
+  v_at := clock_timestamp()-interval '1 second';
+  v_ts := floor(extract(epoch from clock_timestamp())*1000)::text;
+  INSERT INTO public.perpetual_markets(
+    symbol,base_asset,quote_asset,enabled,status,price_tick,quantity_step,min_quantity,
+    maintenance_margin_rate,funding_interval_sec,funding_rate_cap,mark_price_stale_sec,next_funding_at
+  ) VALUES ('SOLUSDT','SOL','USDT',true,'trading',0.001,0.001,0.001,0.005,28800,0.0075,300,v_at)
+  ON CONFLICT(symbol) DO UPDATE SET enabled=true,status='trading',funding_interval_sec=28800,
+    funding_rate_cap=0.0075,mark_price_stale_sec=300,next_funding_at=excluded.next_funding_at;
+  IF EXISTS (SELECT 1 FROM public.perpetual_positions WHERE symbol='SOLUSDT' AND closed_at IS NULL) THEN
+    RAISE EXCEPTION 'no-position funding guard fixture unexpectedly has an open position';
+  END IF;
+  INSERT INTO public.perpetual_funding_rates(
+    symbol,funding_at,rate,premium_index,mark_price,index_price,sources,settled,
+    formula_version,interest_rate,impact_bid_price,impact_ask_price,calculated_at
+  ) VALUES ('SOLUSDT',v_at,0.001,0.0015,1000,1000,jsonb_build_array(
+    jsonb_build_object('source','binance','price','1000','ts',v_ts),
+    jsonb_build_object('source','okx','price','1001','ts',v_ts)),false,
+    'btcbox-funding-v1',0.0001,1001,1002,clock_timestamp()-interval '3 minutes')
+  ON CONFLICT(symbol,funding_at) DO UPDATE SET
+    rate=excluded.rate,premium_index=excluded.premium_index,mark_price=excluded.mark_price,
+    index_price=excluded.index_price,sources=excluded.sources,settled=false,
+    formula_version=excluded.formula_version,interest_rate=excluded.interest_rate,
+    impact_bid_price=excluded.impact_bid_price,impact_ask_price=excluded.impact_ask_price,
+    calculated_at=excluded.calculated_at;
+  v_failed := false;
+  BEGIN
+    PERFORM public.perp_settle_funding_market('SOLUSDT',v_at);
+  EXCEPTION WHEN OTHERS THEN
+    v_failed := SQLERRM LIKE '%fresh btcbox-funding-v1 snapshot%';
+  END;
+  IF NOT v_failed
+     OR (SELECT next_funding_at FROM public.perpetual_markets WHERE symbol='SOLUSDT')<>v_at
+     OR (SELECT settled FROM public.perpetual_funding_rates WHERE symbol='SOLUSDT' AND funding_at=v_at) IS TRUE THEN
+    RAISE EXCEPTION 'no-position stale funding snapshot advanced or settled the market boundary';
+  END IF;
+
+  -- Liquidation must settle the due short-side funding credit first, then reload and close.
+  v_at := clock_timestamp()-interval '1 second';
+  v_ts := floor(extract(epoch from clock_timestamp())*1000)::text;
+  INSERT INTO public.perpetual_markets(
+    symbol,base_asset,quote_asset,enabled,status,price_tick,quantity_step,min_quantity,
+    maintenance_margin_rate,funding_interval_sec,funding_rate_cap,mark_price_stale_sec,next_funding_at
+  ) VALUES ('ETHUSDT','ETH','USDT',true,'trading',0.01,0.001,0.001,0.005,28800,0.0075,300,v_at)
+  ON CONFLICT(symbol) DO UPDATE SET enabled=true,status='trading',maintenance_margin_rate=0.005,
+    funding_interval_sec=28800,funding_rate_cap=0.0075,mark_price_stale_sec=300,next_funding_at=excluded.next_funding_at;
+  PERFORM pg_temp.test_credit('MD-PERP-LIQ','perp-liq-ci','USDT',100,'perp-liq-credit-0001','liq-ref','perp CI');
+  UPDATE public.financial_accounts SET available=available-10,frozen=frozen+10 WHERE user_id='perp-liq-ci' AND asset='USDT';
+  INSERT INTO public.perpetual_positions(user_id,symbol,side,quantity,entry_price,isolated_margin)
+  VALUES ('perp-liq-ci','ETHUSDT','short',1,1000,10);
+  INSERT INTO public.perpetual_funding_rates(
+    symbol,funding_at,rate,premium_index,mark_price,index_price,sources,
+    formula_version,interest_rate,impact_bid_price,impact_ask_price,calculated_at
+  ) VALUES ('ETHUSDT',v_at,0.001,0.0015,1200,1000,jsonb_build_array(
+    jsonb_build_object('source','binance','price','1000','ts',v_ts),
+    jsonb_build_object('source','okx','price','1001','ts',v_ts)),
+    'btcbox-funding-v1',0.0001,1001,1002,clock_timestamp());
+  INSERT INTO public.perpetual_mark_price_feed(symbol,index_price,mark_price,sources,source_count,max_deviation_pct,status)
+  VALUES ('ETHUSDT',1000,1200,jsonb_build_array(
+    jsonb_build_object('source','binance','price','1000','ts',v_ts),
+    jsonb_build_object('source','okx','price','1001','ts',v_ts)),2,20,'degraded');
+  v_result := public.perp_liquidate_position('perp-liq-ci','ETHUSDT');
+  IF v_result->>'ok'<>'true' OR v_result->>'liquidated'<>'true' THEN
+    RAISE EXCEPTION 'funding-before-liquidation RPC failed: %',v_result;
+  END IF;
+  SELECT available,frozen INTO v_balance,v_frozen FROM public.financial_accounts WHERE user_id='perp-liq-ci' AND asset='USDT';
+  IF v_balance<>91.2 OR v_frozen<>0 THEN RAISE EXCEPTION 'funding was not credited before liquidation: %, %',v_balance,v_frozen; END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.perpetual_funding_history WHERE symbol='ETHUSDT' AND user_id='perp-liq-ci' AND payment_delta=1.2) THEN
+    RAISE EXCEPTION 'liquidation path omitted funding settlement';
+  END IF;
+  SELECT bad_debt,insurance_cover INTO v_bad_debt,v_insurance FROM public.perpetual_liquidation_events WHERE user_id='perp-liq-ci' AND symbol='ETHUSDT';
+  IF v_bad_debt<>190 OR v_insurance<>0 THEN RAISE EXCEPTION 'liquidation waterfall mismatch: %, %',v_bad_debt,v_insurance; END IF;
+  SELECT coalesce(sum(j.debit),0),coalesce(sum(j.credit),0) INTO v_debit,v_credit
+   FROM public.perpetual_liquidation_journal j JOIN public.perpetual_liquidation_events e ON e.id=j.event_id
+   WHERE e.user_id='perp-liq-ci' AND e.symbol='ETHUSDT';
+  IF v_debit<>200 OR v_credit<>200 THEN RAISE EXCEPTION 'liquidation journal not balanced: %, %',v_debit,v_credit; END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.perpetual_position_history WHERE user_id='perp-liq-ci' AND symbol='ETHUSDT' AND funding_paid=-1.2 AND close_reason='liquidation') THEN
+    RAISE EXCEPTION 'liquidation history did not retain funding result';
+  END IF;
+  RAISE NOTICE 'Perpetual PostgreSQL settlement, idempotency, fail-closed rollback and funding-before-liquidation checks passed';
+END
+$perpetual_settlement_tests$;
+
 ROLLBACK;

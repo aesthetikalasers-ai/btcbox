@@ -1606,6 +1606,7 @@ export interface PerpMarket {
   next_funding_at?: string | null;
   mark_price?: number | string | null;
   index_price?: number | string | null;
+  mark_price_status?: "ok" | "degraded" | "stale" | "unavailable";
 }
 export interface PerpPosition {
   position_id: string;
@@ -1649,7 +1650,7 @@ export interface PerpTrade {
 export interface PerpFundingRecord {
   symbol: string;
   funding_at: string;
-  funding_rate: number | string;
+  funding_rate: number | string | null;
   payment?: number | string;
   mark_price?: number | string | null;
 }
@@ -1714,35 +1715,77 @@ export async function closePerpPosition(input: { symbol: string; clientOrderId: 
   if (!response.ok || !payload || payload.ok !== true) throw new ApiError(payload?.msg || "Close-position request was not accepted.", response.status, payload?.code || "PERP_CLOSE_REJECTED");
   return { order_id: payload.order_id || "", status: payload.status || "accepted", duplicate: payload.duplicate === true };
 }
+type PerpOrderApiRow = Omit<PerpOrder, "order_id"> & { id: string; order_id?: string };
+type PerpPositionApiRow = Omit<PerpPosition, "position_id" | "unrealized_pnl" | "liquidation_price"> & {
+  id?: string; position_id?: string;
+  unrealized_pnl?: number | string | null;
+  liquidation_price?: number | string | null;
+  unrealized_pnl_est?: number | string | null;
+  liquidation_price_est?: number | string | null;
+};
+function normalizePerpOrder(row: PerpOrderApiRow): PerpOrder {
+  if (!row || typeof (row.order_id || row.id) !== "string") {
+    throw new ApiError("Perpetual order response contains an invalid order identifier.", 502, "INVALID_PERP_ORDER_ROW");
+  }
+  return { ...row, order_id: row.order_id || row.id };
+}
 export async function getPerpOpenOrders(signal?: AbortSignal): Promise<PerpOrder[]> {
   if (DEMO_PREVIEW_ACTIVE) return demoLedgerPerpOpenOrders();
-  const payload = await readAuthenticated<{ ok: true; orders: PerpOrder[] }>("perpetual/orders", signal);
-  if (!Array.isArray(payload.orders)) throw new ApiError("Perpetual open orders are unavailable.", 502, "INVALID_PERP_ORDERS");
-  return payload.orders;
+  const payload = await readAuthenticated<{ ok: true; orders?: PerpOrderApiRow[]; open?: PerpOrderApiRow[] }>("perpetual/orders", signal);
+  const rows = payload.open ?? payload.orders;
+  if (!Array.isArray(rows)) throw new ApiError("Perpetual open orders are unavailable.", 502, "INVALID_PERP_ORDERS");
+  return rows.map(normalizePerpOrder);
 }
 export async function getPerpOrderHistory(signal?: AbortSignal): Promise<PerpOrder[]> {
   if (DEMO_PREVIEW_ACTIVE) return demoLedgerPerpOrderHistory();
-  const payload = await readAuthenticated<{ ok: true; orders: PerpOrder[] }>("perpetual/orders?history=true", signal);
-  if (!Array.isArray(payload.orders)) throw new ApiError("Perpetual order history is unavailable.", 502, "INVALID_PERP_ORDER_HISTORY");
-  return payload.orders;
+  const payload = await readAuthenticated<{ ok: true; orders?: PerpOrderApiRow[]; history?: PerpOrderApiRow[] }>("perpetual/orders", signal);
+  const rows = payload.history ?? payload.orders;
+  if (!Array.isArray(rows)) throw new ApiError("Perpetual order history is unavailable.", 502, "INVALID_PERP_ORDER_HISTORY");
+  return rows.map(normalizePerpOrder);
 }
 export async function getPerpPositions(signal?: AbortSignal): Promise<PerpPosition[]> {
   if (DEMO_PREVIEW_ACTIVE) return demoLedgerPerpPositions();
-  const payload = await readAuthenticated<{ ok: true; positions: PerpPosition[] }>("perpetual/positions", signal);
+  const payload = await readAuthenticated<{ ok: true; positions: PerpPositionApiRow[] }>("perpetual/positions", signal);
   if (!Array.isArray(payload.positions)) throw new ApiError("Perpetual positions are unavailable.", 502, "INVALID_PERP_POSITIONS");
-  return payload.positions;
+  return payload.positions.map((row) => {
+    const positionId = row.position_id || row.id;
+    if (!positionId) throw new ApiError("Perpetual position response is missing its identifier.", 502, "INVALID_PERP_POSITION_ID");
+    return {
+      ...row,
+      position_id: positionId,
+      unrealized_pnl: row.unrealized_pnl ?? row.unrealized_pnl_est ?? null,
+      liquidation_price: row.liquidation_price ?? row.liquidation_price_est ?? null,
+    };
+  });
 }
 export async function getPerpTrades(symbol: string, signal?: AbortSignal): Promise<PerpTrade[]> {
   if (DEMO_PREVIEW_ACTIVE) return demoLedgerPerpTrades();
   const query = new URLSearchParams({ symbol });
   const payload = await readAuthenticated<{ ok: true; trades: PerpTrade[] }>(`perpetual/trades?${query.toString()}`, signal);
   if (!Array.isArray(payload.trades)) throw new ApiError("Perpetual trade history is unavailable.", 502, "INVALID_PERP_TRADES");
-  return payload.trades;
+  return payload.trades.filter((trade) => trade.symbol === symbol);
 }
 export async function getPerpFundingHistory(symbol: string, signal?: AbortSignal): Promise<PerpFundingRecord[]> {
   if (DEMO_PREVIEW_ACTIVE) return [];
-  const query = new URLSearchParams({ symbol });
-  const payload = await readAuthenticated<{ ok: true; funding: PerpFundingRecord[] }>(`perpetual/funding?${query.toString()}`, signal);
-  if (!Array.isArray(payload.funding)) throw new ApiError("Perpetual funding history is unavailable.", 502, "INVALID_PERP_FUNDING");
-  return payload.funding;
+  const payload = await readAuthenticated<{
+    ok: true;
+    funding?: PerpFundingRecord[];
+    history?: Array<{ symbol: string; funding_at: string; payment_delta: number | string }>;
+    rates?: Array<{ symbol: string; funding_at: string; rate: number | string; mark_price?: number | string | null }>;
+  }>("perpetual/funding", signal);
+  if (Array.isArray(payload.funding)) return payload.funding.filter((row) => row.symbol === symbol);
+  if (!Array.isArray(payload.history) || !Array.isArray(payload.rates)) {
+    throw new ApiError("Perpetual funding history is unavailable.", 502, "INVALID_PERP_FUNDING");
+  }
+  const rates = new Map(payload.rates.map((row) => [`${row.symbol}:${row.funding_at}`, row]));
+  return payload.history.filter((row) => row.symbol === symbol).map((row) => {
+    const rate = rates.get(`${row.symbol}:${row.funding_at}`);
+    return {
+      symbol: row.symbol,
+      funding_at: row.funding_at,
+      funding_rate: rate?.rate ?? null,
+      payment: row.payment_delta,
+      mark_price: rate?.mark_price ?? null,
+    };
+  });
 }

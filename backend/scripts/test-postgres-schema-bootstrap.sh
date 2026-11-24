@@ -32,6 +32,11 @@ DECLARE
   v_cancel_requests regclass := to_regclass('public.financial_matching_cancel_requests');
   v_admin_members regclass := to_regclass('private.admin_memberships');
   v_market_requests regclass := to_regclass('private.spot_market_request_idempotency');
+  v_market_categories regclass := to_regclass('public.btcbox_market_categories');
+  v_asset_categories regclass := to_regclass('public.btcbox_asset_category_assignments');
+  v_funding_clearing regclass := to_regclass('public.perpetual_funding_clearing_ledger');
+  v_liquidation_journal regclass := to_regclass('public.perpetual_liquidation_journal');
+  v_assets regclass := to_regclass('public.btcbox_assets');
   v_proc regprocedure;
   v_signature text;
 BEGIN
@@ -57,6 +62,86 @@ BEGIN
   IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid=v_admin_members) THEN
     RAISE EXCEPTION 'private.admin_memberships must have RLS enabled';
   END IF;
+  IF v_assets IS NULL THEN
+    RAISE EXCEPTION 'canonical BTCBOX asset registry was not installed';
+  END IF;
+  IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid=v_assets) THEN
+    RAISE EXCEPTION 'btcbox_assets must have RLS enabled';
+  END IF;
+  IF has_table_privilege('anon','public.btcbox_assets','SELECT')
+     OR has_table_privilege('authenticated','public.btcbox_assets','SELECT')
+     OR NOT has_table_privilege('service_role','public.btcbox_assets','SELECT')
+     OR NOT has_table_privilege('service_role','public.btcbox_assets','INSERT') THEN
+    RAISE EXCEPTION 'btcbox_assets grants are not service-role-only';
+  END IF;
+  IF (SELECT count(*) FROM public.btcbox_assets
+      WHERE asset_code IN ('ADA','AVAX','BNB','BTC','DOGE','ETH','SOL','USDT','XRP')) <> 9 THEN
+    RAISE EXCEPTION 'canonical BTCBOX asset seed is incomplete';
+  END IF;
+  IF v_funding_clearing IS NULL THEN
+    RAISE EXCEPTION 'perpetual funding clearing ledger was not installed';
+  END IF;
+  IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid=v_funding_clearing) THEN
+    RAISE EXCEPTION 'perpetual funding clearing ledger must have RLS enabled';
+  END IF;
+  IF has_table_privilege('anon','public.perpetual_funding_clearing_ledger','SELECT')
+     OR has_table_privilege('authenticated','public.perpetual_funding_clearing_ledger','SELECT')
+     OR NOT has_table_privilege('service_role','public.perpetual_funding_clearing_ledger','INSERT') THEN
+    RAISE EXCEPTION 'perpetual funding clearing ledger grants are not service-role-only';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+     WHERE table_schema='public' AND table_name='perpetual_liquidation_events'
+       AND column_name='insurance_operation_id' AND data_type='uuid'
+  ) THEN
+    RAISE EXCEPTION 'liquidation event insurance operation link was not installed';
+  END IF;
+  IF v_liquidation_journal IS NULL THEN
+    RAISE EXCEPTION 'perpetual liquidation journal was not installed';
+  END IF;
+  IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid=v_liquidation_journal) THEN
+    RAISE EXCEPTION 'perpetual liquidation journal must have RLS enabled';
+  END IF;
+  IF has_table_privilege('anon','public.perpetual_liquidation_journal','SELECT')
+     OR has_table_privilege('authenticated','public.perpetual_liquidation_journal','SELECT')
+     OR NOT has_table_privilege('service_role','public.perpetual_liquidation_journal','INSERT') THEN
+    RAISE EXCEPTION 'perpetual liquidation journal grants are not service-role-only';
+  END IF;
+  v_proc := to_regprocedure('public.perp_liquidate_position(text,text)');
+  IF v_proc IS NULL OR NOT has_function_privilege('service_role',v_proc,'EXECUTE')
+     OR has_function_privilege('anon',v_proc,'EXECUTE')
+     OR has_function_privilege('authenticated',v_proc,'EXECUTE') THEN
+    RAISE EXCEPTION 'perpetual liquidation RPC grants are not service-role-only';
+  END IF;
+
+  v_proc := to_regprocedure('public.perp_record_funding_rate_snapshot(text,timestamptz,numeric,numeric)');
+  IF v_proc IS NULL OR NOT has_function_privilege('service_role',v_proc,'EXECUTE')
+     OR has_function_privilege('anon',v_proc,'EXECUTE')
+     OR has_function_privilege('authenticated',v_proc,'EXECUTE') THEN
+    RAISE EXCEPTION 'perpetual funding snapshot producer RPC grants are not service-role-only';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+     WHERE table_schema='public' AND table_name='perpetual_funding_rates'
+       AND column_name='formula_version' AND data_type='text'
+  ) THEN
+    RAISE EXCEPTION 'versioned perpetual funding formula fields were not installed';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger
+     WHERE tgname='financial_operations_perp_funding_guard_v1'
+       AND tgrelid='public.financial_operations'::regclass AND NOT tgisinternal
+  ) THEN
+    RAISE EXCEPTION 'perpetual funding financial-operation guard was not installed';
+  END IF;
+
+  v_proc := to_regprocedure('public.perp_settle_funding_market(text,timestamptz)');
+  IF v_proc IS NULL OR NOT has_function_privilege('service_role',v_proc,'EXECUTE')
+     OR has_function_privilege('anon',v_proc,'EXECUTE')
+     OR has_function_privilege('authenticated',v_proc,'EXECUTE') THEN
+    RAISE EXCEPTION 'atomic perpetual funding RPC grants are not service-role-only';
+  END IF;
+
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint
     WHERE conrelid='public.seconds_contract_positions'::regclass
@@ -67,6 +152,23 @@ BEGIN
   END IF;
   IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid=v_market_requests) THEN
     RAISE EXCEPTION 'private.spot_market_request_idempotency must have RLS enabled';
+  END IF;
+  IF v_market_categories IS NULL OR v_asset_categories IS NULL THEN
+    RAISE EXCEPTION 'market category taxonomy tables were not installed';
+  END IF;
+  IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid=v_market_categories)
+     OR NOT (SELECT relrowsecurity FROM pg_class WHERE oid=v_asset_categories) THEN
+    RAISE EXCEPTION 'market category tables must have RLS enabled';
+  END IF;
+  IF (SELECT count(*) FROM public.btcbox_market_categories
+      WHERE category_key IN ('meme','ai','erc404','inscription')) <> 4 THEN
+    RAISE EXCEPTION 'market category taxonomy seed is incomplete';
+  END IF;
+  IF has_table_privilege('anon','public.btcbox_market_categories','SELECT')
+     OR has_table_privilege('authenticated','public.btcbox_asset_category_assignments','SELECT')
+     OR NOT has_table_privilege('service_role','public.btcbox_market_categories','SELECT')
+     OR NOT has_table_privilege('service_role','public.btcbox_asset_category_assignments','INSERT') THEN
+    RAISE EXCEPTION 'market category table grants are not service-role-only';
   END IF;
 
   v_proc := to_regprocedure('public.admin_manual_deposit_atomic(text,text,text,text,numeric,text,text,text,text)');

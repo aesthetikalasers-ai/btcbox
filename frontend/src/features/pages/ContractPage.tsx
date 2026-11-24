@@ -32,7 +32,6 @@ import { useAuth } from "../../lib/auth";
 import { useMarketStream } from "../../lib/useMarketStream";
 import { localeTags, useI18n } from "../../lib/i18n";
 import { PositionRiskPanel, fromPerpPosition } from "../trade/PositionRiskPanel";
-import { TradesPanel } from "../trade/TradesPanel";
 import { useMarketStreamEvent } from "../../lib/useMarketStreamEvent";
 import { OrderBookDepth } from "../trade/OrderBookDepth";
 import { ChartDrawer } from "../trade/ChartDrawer";
@@ -154,6 +153,8 @@ export function ContractPage() {
   const [positionsError, setPositionsError] = useState("");
   const [openOrders, setOpenOrders] = useState<PerpOrder[]>([]);
   const [orderHistory, setOrderHistory] = useState<PerpOrder[]>([]);
+  const [ordersError, setOrdersError] = useState("");
+  const [historyError, setHistoryError] = useState("");
   /** Verified USDT→USD rate for the optional dollar-equivalent hint. */
   const [usdtUsd, setUsdtUsd] = useState<number | null>(null);
   useEffect(() => {
@@ -169,8 +170,9 @@ export function ContractPage() {
     return () => { cancelled = true; controller.abort(); window.clearInterval(timer); };
   }, []);
   const [trades, setTrades] = useState<Array<{ trade_id: string; side: string; price: number | string; quantity: number | string; created_at?: string }>>([]);
-  const [funding, setFunding] = useState<Array<{ funding_at: string; funding_rate: number | string; payment?: number | string; mark_price?: number | string | null }>>([]);
+  const [funding, setFunding] = useState<Array<{ funding_at: string; funding_rate: number | string | null; payment?: number | string; mark_price?: number | string | null }>>([]);
   const [tabLoading, setTabLoading] = useState(false);
+  const [tabError, setTabError] = useState("");
   const [tab, setTab] = useState<Tab>("open");
   const [reload, setReload] = useState(0);
   const [mobileSegTab, setMobileSegTab] = useState<"positions" | "open" | "history">("positions");
@@ -399,12 +401,16 @@ export function ContractPage() {
       setOpenOrders([]);
       setOrderHistory([]);
       setPositionsError("");
+      setOrdersError("");
+      setHistoryError("");
       setPositionsLoading(false);
       return;
     }
     const controller = new AbortController();
     setPositionsLoading(true);
     setPositionsError("");
+    setOrdersError("");
+    setHistoryError("");
     getPerpPositions(controller.signal)
       .then((rows) => { if (!controller.signal.aborted) setPositions(rows); })
       .catch((reason: unknown) => {
@@ -413,8 +419,12 @@ export function ContractPage() {
         setPositionsError(t("Unable to load positions. Refresh to try again."));
       })
       .finally(() => { if (!controller.signal.aborted) setPositionsLoading(false); });
-    getPerpOpenOrders(controller.signal).then((rows) => { if (!controller.signal.aborted) setOpenOrders(rows); }).catch(() => { if (!controller.signal.aborted) setOpenOrders([]); });
-    getPerpOrderHistory(controller.signal).then((rows) => { if (!controller.signal.aborted) setOrderHistory(rows); }).catch(() => { if (!controller.signal.aborted) setOrderHistory([]); });
+    getPerpOpenOrders(controller.signal).then((rows) => { if (!controller.signal.aborted) setOpenOrders(rows); }).catch(() => {
+      if (!controller.signal.aborted) { setOpenOrders([]); setOrdersError(t("Unable to load open orders. Refresh to try again.")); }
+    });
+    getPerpOrderHistory(controller.signal).then((rows) => { if (!controller.signal.aborted) setOrderHistory(rows); }).catch(() => {
+      if (!controller.signal.aborted) { setOrderHistory([]); setHistoryError(t("Unable to load order history. Refresh to try again.")); }
+    });
     return () => controller.abort();
   }, [status, reload, submitOk, t]);
 
@@ -422,11 +432,12 @@ export function ContractPage() {
     if (status !== "authenticated" || !symbol || (tab !== "trades" && tab !== "funding")) return;
     const controller = new AbortController();
     setTabLoading(true);
+    setTabError("");
     if (tab === "trades") {
-      getPerpTrades(symbol, controller.signal).then((rows) => { if (!controller.signal.aborted) setTrades(rows); }).catch(() => { if (!controller.signal.aborted) setTrades([]); })
+      getPerpTrades(symbol, controller.signal).then((rows) => { if (!controller.signal.aborted) setTrades(rows); }).catch(() => { if (!controller.signal.aborted) { setTrades([]); setTabError(t("Unable to load trade history. Refresh to try again.")); } })
         .finally(() => { if (!controller.signal.aborted) setTabLoading(false); });
     } else {
-      getPerpFundingHistory(symbol, controller.signal).then((rows) => { if (!controller.signal.aborted) setFunding(rows); }).catch(() => { if (!controller.signal.aborted) setFunding([]); })
+      getPerpFundingHistory(symbol, controller.signal).then((rows) => { if (!controller.signal.aborted) setFunding(rows); }).catch(() => { if (!controller.signal.aborted) { setFunding([]); setTabError(t("Unable to load funding history. Refresh to try again.")); } })
         .finally(() => { if (!controller.signal.aborted) setTabLoading(false); });
     }
     return () => controller.abort();
@@ -613,7 +624,9 @@ export function ContractPage() {
 
 
 
-  const openOrdersBody = positionsLoading ? <TableSkeleton rows={2} /> : openOrders.length === 0 ? (
+  const openOrdersBody = positionsLoading ? <TableSkeleton rows={2} /> : ordersError ? (
+    <p className="p-4 text-sm text-brand-danger" role="alert">{ordersError}</p>
+  ) : openOrders.length === 0 ? (
     <EmptyState icon={Inbox} title={t("No open orders")} hint={t("Open orders will appear here once submitted and before they fill.")} />
   ) : (
     <div className="overflow-x-auto">
@@ -648,7 +661,9 @@ export function ContractPage() {
     </div>
   );
 
-  const mobileHistoryBody = orderHistory.length === 0 ? (
+  const mobileHistoryBody = historyError ? (
+    <p className="p-4 text-sm text-brand-danger" role="alert">{historyError}</p>
+  ) : orderHistory.length === 0 ? (
     <EmptyState icon={Inbox} title={t("No order history")} hint={t("Filled and cancelled orders will appear here.")} />
   ) : (
     <div className="space-y-2 px-4">
@@ -688,8 +703,8 @@ export function ContractPage() {
       {mobileSegTab === "positions"
         ? (positions.length === 0 && !positionsLoading && !positionsError ? <BottomPanelEmpty>{t("No positions")}</BottomPanelEmpty> : positionsBody)
         : mobileSegTab === "open"
-          ? (openOrders.length === 0 && !positionsLoading ? <BottomPanelEmpty>{t("No orders")}</BottomPanelEmpty> : openOrdersBody)
-          : (orderHistory.length === 0 ? <BottomPanelEmpty>{t("No history")}</BottomPanelEmpty> : mobileHistoryBody)}
+          ? (ordersError ? openOrdersBody : openOrders.length === 0 && !positionsLoading ? <BottomPanelEmpty>{t("No orders")}</BottomPanelEmpty> : openOrdersBody)
+          : (historyError ? mobileHistoryBody : orderHistory.length === 0 ? <BottomPanelEmpty>{t("No history")}</BottomPanelEmpty> : mobileHistoryBody)}
     </BottomOrderPanel>
   );
 
@@ -872,11 +887,11 @@ export function ContractPage() {
         </button>
       </div>
       {/* 杠杆档位：4 列等宽网格（10× / 20× / 50× / 100×），窄屏不截断 */}
-      <div className="grid h-9 items-center gap-1 rounded-lg bg-brand-surface-2 p-1" role="group" aria-label={t("Leverage")}
+      <div className="grid h-8 items-center justify-items-center gap-1 rounded-lg bg-brand-surface-2 p-1" role="group" aria-label={t("Leverage")} data-testid="perp-leverage-pills"
         style={{ gridTemplateColumns: `repeat(${leverageOptions.length}, minmax(0, 1fr))` }}>
         {leverageOptions.map((n) => (
           <button key={n} type="button" onClick={() => setLeveragePills(n)}
-            className={cn("flex h-full min-w-0 items-center justify-center rounded-md px-0.5 text-[11px] font-semibold leading-none tabular-nums transition-colors",
+            className={cn("flex h-full w-full max-w-[34px] min-w-0 items-center justify-center rounded-md px-0.5 text-[10px] font-semibold leading-none tabular-nums transition-colors",
               effectiveLeverage === n ? "bg-brand-accent text-[#05201A]" : "text-brand-text-muted hover:text-brand-text")}>
             {n}×
           </button>
@@ -979,9 +994,15 @@ export function ContractPage() {
       </div>
 
       {/* 可用 / 可开 辅助行（币安节奏：按钮前；两列并排，省出一行高度） */}
-      <div className="grid grid-cols-2 gap-1 text-[12px] tabular-nums">
-        <div className="min-w-0 truncate"><span className="text-brand-text-muted">{t("Available")}</span> <span className="text-brand-text">{availableUsdt === null ? EM_DASH : `${money(availableUsdt, locale, 2)} USDT`}</span></div>
-        <div className="min-w-0 truncate text-right"><span className="text-brand-text-muted">{t("Openable")}</span> <span className="text-brand-text">{openableQty === null ? EM_DASH : `${money(openableQty, locale, 4)} ${baseAsset}`}</span></div>
+      <div className="grid grid-cols-2 gap-2 text-[11px] tabular-nums">
+        <div className="min-w-0">
+          <span className="block break-words text-[10px] leading-4 text-brand-text-muted">{t("Available")}</span>
+          <span className="block break-all font-medium leading-4 text-brand-text">{availableUsdt === null ? EM_DASH : `${money(availableUsdt, locale, 2)} USDT`}</span>
+        </div>
+        <div className="min-w-0 text-right">
+          <span className="block break-words text-[10px] leading-4 text-brand-text-muted">{t("Openable")}</span>
+          <span className="block break-all font-medium leading-4 text-brand-text">{openableQty === null ? EM_DASH : `${money(openableQty, locale, 4)} ${baseAsset}`}</span>
+        </div>
       </div>
 
       {/* 可开保证金（币安节奏：开多按钮上方） */}
@@ -1024,7 +1045,9 @@ export function ContractPage() {
     }
     if (tab === "open") return openOrdersBody;
     if (tab === "history") {
-      return positionsLoading ? <TableSkeleton rows={2} /> : orderHistory.length === 0 ? (
+      return positionsLoading ? <TableSkeleton rows={2} /> : historyError ? (
+        <p className="p-4 text-sm text-brand-danger" role="alert">{historyError}</p>
+      ) : orderHistory.length === 0 ? (
         <EmptyState icon={Inbox} title={t("No order history")} hint={t("Filled and cancelled orders will appear here.")} />
       ) : (
         <div className="overflow-x-auto"><table className="w-full text-left text-xs font-mono">
@@ -1043,7 +1066,9 @@ export function ContractPage() {
       );
     }
     if (tab === "trades") {
-      return tabLoading ? <TableSkeleton rows={2} /> : trades.length === 0 ? (
+      return tabLoading ? <TableSkeleton rows={2} /> : tabError ? (
+        <p className="p-4 text-sm text-brand-danger" role="alert">{tabError}</p>
+      ) : trades.length === 0 ? (
         <EmptyState icon={Inbox} title={t("No trades yet")} hint={t("Your executed trades for this market will appear here.")} />
       ) : (
         <div className="overflow-x-auto"><table className="w-full text-left text-xs font-mono">
@@ -1059,7 +1084,9 @@ export function ContractPage() {
         </table></div>
       );
     }
-    return tabLoading ? <TableSkeleton rows={2} /> : funding.length === 0 ? (
+    return tabLoading ? <TableSkeleton rows={2} /> : tabError ? (
+      <p className="p-4 text-sm text-brand-danger" role="alert">{tabError}</p>
+    ) : funding.length === 0 ? (
       <EmptyState icon={Inbox} title={t("No funding payments yet")} hint={t("Funding payments are settled periodically and will appear here.")} />
     ) : (
       <div className="overflow-x-auto"><table className="w-full text-left text-xs font-mono">
@@ -1105,7 +1132,7 @@ export function ContractPage() {
       <div className="lg:hidden">
         <TradeProductNav />
       </div>
-      <div className="mx-auto flex min-h-dvh w-full min-w-0 max-w-[430px] flex-col bg-brand-bg px-0 pb-[calc(132px+env(safe-area-inset-bottom))] text-brand-text lg:max-w-[1560px] lg:gap-4 lg:px-8 lg:pb-6 lg:pt-4">
+      <div className="mx-auto flex min-h-dvh w-full min-w-0 max-w-[430px] flex-col bg-brand-bg px-0 pb-[calc(132px+env(safe-area-inset-bottom))] text-brand-text min-[600px]:max-w-[960px] min-[600px]:px-4 lg:max-w-[1560px] lg:gap-4 lg:px-8 lg:pb-6 lg:pt-4">
         <header className="flex min-w-0 flex-col justify-center gap-2 px-4 pt-2.5 pb-1 lg:h-auto lg:rounded-xl lg:border lg:border-brand-border lg:bg-brand-surface lg:px-4 lg:py-2">
           {/* 行 1：合约名（市场选择）+ 永续标签 + 图表/更多 图标 */}
           <div className="flex min-w-0 items-center gap-2">
@@ -1175,7 +1202,7 @@ export function ContractPage() {
           <>
             <div className="lg:hidden">
               {/* 左右双栏：左下单 + 右紧凑盘口（底边严格齐平），顶部加呼吸间距 */}
-              <div className="compact-trade-form mt-2.5 grid grid-cols-[1.18fr_1fr] items-start gap-2 border-t border-brand-border/40 px-4 pt-2">
+              <div data-testid="perp-mobile-workspace" className="compact-trade-form mt-2.5 grid grid-cols-2 items-start gap-2 border-t border-brand-border/40 px-4 pt-2">
                 {/* 左：移动端紧凑下单表单 */}
                 <div className="flex min-w-0 flex-col">{mobileOrderEntry}</div>
 
@@ -1289,13 +1316,6 @@ export function ContractPage() {
                 </div>
               </div>
 
-              {/* 最新成交（移动端）：与桌面右侧同一组件，窄屏只显示最近 6 条 */}
-              {streamSymbol ? (
-                <div className="mt-2 border-t border-brand-border/40 px-4 pt-2">
-                  <TradesPanel symbol={streamSymbol} limit={6} />
-                </div>
-              ) : null}
-
               {/* 持仓 / 委托（下方全宽）：分段页签已含持仓明细 */}
               <div className="mt-1 flex flex-1 flex-col">
                 {mobilePositionsAndOrders}
@@ -1312,7 +1332,6 @@ export function ContractPage() {
                 {signedOut ? null : positionRiskCard}
                 {orderEntryCard}
                 <OrderBookDepth mid={depthMid} book={displayBook} streamState={liveDepth.state} usdtUsd={usdtUsd} />
-                {streamSymbol ? <TradesPanel symbol={streamSymbol} /> : null}
               </div>
             </div>
           </>
@@ -1334,6 +1353,7 @@ export function ContractPage() {
             label: m.symbol,
             price: tk?.price !== undefined && tk?.price !== null ? money(Number(tk.price), locale) : null,
             changePct: tk?.chg != null ? Number(tk.chg) : null,
+            quoteVolume: tk?.vol ?? null,
           };
         })}
         onSelect={(sym) => setSymbol(sym)}

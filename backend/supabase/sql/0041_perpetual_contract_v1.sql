@@ -4,18 +4,120 @@
 -- All money is numeric(38,18). Application layer MUST pass strings; never JS Number for settlement.
 -- SAFETY: every write path is gated by the API-layer `perpetualEngineEnabled()` switch (default OFF).
 --         Markets default enabled=false / status='paused'. No fake availability via UI.
--- Apply ONLY to a dedicated staging/test Supabase project first; run 0041 tests before any cutover.
+-- Additive upgrade for an existing BTCBOX financial schema; NOT an empty-database initializer.
+-- Apply only through the reviewed Supabase migration procedure after preflight and approval.
 
 create extension if not exists pgcrypto;
 
--- 1. Extend financial operation types (same pattern as 0008 / 0014).
-alter table public.financial_operations drop constraint if exists financial_operations_operation_type_check;
-alter table public.financial_operations add constraint financial_operations_operation_type_check
-  check (operation_type in ('deposit_credit','withdraw_freeze','withdraw_approve','withdraw_reject',
-    'earn_subscribe','earn_redeem','admin_adjustment','spot_trade','spot_order_reserve',
-    'spot_order_cancel','migration_opening_balance',
-    'perp_order_reserve','perp_trade','perp_order_cancel','perp_funding',
-    'perp_liquidation','perp_insurance_cover','perp_bad_debt'));
+-- 0. Canonical BTCBOX asset registry. Production already owns this table; on
+-- populated projects CREATE TABLE IF NOT EXISTS and ON CONFLICT DO NOTHING
+-- preserve all existing asset rows and their legacy triggers. The empty-schema
+-- bootstrap also needs the registry before perpetual markets can add asset FKs.
+create table if not exists public.btcbox_assets (
+  asset_code text primary key check (asset_code ~ '^[A-Z0-9]{2,16}$'),
+  asset_name text not null,
+  asset_type text not null default 'crypto'
+    check (asset_type in ('crypto','fiat','stablecoin')),
+  decimals smallint not null default 8 check (decimals between 0 and 18),
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+alter table public.btcbox_assets enable row level security;
+revoke all on public.btcbox_assets from public, anon, authenticated;
+grant select, insert, update, delete on public.btcbox_assets to service_role;
+
+create or replace function public.btcbox_set_updated_at_v1()
+returns trigger language plpgsql set search_path = pg_catalog as $$
+begin
+  new.updated_at := now();
+  return new;
+end;
+$$;
+do $asset_trigger$
+begin
+  if not exists (
+    select 1 from pg_trigger
+    where tgrelid='public.btcbox_assets'::regclass
+      and tgname='btcbox_assets_updated_at'
+      and not tgisinternal
+  ) then
+    create trigger btcbox_assets_updated_at
+      before update on public.btcbox_assets
+      for each row execute function public.btcbox_set_updated_at_v1();
+  end if;
+end
+$asset_trigger$;
+
+-- A populated Supabase project must already have the complete asset set. This
+-- prevents the legacy production asset-insert trigger from creating wallet rows
+-- as an unintended side effect of a perpetual schema migration.
+do $asset_preflight$
+declare
+  v_has_users boolean := false;
+  v_asset_count integer;
+begin
+  if to_regclass('auth.users') is not null then
+    execute 'select exists(select 1 from auth.users)' into v_has_users;
+  end if;
+  select count(*) into v_asset_count
+    from public.btcbox_assets
+   where asset_code in ('ADA','AVAX','BNB','BTC','DOGE','ETH','SOL','USDT','XRP');
+  if v_has_users and v_asset_count <> 9 then
+    raise exception 'populated project asset registry is incomplete; reconcile btcbox_assets before perpetual migration';
+  end if;
+end
+$asset_preflight$;
+
+-- Seed only the canonical base assets for a fresh/empty bootstrap.
+-- Existing names, precision and active state always win on conflict.
+insert into public.btcbox_assets(asset_code,asset_name,asset_type,decimals,active)
+values
+  ('ADA','Cardano','crypto',6,true),
+  ('AVAX','Avalanche','crypto',18,true),
+  ('BNB','BNB','crypto',8,true),
+  ('BTC','Bitcoin','crypto',8,true),
+  ('DOGE','Dogecoin','crypto',8,true),
+  ('ETH','Ethereum','crypto',18,true),
+  ('SOL','Solana','crypto',9,true),
+  ('USDT','Tether','stablecoin',6,true),
+  ('XRP','XRP','crypto',6,true)
+on conflict (asset_code) do nothing;
+
+-- Deliberately do not create the legacy btcbox_asset_seed_wallet_accounts_v1
+-- trigger in a fresh bootstrap; the perpetual engine uses financial_accounts.
+
+-- 1. Extend financial operation types without dropping the live constraint first.
+-- Install a NOT VALID replacement (new writes are checked immediately), then drop/rename
+-- the old constraint and validate existing rows in one atomic statement.
+do $constraint$
+begin
+  perform set_config('lock_timeout','3s',true);
+  perform set_config('statement_timeout','30s',true);
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid='public.financial_operations'::regclass
+      and conname='financial_operations_operation_type_check_v2'
+  ) then
+    alter table public.financial_operations
+      add constraint financial_operations_operation_type_check_v2
+      check (operation_type in (
+        'deposit_credit','withdraw_freeze','withdraw_approve','withdraw_reject','withdraw_settle','withdraw_paid',
+        'earn_subscribe','earn_redeem','admin_adjustment',
+        'spot_trade','spot_order_reserve','spot_order_cancel',
+        'seconds_open','seconds_settle','migration_opening_balance',
+        'perp_order_reserve','perp_trade','perp_order_cancel','perp_funding',
+        'perp_liquidation','perp_insurance_cover','perp_bad_debt'
+      )) not valid;
+  end if;
+  alter table public.financial_operations
+    drop constraint if exists financial_operations_operation_type_check;
+  alter table public.financial_operations
+    rename constraint financial_operations_operation_type_check_v2 to financial_operations_operation_type_check;
+  alter table public.financial_operations
+    validate constraint financial_operations_operation_type_check;
+end
+$constraint$;
 
 -- Insurance fund is a normal financial account (platform-owned). Ensure it exists.
 insert into public.financial_accounts(user_id, asset) values ('__perp_insurance__', 'USDT')
@@ -24,8 +126,8 @@ insert into public.financial_accounts(user_id, asset) values ('__perp_insurance_
 -- 2. Markets / risk parameters (admin-managed).
 create table if not exists public.perpetual_markets (
   symbol text primary key check (symbol ~ '^[A-Z0-9]{3,20}$'),
-  base_asset text not null check (base_asset ~ '^[A-Z0-9]{2,16}$'),
-  quote_asset text not null default 'USDT' check (quote_asset = 'USDT'),
+  base_asset text not null references public.btcbox_assets(asset_code) on update cascade on delete restrict,
+  quote_asset text not null default 'USDT' references public.btcbox_assets(asset_code) on update cascade on delete restrict check (quote_asset = 'USDT'),
   enabled boolean not null default false,
   status text not null default 'paused' check (status in ('trading','paused','open_only','liquidation_only')),
   price_tick numeric(38,18) not null check (price_tick > 0),
@@ -46,6 +148,7 @@ create table if not exists public.perpetual_markets (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   check (base_asset <> quote_asset),
+  check (symbol = base_asset || quote_asset),
   check (max_quantity is null or min_quantity <= max_quantity)
 );
 
@@ -193,6 +296,19 @@ create table if not exists public.perpetual_liquidation_events (
   operation_id uuid not null unique references public.financial_operations(id),
   created_at timestamptz not null default now()
 );
+create table if not exists public.perpetual_bad_debt_events (
+  id uuid primary key default gen_random_uuid(),
+  user_id text not null,
+  symbol text not null,
+  liquidation_operation_id uuid not null unique references public.financial_operations(id),
+  bad_debt_operation_id uuid not null unique references public.financial_operations(id),
+  amount numeric(38,18) not null check (amount > 0),
+  insurance_cover numeric(38,18) not null default 0 check (insurance_cover >= 0),
+  recovered_amount numeric(38,18) not null default 0 check (recovered_amount >= 0 and recovered_amount <= amount),
+  status text not null default 'outstanding' check (status in ('outstanding','partially_recovered','recovered','forgiven')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
 create table if not exists public.perpetual_position_history (
   id uuid primary key default gen_random_uuid(),
   user_id text not null,
@@ -213,14 +329,14 @@ declare t text;
 begin
   foreach t in array array['perpetual_markets','perpetual_orders','perpetual_positions','perpetual_trades',
     'perpetual_cancel_requests','perpetual_funding_rates','perpetual_funding_history',
-    'perpetual_mark_price_feed','perpetual_liquidation_events','perpetual_position_history']
+    'perpetual_mark_price_feed','perpetual_liquidation_events','perpetual_bad_debt_events','perpetual_position_history']
   loop
     execute format('alter table public.%I enable row level security', t);
     execute format('revoke all on public.%I from public, anon, authenticated', t);
     execute format('grant select, insert, update on public.%I to service_role', t);
   end loop;
 end $$;
-grant usage, select on all sequences in schema public to service_role;
+grant usage, select on sequence public.perpetual_mark_price_feed_id_seq to service_role;
 -- FIX (Critical-2): perp_apply_fill_to_position / liquidation delete positions; service_role needs DELETE.
 grant delete on public.perpetual_positions to service_role;
 
@@ -265,6 +381,15 @@ declare
   v_side text;
   v_qty numeric(38,18);
 begin
+  if coalesce(p_user_id,'') = '' or p_symbol is null or p_symbol !~ '^[A-Z0-9]{3,20}$'
+     or p_fill_direction is null or p_fill_direction not in ('buy','sell')
+     or p_fill_qty is null or p_fill_qty <= 0
+     or p_fill_price is null or p_fill_price <= 0
+     or p_leverage is null or p_leverage < 1 or p_leverage > 100
+     or p_mmr is null or p_mmr < 0 or p_mmr > 0.5 then
+    raise exception 'invalid perpetual position fill';
+  end if;
+
   select * into v_pos from public.perpetual_positions where user_id=p_user_id and symbol=p_symbol for update;
   if found then
     v_existing_signed := case when v_pos.side='long' then v_pos.quantity else -v_pos.quantity end;
@@ -374,7 +499,8 @@ declare
   v_filled_qty numeric(38,18) := 0;
   v_filled_quote numeric(38,18) := 0;
   v_pos_check record;
-  v_reducible_remaining numeric(38,18); -- FIX (Medium): reduce-only fill cap = opposite position size; NULL = no cap.
+  v_reducible_remaining numeric(38,18); -- taker reduce-only cap; NULL = no cap
+  v_maker_reducible_remaining numeric(38,18); -- maker reduce-only cap; NULL = no cap
 begin
   -- 0. Input validation.
   if coalesce(p_order_id,'')='' or coalesce(p_user_id,'')='' or coalesce(p_symbol,'') !~ '^[A-Z0-9]{3,20}$'
@@ -394,6 +520,8 @@ begin
   if found then
     if v_existing.symbol<>p_symbol or v_existing.type<>p_type or v_existing.side<>p_side
        or v_existing.leverage<>p_leverage or v_existing.quantity<>p_quantity
+       or v_existing.reduce_only is distinct from coalesce(p_reduce_only,false)
+       or v_existing.close_position is distinct from coalesce(p_close_position,false)
        or (v_existing.price is distinct from p_price) then
       raise exception 'client order id payload mismatch';
     end if;
@@ -487,7 +615,22 @@ begin
       limit 1 for update;
     exit when not found;
 
-    v_fill := least(v_remaining, v_maker.remaining_quantity, coalesce(v_reducible_remaining, v_remaining)); -- FIX (Medium): cap reduce-only fills at remaining position size
+    v_maker_reducible_remaining := null;
+    if v_maker.reduce_only or v_maker.close_position then
+      select quantity into v_maker_reducible_remaining
+        from public.perpetual_positions
+       where user_id=v_maker.user_id and symbol=p_symbol
+         and ((side='long' and v_maker.side='sell') or (side='short' and v_maker.side='buy'))
+       for update;
+      if not found or v_maker_reducible_remaining <= 0 then
+        update public.perpetual_orders set status='cancelled', remaining_quantity=0, reserved_margin=0, updated_at=now()
+         where id=v_maker.id and status in ('open','partially_filled');
+        continue;
+      end if;
+    end if;
+    v_fill := least(v_remaining, v_maker.remaining_quantity,
+      coalesce(v_reducible_remaining, v_remaining),
+      coalesce(v_maker_reducible_remaining, v_maker.remaining_quantity));
     v_exec_price := v_maker.price;
     v_quote := v_fill * v_exec_price;
     v_taker_fee := v_quote * v_market.taker_fee_rate;
@@ -544,9 +687,11 @@ begin
 
     -- Fees -> insurance fund (platform account), same operation ledger leg.
     if v_taker_fee + v_maker_fee > 0 then
+      insert into public.financial_accounts(user_id,asset) values (v_market.insurance_user_id,'USDT') on conflict do nothing;
       update public.financial_accounts set available=available + (v_taker_fee + v_maker_fee),
         version=version+1, updated_at=now()
        where user_id=v_market.insurance_user_id and asset='USDT';
+      if not found then raise exception 'insurance fee credit invariant failed'; end if;
       insert into public.financial_ledger(operation_id,user_id,asset,available_delta,frozen_delta,available_after,frozen_after)
       select v_fill_op_id, v_market.insurance_user_id, 'USDT', (v_taker_fee+v_maker_fee), 0::numeric, available, frozen
         from public.financial_accounts where user_id=v_market.insurance_user_id and asset='USDT';
@@ -566,7 +711,14 @@ begin
       avg_fill_price=case when avg_fill_price is null then v_exec_price
                           else (avg_fill_price*(quantity-remaining_quantity)+v_exec_price*v_fill)/(quantity-remaining_quantity+v_fill) end,
       updated_at=now() where id=v_maker.id;
-    if v_reducible_remaining is not null then -- FIX (Medium): reduce-only exhausted -> stop; never flip into reverse position
+    if v_maker_reducible_remaining is not null then
+      v_maker_reducible_remaining := v_maker_reducible_remaining - v_fill;
+      if v_maker_reducible_remaining <= 0 then
+        update public.perpetual_orders set status='cancelled', remaining_quantity=0, reserved_margin=0, updated_at=now()
+         where id=v_maker.id and status in ('open','partially_filled');
+      end if;
+    end if;
+    if v_reducible_remaining is not null then -- reduce-only taker exhausted -> stop; never flip into reverse position
       v_reducible_remaining := v_reducible_remaining - v_fill;
       if v_reducible_remaining <= 0 then exit; end if;
     end if;
@@ -608,6 +760,9 @@ begin
       where id=p_order_id;
   end if;
 
+  -- Return the persisted final remainder, not the pre-cancel loop remainder.
+  select remaining_quantity into v_remaining
+    from public.perpetual_orders where id=p_order_id;
   return jsonb_build_object('ok',true,'duplicate',false,'order_id',p_order_id,
     'filled_quantity',v_filled_qty,'remaining_quantity',v_remaining,
     'avg_fill_price', case when v_filled_qty>0 then v_filled_quote/v_filled_qty else null end);
@@ -625,6 +780,7 @@ declare
   v_req public.perpetual_cancel_requests%rowtype;
   v_order public.perpetual_orders%rowtype;
   v_request_hash text;
+  v_cancel_op_id uuid;
   v_resp jsonb;
 begin
   if coalesce(p_user_id,'')='' or coalesce(p_order_id,'')=''
@@ -632,6 +788,7 @@ begin
     raise exception 'invalid cancel request';
   end if;
   perform pg_advisory_xact_lock(hashtextextended('perp-cancel:'||p_user_id||':'||p_client_cancel_id, 0));
+  perform pg_advisory_xact_lock(hashtextextended('perp-market:'|| (select symbol from public.perpetual_orders where id=p_order_id and user_id=p_user_id), 0));
   select * into v_req from public.perpetual_cancel_requests where user_id=p_user_id and client_cancel_id=p_client_cancel_id;
   if found then
     if v_req.order_id <> p_order_id then raise exception 'cancel idempotency key payload mismatch'; end if;
@@ -645,7 +802,8 @@ begin
     v_resp := jsonb_build_object('ok',true,'duplicate',true,'order_id',p_order_id,'status',v_order.status);
   else
     -- release remaining reserved margin.
-    if v_order.reserved_margin > 0 and v_order.reserve_operation_id is not null then
+    if v_order.reserved_margin > 0 then
+      if v_order.reserve_operation_id is null then raise exception 'order reserve operation missing'; end if;
       update public.financial_accounts set frozen=frozen-v_order.reserved_margin,
         available=available+v_order.reserved_margin, version=version+1, updated_at=now()
        where user_id=p_user_id and asset='USDT' and frozen >= v_order.reserved_margin;
@@ -655,9 +813,9 @@ begin
         p_user_id,'USDT','perp_order_cancel',
         encode(extensions.digest(p_order_id||':'||v_order.remaining_quantity::text,'sha256'),'hex'),
         jsonb_build_object('order_id',p_order_id))
-      returning id into v_order.reserve_operation_id;
+      returning id into v_cancel_op_id;
       insert into public.financial_ledger(operation_id,user_id,asset,available_delta,frozen_delta,available_after,frozen_after)
-      select v_order.reserve_operation_id, p_user_id, 'USDT', v_order.reserved_margin, -v_order.reserved_margin, available, frozen
+      select v_cancel_op_id, p_user_id, 'USDT', v_order.reserved_margin, -v_order.reserved_margin, available, frozen
         from public.financial_accounts where user_id=p_user_id and asset='USDT';
     end if;
     update public.perpetual_orders set status='cancelled', remaining_quantity=0, reserved_margin=0, updated_at=now() where id=p_order_id;
@@ -683,30 +841,75 @@ declare
   v_max_dev numeric(12,6);
   v_status text;
   v_src jsonb;
-  v_prices numeric[];
+  v_source_name text;
+  v_sources_seen text[] := ARRAY[]::text[];
   i integer;
   v_mean numeric;
+  v_market public.perpetual_markets%rowtype;
+  v_mark_deviation numeric(12,6);
 begin
+  if coalesce(p_symbol,'') !~ '^[A-Z0-9]{3,20}$'
+     or p_index_price is null or p_index_price <= 0
+     or p_mark_price is null or p_mark_price <= 0
+     or p_max_age_sec is null or p_max_age_sec <= 0 then
+    raise exception 'invalid mark price payload';
+  end if;
   if p_sources is null or jsonb_typeof(p_sources) <> 'array' or jsonb_array_length(p_sources) < 2 then
     raise exception 'mark price requires at least 2 sources';
   end if;
+
   v_count := jsonb_array_length(p_sources);
   v_mean := 0;
   for i in 0..v_count-1 loop
     v_src := p_sources->i;
+    if jsonb_typeof(v_src) <> 'object' then
+      raise exception 'invalid mark price source object';
+    end if;
+    v_source_name := lower(coalesce(v_src->>'source',''));
+    if v_source_name not in ('binance','okx','coingecko')
+       or v_source_name = any(v_sources_seen) then
+      raise exception 'mark price sources must be unique trusted providers';
+    end if;
+    v_sources_seen := array_append(v_sources_seen,v_source_name);
+    if coalesce(v_src->>'price','') !~ '^[0-9]+([.][0-9]+)?$'
+       or (v_src->>'price')::numeric <= 0
+       or coalesce(v_src->>'ts','') !~ '^[0-9]+$'
+       or abs(extract(epoch from now())*1000 - (v_src->>'ts')::numeric) > p_max_age_sec*1000 then
+      raise exception 'invalid or stale mark price source';
+    end if;
     v_mean := v_mean + (v_src->>'price')::numeric;
   end loop;
+
   v_mean := v_mean / v_count;
+  -- External spot providers define the index only. The mark is an independent
+  -- BTCBOX perpetual-book midpoint and is expected to differ by the premium.
+  if abs(p_index_price-v_mean)/v_mean > 0.0001 then
+    raise exception 'index price must match the validated external spot source mean';
+  end if;
+  select * into v_market from public.perpetual_markets where symbol=p_symbol;
+  if not found then raise exception 'perpetual market configuration missing for mark feed'; end if;
+  v_mark_deviation := abs(p_mark_price-p_index_price)/p_index_price*100;
+
   v_max_dev := 0;
   for i in 0..v_count-1 loop
     v_src := p_sources->i;
     v_max_dev := greatest(v_max_dev, abs(((v_src->>'price')::numeric - v_mean)/v_mean)*100);
   end loop;
-  v_status := case when v_count >= 3 and v_max_dev < 2 then 'ok'
-                   when v_count >= 2 then 'degraded' else 'stale' end;
-  insert into public.perpetual_mark_price_feed(symbol,index_price,mark_price,sources,source_count,max_deviation_pct,status)
-  values (p_symbol,p_index_price,p_mark_price,p_sources,v_count,v_max_dev,v_status);
-  return jsonb_build_object('ok',true,'status',v_status,'source_count',v_count,'max_deviation_pct',v_max_dev);
+  -- The reported deviation covers both provider disagreement and perp premium.
+  v_max_dev := greatest(v_max_dev, v_mark_deviation);
+  v_status := case
+    when v_count >= 3 and v_max_dev < 2
+         and v_mark_deviation <= v_market.circuit_breaker_deviation_pct then 'ok'
+    when v_count >= 2 then 'degraded'
+    else 'stale'
+  end;
+
+  insert into public.perpetual_mark_price_feed(
+    symbol,index_price,mark_price,sources,source_count,max_deviation_pct,status
+  ) values (p_symbol,p_index_price,p_mark_price,p_sources,v_count,v_max_dev,v_status);
+  return jsonb_build_object(
+    'ok',true,'status',v_status,'source_count',v_count,'max_deviation_pct',v_max_dev
+  );
 end;
 $$;
 
@@ -739,14 +942,15 @@ begin
   if not found then return jsonb_build_object('ok',true,'no_position',true); end if;
   v_notional := v_pos.quantity * coalesce(v_rate.mark_price, v_pos.entry_price);
   -- long pays when rate>0: long payment = -rate*notional; short receives +rate*notional.
-  v_payment := case when v_pos.side='long' then -p_rate else p_rate end * v_notional;
+  -- The persisted funding-rate row is authoritative; never trust a caller-supplied rate for settlement.
+  v_payment := case when v_pos.side='long' then -v_rate.rate else v_rate.rate end * v_notional;
 
   insert into public.financial_accounts(user_id,asset) values (p_user_id,'USDT') on conflict do nothing;
   perform 1 from public.financial_accounts where user_id=p_user_id and asset='USDT' for update;
   insert into public.financial_operations(idempotency_key,user_id,asset,operation_type,request_hash,metadata)
   values (v_idem,p_user_id,'USDT','perp_funding',
     encode(extensions.digest(v_idem||':'||v_payment::text,'sha256'),'hex'),
-    jsonb_build_object('symbol',p_symbol,'funding_at',p_funding_at,'rate',p_rate))
+    jsonb_build_object('symbol',p_symbol,'funding_at',p_funding_at,'rate',v_rate.rate))
   returning id into v_op;
   select available, frozen into v_avail_before, v_frozen_before from public.financial_accounts where user_id=p_user_id and asset='USDT';
   if v_payment < 0 then
@@ -762,8 +966,11 @@ begin
         update public.financial_accounts set available=0, frozen=frozen+v_from_margin, version=version+1, updated_at=now()
          where user_id=p_user_id and asset='USDT' and frozen >= -v_from_margin;
         if not found then raise exception 'funding debit invariant failed'; end if;
-        update public.perpetual_positions set isolated_margin=greatest(isolated_margin + v_from_margin, 0), funding_paid=funding_paid - v_payment, updated_at=now()
-         where id=v_pos.id;
+        -- Never consume collateral belonging to another position or an unrelated open order.
+        update public.perpetual_positions
+           set isolated_margin=isolated_margin + v_from_margin, updated_at=now()
+         where id=v_pos.id and isolated_margin >= -v_from_margin;
+        if not found then raise exception 'funding isolated margin invariant failed'; end if;
         v_avail_delta := v_from_avail; v_frozen_delta := v_from_margin;
       end;
     end if;
@@ -797,17 +1004,26 @@ declare
   v_notional numeric(38,18);
   v_mm numeric(38,18);
   v_loss numeric(38,18);
+  v_margin_return numeric(38,18) := 0;
   v_insurance_cover numeric(38,18) := 0;
   v_bad_debt numeric(38,18) := 0;
   v_op uuid;
+  v_bad_debt_op uuid;
   v_idem text;
   v_close_price numeric(38,18);
   v_orders_reserved numeric(38,18) := 0;
   v_total_frozen_release numeric(38,18);
 begin
+  if coalesce(p_user_id,'') = '' or p_symbol is null or p_symbol !~ '^[A-Z0-9]{3,20}$' then
+    raise exception 'invalid perpetual liquidation identity';
+  end if;
+  perform pg_advisory_xact_lock(hashtextextended('perp-market:'||p_symbol, 0));
   select * into v_pos from public.perpetual_positions where user_id=p_user_id and symbol=p_symbol for update;
   if not found then return jsonb_build_object('ok',true,'no_position',true); end if;
   select * into v_market from public.perpetual_markets where symbol=p_symbol;
+  if not found then
+    raise exception 'perpetual market configuration missing';
+  end if;
   select * into v_mark from public.perp_latest_mark_price(p_symbol, v_market.mark_price_stale_sec);
   if v_mark is null or v_mark.status='stale' or v_mark.age_sec > v_market.mark_price_stale_sec then
     raise exception 'mark price stale — liquidation paused (positions protected)';
@@ -815,19 +1031,21 @@ begin
 
   v_notional := v_pos.quantity * v_mark.mark_price;
   v_mm := v_notional * v_market.maintenance_margin_rate;
-  -- liquidation price: where isolated_margin + unrealized = maintenance margin.
+  -- Solve equity = maintenance margin for the liquidation threshold.
   if v_pos.side='long' then
-    v_liq_price := v_pos.entry_price * (1 - (v_pos.isolated_margin - v_mm)/v_notional);
+    v_liq_price := greatest(0, (v_pos.entry_price*v_pos.quantity-v_pos.isolated_margin) /
+      (v_pos.quantity*(1-v_market.maintenance_margin_rate)));
     if v_mark.mark_price > v_liq_price then return jsonb_build_object('ok',true,'liquidatable',false,'mark',v_mark.mark_price,'liq_price',v_liq_price); end if;
-    v_bankruptcy := v_pos.entry_price * (1 - v_pos.isolated_margin/v_notional);
-    v_close_price := greatest(v_mark.mark_price, v_bankruptcy);
-    v_loss := (v_pos.entry_price - v_close_price) * v_pos.quantity; -- loss to margin
+    v_bankruptcy := greatest(0, (v_pos.entry_price*v_pos.quantity-v_pos.isolated_margin)/v_pos.quantity);
+    v_close_price := v_mark.mark_price;
+    v_loss := greatest(0, (v_pos.entry_price-v_close_price)*v_pos.quantity);
   else
-    v_liq_price := v_pos.entry_price * (1 + (v_pos.isolated_margin - v_mm)/v_notional);
+    v_liq_price := (v_pos.entry_price*v_pos.quantity+v_pos.isolated_margin) /
+      (v_pos.quantity*(1+v_market.maintenance_margin_rate));
     if v_mark.mark_price < v_liq_price then return jsonb_build_object('ok',true,'liquidatable',false,'mark',v_mark.mark_price,'liq_price',v_liq_price); end if;
-    v_bankruptcy := v_pos.entry_price * (1 + v_pos.isolated_margin/v_notional);
-    v_close_price := least(v_mark.mark_price, v_bankruptcy);
-    v_loss := (v_close_price - v_pos.entry_price) * v_pos.quantity;
+    v_bankruptcy := (v_pos.entry_price*v_pos.quantity+v_pos.isolated_margin)/v_pos.quantity;
+    v_close_price := v_mark.mark_price;
+    v_loss := greatest(0, (v_close_price-v_pos.entry_price)*v_pos.quantity);
   end if;
 
   v_idem := 'perp-liq-'||v_pos.id::text;
@@ -836,16 +1054,19 @@ begin
   end if;
 
   -- Loss absorbed by isolated margin (already frozen). Excess loss beyond margin -> insurance -> bad debt.
+  v_margin_return := greatest(v_pos.isolated_margin - v_loss, 0);
   if v_loss > v_pos.isolated_margin then
     declare v_excess numeric(38,18) := v_loss - v_pos.isolated_margin;
             v_ins_bal numeric(38,18);
     begin
+      insert into public.financial_accounts(user_id,asset) values (v_market.insurance_user_id,'USDT') on conflict do nothing;
       select available into v_ins_bal from public.financial_accounts where user_id=v_market.insurance_user_id and asset='USDT' for update;
       v_insurance_cover := least(v_excess, coalesce(v_ins_bal,0));
       v_bad_debt := v_excess - v_insurance_cover;
       if v_insurance_cover > 0 then
         update public.financial_accounts set available=available-v_insurance_cover, version=version+1, updated_at=now()
-         where user_id=v_market.insurance_user_id and asset='USDT';
+         where user_id=v_market.insurance_user_id and asset='USDT' and available >= v_insurance_cover;
+        if not found then raise exception 'insurance liquidation debit invariant failed'; end if;
       end if;
     end;
   end if;
@@ -855,19 +1076,17 @@ begin
     encode(extensions.digest(v_idem,'sha256'),'hex'),
     jsonb_build_object('symbol',p_symbol,'mark_price',v_mark.mark_price,'liq_price',v_liq_price))
   returning id into v_op;
-  -- release frozen margin: isolated position margin PLUS reserved margin on still-open orders (else funds stuck frozen).
+  -- Release the position margin plus remaining open-order reserves; return only unused position collateral.
   select coalesce(sum(reserved_margin),0) into v_orders_reserved
     from public.perpetual_orders where user_id=p_user_id and symbol=p_symbol and status in ('open','partially_filled');
   v_total_frozen_release := v_pos.isolated_margin + v_orders_reserved;
-  -- loss is absorbed by frozen margin (no credit back); open-order reserved margin is simply released back to frozen->available? No:
-  -- reserved margin was frozen for orders; on liquidation those orders cancel, so reserved margin returns to available (it was never lost).
-  -- Accounting: isolated_margin is consumed (frozen down, no available up); orders' reserved margin returns to available.
+  -- User loses min(actual adverse PnL, isolated margin); unused isolated collateral and order reserves return to available.
   update public.financial_accounts set frozen=frozen-v_total_frozen_release,
-    available=available + v_orders_reserved, version=version+1, updated_at=now()
+    available=available + v_orders_reserved + v_margin_return, version=version+1, updated_at=now()
    where user_id=p_user_id and asset='USDT' and frozen >= v_total_frozen_release;
   if not found then raise exception 'liquidation frozen release invariant failed'; end if;
   insert into public.financial_ledger(operation_id,user_id,asset,available_delta,frozen_delta,available_after,frozen_after)
-  select v_op, p_user_id, 'USDT', v_orders_reserved, -v_total_frozen_release, available, frozen
+  select v_op, p_user_id, 'USDT', (v_orders_reserved + v_margin_return), -v_total_frozen_release, available, frozen
     from public.financial_accounts where user_id=p_user_id and asset='USDT';
   if v_insurance_cover > 0 then
     insert into public.financial_ledger(operation_id,user_id,asset,available_delta,frozen_delta,available_after,frozen_after)
@@ -878,14 +1097,34 @@ begin
   insert into public.perpetual_position_history(user_id,symbol,side,quantity,entry_price,close_price,realized_pnl,funding_paid,close_reason)
   values (p_user_id,p_symbol,v_pos.side,v_pos.quantity,v_pos.entry_price,v_close_price,v_pos.realized_pnl - v_loss,v_pos.funding_paid,'liquidation');
   insert into public.perpetual_liquidation_events(user_id,symbol,side,quantity,entry_price,mark_price_at_liq,liquidation_price,bankruptcy_price,margin_lost,insurance_cover,bad_debt,operation_id)
-  values (p_user_id,p_symbol,v_pos.side,v_pos.quantity,v_pos.entry_price,v_mark.mark_price,v_liq_price,v_bankruptcy,v_pos.isolated_margin,v_insurance_cover,v_bad_debt,v_op);
+  values (p_user_id,p_symbol,v_pos.side,v_pos.quantity,v_pos.entry_price,v_mark.mark_price,v_liq_price,v_bankruptcy,least(v_loss,v_pos.isolated_margin),v_insurance_cover,v_bad_debt,v_op);
+  if v_bad_debt > 0 then
+    insert into public.financial_operations(idempotency_key,user_id,asset,operation_type,request_hash,metadata)
+    values ('perp-bad-debt-'||v_pos.id::text,p_user_id,'USDT','perp_bad_debt',
+      encode(extensions.digest(v_idem||':bad-debt:'||v_bad_debt::text,'sha256'),'hex'),
+      jsonb_build_object('symbol',p_symbol,'liquidation_operation_id',v_op,'amount',v_bad_debt,'insurance_cover',v_insurance_cover))
+    returning id into v_bad_debt_op;
+    insert into public.perpetual_bad_debt_events(user_id,symbol,liquidation_operation_id,bad_debt_operation_id,amount,insurance_cover)
+    values (p_user_id,p_symbol,v_op,v_bad_debt_op,v_bad_debt,v_insurance_cover);
+    -- This is an outstanding platform receivable, not a user balance debit.
+    -- The zero-delta marker preserves the existing operation-to-ledger audit link.
+    insert into public.financial_ledger(
+      operation_id,user_id,asset,available_delta,frozen_delta,available_after,frozen_after
+    )
+    select v_bad_debt_op,p_user_id,'USDT',0,0,available,frozen
+      from public.financial_accounts
+     where user_id=p_user_id and asset='USDT';
+    if not found then
+      raise exception 'bad-debt ledger audit marker account missing';
+    end if;
+  end if;
   delete from public.perpetual_positions where id=v_pos.id;
   -- cancel any open orders for this user/symbol (reduce exposure); reserved margin already released above.
   update public.perpetual_orders set status='cancelled', remaining_quantity=0, reserved_margin=0, updated_at=now()
    where user_id=p_user_id and symbol=p_symbol and status in ('open','partially_filled');
 
   return jsonb_build_object('ok',true,'liquidated',true,'liq_price',v_liq_price,'mark_price',v_mark.mark_price,
-    'margin_lost',v_pos.isolated_margin,'insurance_cover',v_insurance_cover,'bad_debt',v_bad_debt);
+    'margin_lost',least(v_loss,v_pos.isolated_margin),'insurance_cover',v_insurance_cover,'bad_debt',v_bad_debt);
 end;
 $$;
 

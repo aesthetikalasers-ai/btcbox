@@ -14,8 +14,17 @@ test('withdrawal compatibility migration keeps the full financial operation type
   const values = (source) => new Set(Array.from(source.matchAll(/'([a-z0-9_]+)'/g), match => match[1]));
   const constrained = values(constraint[1]);
   const accepted = values(functionAllowlist[1]);
-  for (const operation of constrained) assert.ok(accepted.has(operation), 'RPC must accept constrained operation type: ' + operation);
+  for (const operation of ['withdraw_settle','withdraw_paid','perp_order_reserve','perp_trade',
+    'perp_order_cancel','perp_funding','perp_liquidation','perp_insurance_cover','perp_bad_debt']) {
+    assert.ok(constrained.has(operation), 'table CHECK must accept operation type: ' + operation);
+  }
   assert.ok(accepted.has('withdraw_settle'), 'legacy withdrawal settlement remains accepted');
   assert.ok(accepted.has('withdraw_paid'), 'canonical manual payout remains accepted');
-  assert.ok(accepted.has('perp_trade'), 'perpetual ledger operations remain accepted');
+  for (const operation of ['perp_order_reserve','perp_trade','perp_order_cancel','perp_funding',
+    'perp_liquidation','perp_insurance_cover','perp_bad_debt']) {
+    assert.ok(!accepted.has(operation), 'generic balance helper must not accept dedicated perpetual operation: ' + operation);
+  }
+  assert.ok(sql.includes('financial_operations_operation_type_check_v2'));
+  assert.ok(sql.includes('not valid'));
+  assert.ok(sql.includes('validate constraint financial_operations_operation_type_check'));
 });
