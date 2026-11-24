@@ -110,6 +110,7 @@ const messages: Record<string, string> = {
   "Email": "邮箱",
   "Auth link": "身份关联",
   "Duplicate mapping": "身份重复关联",
+  "Invalid Auth UUID": "Auth UUID 格式无效",
   "Linked in BTCBOX": "已关联 BTCBOX",
   "No linked Auth UUID": "未关联 Auth UUID",
   "linked identities": "个已关联身份",
