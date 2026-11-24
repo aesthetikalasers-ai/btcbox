@@ -4739,7 +4739,9 @@ async function handleRequest(event, context) {
         const fundingCap = body.funding_rate_cap === undefined ? 0.0075 : Number(body.funding_rate_cap);
         const status = String(body.status || 'paused').toLowerCase();
         const enabled = body.enabled === true;
-        if (!/^[A-Z0-9]{3,20}$/.test(symbol) || !priceTick || compareMoney(priceTick,'0')<=0 || !quantityStep || compareMoney(quantityStep,'0')<=0
+        if (!/^[A-Z0-9]{3,20}$/.test(symbol) || !/^[A-Z0-9]{2,16}$/.test(baseAsset)
+            || symbol !== baseAsset + 'USDT'
+            || !priceTick || compareMoney(priceTick,'0')<=0 || !quantityStep || compareMoney(quantityStep,'0')<=0
             || !minQuantity || compareMoney(minQuantity,'0')<=0 || !Number.isInteger(maxLeverage) || maxLeverage < 1 || maxLeverage > 100
             || !['trading','paused','open_only','liquidation_only'].includes(status)
             || mmr === null || mmr < 0 || mmr > 0.5 || makerFee < 0 || takerFee < 0 || fundingInterval <= 0 || fundingCap <= 0) {
