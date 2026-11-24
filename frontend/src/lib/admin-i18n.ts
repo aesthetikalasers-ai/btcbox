@@ -469,7 +469,7 @@ const messages: Record<string, string> = {
   "No perpetual markets are configured. No contract can be traded.": "尚未配置永续市场，当前没有可交易的合约。",
   "Minimum notional (USDT)": "最小名义价值（USDT）",
   "Maximum quantity (optional)": "最大数量（可选）",
-  "Maximum position notional (optional)": "最大持仓名义价值（可选）",
+  "Maximum position notional (USDT)": "最大持仓名义价值（USDT）",
   "Maximum leverage": "最大杠杆",
   "Maintenance margin rate": "维持保证金率",
   "Maker fee rate": "Maker 手续费率",
