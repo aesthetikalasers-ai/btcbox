@@ -498,6 +498,14 @@ export function ContractPage() {
       setSubmitError(t("Quantity is below the market minimum."));
       return;
     }
+    const minNotional = Number(selectedMarket.min_notional);
+    const referencePrice = orderType === "limit" ? Number(price) : Number(selectedMarket.mark_price);
+    if (!reduceOnly && Number.isFinite(minNotional) && minNotional > 0 &&
+        Number.isFinite(referencePrice) && referencePrice > 0 &&
+        referencePrice * Number(quantity) < minNotional) {
+      setSubmitError(t("Order notional is below the market minimum."));
+      return;
+    }
     setBusy(true);
     try {
       // The exchange is the only source of truth for positions. A local
