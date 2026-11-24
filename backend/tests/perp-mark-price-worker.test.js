@@ -72,6 +72,31 @@ test('only shallow or empty books may use the explicit bootstrap mark path', () 
   assert.equal(shouldUseBootstrapMark(new Error('REST GET failed: 500')), false);
 });
 
+test('bootstrap requires all three distinct fresh providers', () => {
+  const { canBootstrapWithSources, buildFreshSources } = require('../scripts/perp-mark-price-worker');
+  const two = [
+    { source: 'binance', price: 100, ts: 100000 },
+    { source: 'okx', price: 100, ts: 100000 }
+  ];
+  const three = [...two, { source: 'coingecko', price: 100, ts: 100000 }];
+  assert.equal(canBootstrapWithSources(two), false);
+  assert.equal(canBootstrapWithSources(three), true);
+  assert.equal(canBootstrapWithSources([...three, { source: 'binance', price: 100, ts: 100000 }]), false);
+  const maps = {
+    binance: new Map([['BTCUSDT', two[0]]]),
+    okx: new Map([['BTCUSDT', two[1]]]),
+    coingecko: new Map([['BTCUSDT', three[2]]])
+  };
+  assert.equal(buildFreshSources(maps, 'BTCUSDT', 100000, 60).length, 3);
+  assert.equal(buildFreshSources(maps, 'BTCUSDT', 200001, 60).length, 0);
+});
+
+test('bounded market processing preserves result order', async () => {
+  const { mapWithConcurrency } = require('../scripts/perp-mark-price-worker');
+  const result = await mapWithConcurrency([3, 1, 2], 2, async value => value * 2);
+  assert.deepEqual(result, [6, 2, 4]);
+});
+
 test('has a provider id mapping for every BTCBOX non-USDC/USDT market candidate',()=>{
   const expected=['ADA','AVAX','BNB','BTC','DOGE','ETH','SOL','XRP','LINK','DOT','TRX','LTC','BCH','NEAR','UNI','ATOM','ETC','APT','ARB','OP','SUI','INJ','TIA','FIL'];
   for(const asset of expected) assert.ok(DEFAULT_COINGECKO_IDS[asset+'USDT'], 'missing '+asset+'USDT');
