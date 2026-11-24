@@ -1961,8 +1961,16 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
       padding: 10px 12px 6px;
       font-size: 10px;
     }
-    .term-pair-dialog__columns span:nth-child(2) { display: none; }
-    .term-pair-dialog__columns span:last-child { text-align: right; }
+    .term-pair-dialog__columns span:nth-child(2) {
+      display: block;
+      font-size: 0;
+      text-align: right;
+    }
+    .term-pair-dialog__columns span:nth-child(2)::after {
+      content: attr(data-mobile-label);
+      font-size: 10px;
+    }
+    .term-pair-dialog__columns span:last-child { display: none; }
     .term-pair-dialog__list { padding: 0 8px 8px; }
     .term-pair-option {
       grid-template-columns: minmax(0, 1fr) minmax(88px, .8fr);
