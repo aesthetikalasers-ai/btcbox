@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import { useI18n, localeTags } from "../../lib/i18n";
 import { cn } from "../../lib/utils";
@@ -48,7 +48,7 @@ function decimalsFor(precision: number): number {
  * Order-book depth panel. It renders only backend/provider depth levels.
  * Missing or stale depth is an unavailable state, never a synthetic book.
  */
-export function OrderBookDepth({ mid, book, streamState, usdtUsd }: { mid?: number; book: DepthLevels | null; streamState?: "idle" | "connecting" | "live" | "degraded" | "closed"; usdtUsd?: number | null }) {
+export function OrderBookDepth({ mid, book, streamState, usdtUsd, baseAsset = "BTC" }: { mid?: number; book: DepthLevels | null; streamState?: "idle" | "connecting" | "live" | "degraded" | "closed"; usdtUsd?: number | null; baseAsset?: string }) {
   const { t, language } = useI18n();
   const numberLocale = localeTags[language] || "en-US";
   const [precision, setPrecision] = useState<number>(0.01);
@@ -96,8 +96,7 @@ export function OrderBookDepth({ mid, book, streamState, usdtUsd }: { mid?: numb
   return (
     <Card className="border-brand-border bg-brand-surface">
       <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-        <CardTitle className="text-sm">{t("Underlying spot order book")}</CardTitle>
-            <CardDescription>{t("Spot reference only — not the perpetual execution book.")}</CardDescription>
+        <CardTitle className="text-sm">{t("Live market depth")}</CardTitle>
         <div className="flex items-center gap-1">
           <Badge variant="outline" className="border-brand-border-subtle bg-brand-surface-2 text-brand-text-muted">
             <span
@@ -155,7 +154,7 @@ export function OrderBookDepth({ mid, book, streamState, usdtUsd }: { mid?: numb
         <>
         <div className="grid grid-cols-3 gap-2 pb-1 text-right text-[10px] uppercase tracking-wide text-brand-text-faint">
           <span>{t("Price")} (USDT)</span>
-          <span>{t("Size")} (BTC)</span>
+          <span>{t("Size")} ({baseAsset})</span>
           <span>{t("Total")}</span>
         </div>
         {view !== "bids" ? (

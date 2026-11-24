@@ -233,15 +233,22 @@ test("public market provenance keeps server and provider timestamps separate", (
 
 test("perpetual page labels spot data and funding caps honestly", () => {
   const page = fs.readFileSync(path.join(root, "features/pages/ContractPage.tsx"), "utf8");
-  assert.ok(page.includes('t("Spot reference")'));
+  assert.ok(!page.includes('t("Spot reference")'));
+  assert.ok(page.includes('t("Mark price")'));
+  assert.ok(page.includes('t("Index price")'));
+  assert.ok(page.includes("displayPrice = contractMarkPrice ?? validIndexPrice"));
+  assert.ok(page.includes("price: m.index_price != null"));
+  assert.ok(!page.includes("tickers.find"));
   assert.ok(page.includes('t("Funding rate cap")'));
   assert.ok(page.includes("fundingRateCapPct"));
   assert.ok(page.includes('setFundingCountdown("")'));
   assert.ok(!page.includes("Math.ceil(now / (interval * 1000))"));
   assert.ok(page.includes("estimatedMargin === null ? EM_DASH"));
   const depth = fs.readFileSync(path.join(root, "features/trade/OrderBookDepth.tsx"), "utf8");
-  assert.ok(depth.includes('t("Underlying spot order book")'));
-  assert.ok(depth.includes('t("Spot reference only — not the perpetual execution book.")'));
+  assert.ok(depth.includes('t("Live market depth")'));
+  assert.ok(depth.includes('({ mid, book, streamState, usdtUsd, baseAsset = "BTC" }'));
+  assert.ok(depth.includes('t("Size")} ({baseAsset})'));
+  assert.ok(!depth.includes('t("Spot reference only — not the perpetual execution book.")'));
 });
 
 test("the live app routes seconds trading through the policy-backed page", () => {

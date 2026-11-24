@@ -330,7 +330,35 @@ async function assertPageAtWidth(
   if (route.path === "/trade/BTCUSDT") {
     await expect(page.getByText(/^(Latest trades|Recent trades)$/i)).toHaveCount(0);
   }
-  if (route.path === "/contract" && width < 1024) {
+  if (route.path === "/contract" && width >= 1280) {
+    const terminal = page.getByTestId("perp-desktop-terminal");
+    await expect(terminal, "Desktop perpetual terminal must use the spot-style three-panel workspace.").toBeVisible();
+    await expect(page.getByTestId("perp-mobile-workspace")).toBeHidden();
+    const panels = terminal.locator(":scope > section");
+    await expect(panels).toHaveCount(3);
+    const [chartBox, bookBox, entryBox, columns] = await Promise.all([
+      panels.nth(0).boundingBox(),
+      panels.nth(1).boundingBox(),
+      panels.nth(2).boundingBox(),
+      terminal.evaluate((element) => getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/).length),
+    ]);
+    expect(chartBox, "Perpetual chart must have a rendered layout box.").not.toBeNull();
+    expect(bookBox, "Perpetual order book must have a rendered layout box.").not.toBeNull();
+    expect(entryBox, "Perpetual order entry must have a rendered layout box.").not.toBeNull();
+    expect(columns, "Perpetual desktop must keep chart, order book and order entry in three columns.").toBe(3);
+    expect(chartBox!.x).toBeLessThan(bookBox!.x);
+    expect(bookBox!.x).toBeLessThan(entryBox!.x);
+    expect(chartBox!.width).toBeGreaterThan(300);
+    expect(bookBox!.width).toBeGreaterThanOrEqual(240);
+    expect(entryBox!.width).toBeGreaterThanOrEqual(280);
+    const chartCanvas = panels.nth(0).locator("canvas").first();
+    await expect.poll(async () => {
+      const box = await chartCanvas.boundingBox();
+      return box ? box.width * box.height : 0;
+    }, { message: "Desktop perpetual chart canvas must have non-zero dimensions." }).toBeGreaterThan(0);
+  }
+
+  if (route.path === "/contract" && width < 1280) {
     const workspace = page.getByTestId("perp-mobile-workspace");
     await expect(workspace).toBeVisible();
     const entry = workspace.locator(":scope > div").first();
