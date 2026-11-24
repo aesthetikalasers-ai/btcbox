@@ -48,8 +48,8 @@ test('wallet asset display follows configured names, precision metadata, visibil
   assert.ok(assetsPage.includes('getPublicAssetCatalog(controller.signal)'));
   assert.ok(assetsPage.includes('config.enabled && config.visible'));
   assert.ok(assetsPage.includes('hasFunds || !config'));
-  assert.ok(assetsPage.includes('hasPositiveAmount(balance.free) || hasPositiveAmount(balance.frozen)'));
-  assert.ok(assetsPage.includes(String.raw`/^\d+(?:\.\d+)?$/`));
+  assert.ok(assetsPage.includes('hasNonZeroAmount(balance.free) || hasNonZeroAmount(balance.frozen)'));
+  assert.ok(assetsPage.includes(String.raw`/^-?\d+(?:\.\d+)?$/`));
   assert.ok(assetsPage.includes('left.sort_order - right.sort_order'));
   assert.ok(assetsPage.includes('assetConfig?.display_name || assetConfig?.name'));
   assert.ok(assetsPage.includes('assetConfig?.display_precision ?? 8'));
