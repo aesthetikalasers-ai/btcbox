@@ -570,6 +570,7 @@ VIEWS.withdraw.afterRender = function(){
       return;
     }
     const coin=$('#wd-coin').value, addr=$('#wd-addr').value.trim(), amtRaw=$('#wd-amount').value.trim(), amt=Number(amtRaw);
+    if(!withdrawalFeeConfigReady){toast('Withdrawal fee configuration is unavailable. No request was sent.','err');return;}
     if(!addr||addr.length<8){toast('Enter a valid withdrawal address.','err');return;}
     if(!amt||amt<=0){toast('Enter a valid amount.','err');return;}
     const avail=state.balances[coin]?state.balances[coin].free:0;
@@ -578,7 +579,12 @@ VIEWS.withdraw.afterRender = function(){
     if(fundPassword.length<8||!/[A-Za-z]/.test(fundPassword)||!/[0-9]/.test(fundPassword)||/\s/.test(fundPassword)){toast('Fund password must be at least 8 characters and contain both letters and numbers, without spaces.','err');return;}
     if(state.settings.twofa&&!/^\d{6}$/.test($('#wd-2fa').value)){toast('Enter your 6-digit 2FA code.','err');return;}
     const btn=$('#wd-submit');if(!btn)return;
-    const withdrawalIntent={version:1,request_id:uid(),coin,amount:amtRaw,address:addr,network:$('#wd-network').value,created_at:Date.now()};
+    const retryIntent=withdrawalRetryAllowed&&withdrawalPendingIntent?withdrawalPendingIntent:null;
+    if(retryIntent&&(coin!==retryIntent.coin||amtRaw!==retryIntent.amount||addr!==retryIntent.address||$('#wd-network').value!==retryIntent.network)){
+      toast('A retry must use the original coin, amount, network and address. Start a separate withdrawal only after this request is resolved.','err');return;
+    }
+    const withdrawalIntent=retryIntent||{version:1,request_id:uid(),coin,amount:amtRaw,address:addr,network:$('#wd-network').value,created_at:Date.now()};
+    withdrawalRetryAllowed=false;
     /* Persist the exact idempotency key + immutable intent before network I/O. Never store fund password or 2FA. */
     if(!persistPendingWithdrawal(withdrawalIntent)){
       toast('This browser cannot safely retain the withdrawal request ID. No request was sent. Enable site storage and try again.','err');
