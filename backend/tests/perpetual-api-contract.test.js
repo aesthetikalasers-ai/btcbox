@@ -262,3 +262,10 @@ test('liquidation worker paginates every position and does not convert REST fail
   assert.ok(liq.includes("if (!r.ok) throw new Error('REST GET failed: ' + r.status)"));
   assert.ok(!liq.includes('&limit=500'));
 });
+
+test('perpetual workers validate RPC success payloads before counting settlements or liquidations', () => {
+  const fund = fs.readFileSync(path.join(root, 'scripts', 'perp-funding-worker.js'), 'utf8');
+  const liq = fs.readFileSync(path.join(root, 'scripts', 'perp-liquidation-worker.js'), 'utf8');
+  assert.ok(fund.includes("res.ok !== true"));
+  assert.ok(liq.includes("res.ok !== true"));
+});
