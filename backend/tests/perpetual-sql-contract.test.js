@@ -197,3 +197,7 @@ test('reduce-only and market IOC responses return the persisted final remainder 
   assert.ok(finalized >= 0, 'final persisted remaining quantity must be re-read');
   assert.ok(response > finalized, 'response must use the re-read persisted quantity');
 });
+
+test('perpetual market symbols are constrained to their registered base and USDT quote assets', () => {
+  assert.ok(sql.includes('check (symbol = base_asset || quote_asset)'));
+});
