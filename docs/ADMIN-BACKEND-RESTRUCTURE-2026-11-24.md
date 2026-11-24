@@ -250,3 +250,12 @@ The Admin workspace navigation is now grouped by business ownership rather than 
 
 Groups are permission-filtered: a group is hidden when the current administrator has no visible tabs in it. This is navigation organization only; it does not grant permissions or expose the unwired Perpetual admin routes. The User centre now owns the user directory and selection only. Selecting a user opens the dedicated Finance centre module, where manual credit and manual debit are separate action views. Deposit history remains visible alongside the selected user's finance actions. Neither manual action is re-labelled as deposit review.
 The manual-debit panel is localized with the rest of the Chinese administrator interface, and the existing `financial_adjustment.request` permission remains the action gate.
+
+## Seconds module boundary (2026-11-24)
+
+The navigation label is "Seconds contracts" because this module contains both versioned policy controls and a live open-position queue.
+
+- Policy reads use `read_active_seconds_policy_v1`; changes use `admin_set_seconds_policy_v1` with expected-version checks, a request ID/hash, and a policy-change reason.
+- The administrator queue uses `admin_read_seconds_open_positions_v1` and is read-only. It exposes current open positions and overdue counts; it does not allow staff to force outcomes or release reserved funds.
+- No dedicated administrator settlement-history/read-results endpoint has been verified in the current route contract. Do not reuse the customer-scoped positions endpoint or infer settlement history from the open queue. A future history screen requires an explicit admin-scoped read RPC and permission mapping.
+- Perpetual administration remains deferred to PR #113 integration; this work does not add placeholder routes or controls.
