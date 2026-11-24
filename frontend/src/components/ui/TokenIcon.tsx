@@ -5,8 +5,8 @@ import { useEffect, useState } from "react";
 // packaged cryptocurrency-icons set. Missing marks use a monogram fallback;
 // never synthesize a token logo from a ticker or an unrelated brand.
 const LOCAL_TOKEN_ICON_SYMBOLS = new Set([
-  "ada", "atom", "avax", "bch", "bnb", "btc", "doge", "dot", "etc", "eth",
-  "link", "ltc", "matic", "near", "pepe", "sol", "sui", "trx", "uni", "usdc",
+  "ada", "apt", "arb", "atom", "avax", "bch", "bnb", "btc", "doge", "dot", "etc", "eth", "fil", "inj",
+  "link", "ltc", "matic", "near", "op", "pepe", "sol", "sui", "tia", "trx", "uni", "usdc",
   "usdt", "xrp",
 ]);
 const cryptoIconModules = import.meta.glob<string>("../../../node_modules/cryptocurrency-icons/svg/color/*.svg", { eager: true, import: "default" });
