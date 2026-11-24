@@ -124,3 +124,31 @@ test('withdrawal actions, support read receipts, and every FAQ method retain exp
     );
   }
 });
+
+
+test('perpetual admin endpoints remain fail-closed until their route permissions are explicitly approved', () => {
+  const start = api.indexOf('const requiredPermission = (function(route, verb)');
+  const end = api.indexOf('if (!requiredPermission)', start);
+  assert.ok(start >= 0 && end > start, 'admin permission resolver must exist');
+  const resolver = api.slice(start, end);
+
+  // These handlers exist below the dispatcher, but exposing them changes the
+  // reachability of market configuration and financial audit data. Keep them
+  // inaccessible until the owner approves an explicit least-privilege mapping.
+  for (const [route, method] of [
+    ['perpetual/market', 'POST'],
+    ['perpetual/liquidations', 'GET'],
+    ['perpetual/insurance', 'GET'],
+  ]) {
+    assert.ok(
+      !resolver.includes(`route === '${route}' && verb === '${method}'`),
+      `Unexpectedly exposed admin/${route} via ${method}; review authorization and audit requirements first.`
+    );
+  }
+
+  const handlerStart = api.indexOf("if (sub.startsWith('perpetual/'))");
+  assert.ok(handlerStart > end, 'perpetual admin handler must remain present for future approved integration');
+  const handler = api.slice(handlerStart);
+  assert.ok(handler.includes("hasAdminPermission(adminMembership, 'system_config.write')"));
+  assert.ok(handler.includes("hasAdminPermission(adminMembership, 'financial_audit.read')"));
+});
