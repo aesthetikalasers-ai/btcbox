@@ -55,13 +55,7 @@ values
   ('ai', 'AI', 'AI', '人工智能相关资产；需经人工或可信数据源确认。', 'Artificial-intelligence related assets; requires manual or trusted-source classification.', true, 20),
   ('erc404', 'ERC-404', 'ERC-404', 'ERC-404 标准或兼容资产；需核验链与合约地址。', 'ERC-404 standard or compatible assets; verify chain and contract address.', true, 30),
   ('inscription', '铭文', 'Inscription', '铭文及相关协议资产；需核验协议与数据来源。', 'Inscription and related protocol assets; verify protocol and data source.', true, 40)
-on conflict (category_key) do update
-set name_zh=excluded.name_zh,
-    name_en=excluded.name_en,
-    description_zh=excluded.description_zh,
-    description_en=excluded.description_en,
-    sort_order=excluded.sort_order,
-    updated_at=now();
+on conflict (category_key) do nothing;
 
 alter table public.btcbox_market_categories enable row level security;
 alter table public.btcbox_asset_category_assignments enable row level security;
@@ -70,7 +64,15 @@ revoke all on public.btcbox_market_categories, public.btcbox_asset_category_assi
   from public, anon, authenticated;
 grant select on public.btcbox_market_categories, public.btcbox_asset_category_assignments to service_role;
 grant insert, update, delete on public.btcbox_asset_category_assignments to service_role;
-grant usage, select on sequence public.btcbox_asset_category_assignments_id_seq to service_role;
+do $
+declare
+  v_sequence text := pg_get_serial_sequence('public.btcbox_asset_category_assignments','id');
+begin
+  if v_sequence is not null then
+    execute format('grant usage, select on sequence %s to service_role', v_sequence);
+  end if;
+end;
+$;
 
 -- Fail closed if the migration was run against a schema without the canonical asset catalogue.
 do $$
