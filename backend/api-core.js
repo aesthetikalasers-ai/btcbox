@@ -1879,6 +1879,8 @@ async function handleRequest(event, context) {
     const symbol = ((event.queryStringParameters && event.queryStringParameters.symbol) || 'BTCUSDT').toUpperCase();
     if (!/^[A-Z0-9]{5,20}$/.test(symbol) || !symbol.endsWith('USDT') || symbol.length <= 4) return json({ ok: false, msg: 'Invalid USDT symbol' }, 400);
     const base = symbol.slice(0, -4);
+    let catalogSource = 'database';
+    let catalogTradingEnabled = true;
     try {
       const catalog = await readPublicSpotMarketCatalog();
       catalogSource = catalog.source;
@@ -1897,8 +1899,6 @@ async function handleRequest(event, context) {
     const normalizeLevels = rows => rows
       .filter(row => Array.isArray(row) && row.length >= 2 && Number.isFinite(Number(row[0])) && Number(row[0]) > 0 && Number.isFinite(Number(row[1])) && Number(row[1]) > 0)
       .map(row => [String(row[0]), String(row[1])]);
-    let catalogSource = 'database';
-    let catalogTradingEnabled = true;
     const response = (source, bids, asks, providerTs = null) => {
       const normalizedBids = normalizeLevels(bids).sort((left, right) => Number(right[0]) - Number(left[0])).slice(0, 20);
       const normalizedAsks = normalizeLevels(asks).sort((left, right) => Number(left[0]) - Number(right[0])).slice(0, 20);
