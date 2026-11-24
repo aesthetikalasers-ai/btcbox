@@ -11,6 +11,7 @@ const root = path.resolve(__dirname, '..');
 const sql = fs.readFileSync(path.join(root, 'supabase/sql/0041_perpetual_contract_v1.sql'), 'utf8');
 const fundingSql = fs.readFileSync(path.join(root, 'supabase/sql/0046_perpetual_funding_atomic_clearing_v1.sql'), 'utf8');
 const fundingWorker = fs.readFileSync(path.join(root, 'scripts/perp-funding-worker.js'), 'utf8');
+const liquidationAccountingSql = fs.readFileSync(path.join(root, 'supabase/sql/0047_perpetual_liquidation_accounting_closure_v1.sql'), 'utf8');
 
 test('0041 extends operation_type with perp_* and reuses financial_accounts/operations/ledger', () => {
   assert.ok(sql.includes("'perp_order_reserve'"));
@@ -182,10 +183,35 @@ test('liquidation fails closed when market configuration is missing', () => {
   assert.ok(sql.includes("raise exception 'perpetual market configuration missing'"));
 });
 
-test('bad debt operation has an explicit zero-delta ledger audit marker without debiting user funds', () => {
-  assert.ok(sql.includes('bad-debt ledger audit marker account missing'));
-  assert.ok(sql.includes('select v_bad_debt_op,p_user_id,\'USDT\',0,0,available,frozen'));
-  assert.ok(sql.includes('platform receivable'));
+test('bad debt is platform-owned and is not represented as a fake zero-delta customer ledger row', () => {
+  assert.ok(liquidationAccountingSql.includes("values ('perp-bad-debt-'||v_pos.id::text,'__perp_platform__','USDT','perp_bad_debt'"));
+  assert.ok(!liquidationAccountingSql.includes('bad-debt ledger audit marker'));
+  assert.ok(!liquidationAccountingSql.includes('select v_bad_debt_op,p_user_id'));
+  assert.ok(liquidationAccountingSql.includes('platform_risk_absorption'));
+  assert.ok(liquidationAccountingSql.includes('perpetual_liquidation_journal'));
+});
+
+test('liquidation writes separate user, insurance and platform operations with a balanced risk journal', () => {
+  assert.ok(liquidationAccountingSql.includes("'perp-insurance-cover-'||v_pos.id::text"));
+  assert.ok(liquidationAccountingSql.includes("'perp_insurance_cover'"));
+  assert.ok(liquidationAccountingSql.includes('select v_insurance_op,v_market.insurance_user_id'));
+  assert.ok(liquidationAccountingSql.includes('insurance_operation_id'));
+  assert.ok(liquidationAccountingSql.includes('unique (event_id,line_no)'));
+  assert.ok(liquidationAccountingSql.includes('v_journal_debits <> v_journal_credits'));
+  assert.ok(liquidationAccountingSql.includes('v_journal_debits <> v_loss'));
+  assert.ok(liquidationAccountingSql.includes('least(v_loss,v_pos.isolated_margin)'));
+  assert.ok(liquidationAccountingSql.includes('v_bad_debt := v_excess - v_insurance_cover'));
+});
+
+test('general financial operation RPC remains scoped to generic single-account movements', () => {
+  const compatibility = fs.readFileSync(path.join(root, 'supabase/sql/0044_withdrawal_operation_type_compatibility_v1.sql'), 'utf8');
+  const fnStart = compatibility.indexOf('CREATE OR REPLACE FUNCTION public.apply_financial_operation(');
+  const fnEnd = compatibility.indexOf('$$;', fnStart);
+  const fn = compatibility.slice(fnStart, fnEnd);
+  assert.ok(fn.includes('p_operation_type NOT IN'));
+  assert.ok(!fn.includes("'perp_trade'"));
+  assert.ok(!fn.includes("'perp_bad_debt'"));
+  assert.ok(liquidationAccountingSql.includes('create or replace function public.perp_liquidate_position'));
 });
 
 test('order idempotency binds reduce-only and close-position flags', () => {
