@@ -690,10 +690,122 @@ declare
   v_max_dev numeric(12,6);
   v_status text;
   v_src jsonb;
-  v_prices numeric[];
   i integer;
   v_mean numeric;
 begin
+  if coalesce(p_symbol,'') !~ '^[A-Z0-9]{3,20} or jsonb_typeof(p_sources) <> 'array' or jsonb_array_length(p_sources) < 2 then
+    raise exception 'mark price requires at least 2 sources';
+  end if;
+  v_count := jsonb_array_length(p_sources);
+  v_mean := 0;
+  for i in 0..v_count-1 loop
+    v_src := p_sources->i;
+    if jsonb_typeof(v_src) <> 'object' or coalesce(v_src->>'source','') = ''
+       or coalesce(v_src->>'price','') !~ '^[0-9]+(\\.[0-9]+)?
+  end loop;
+  v_mean := v_mean / v_count;
+  if abs(p_index_price-v_mean)/v_mean > 0.0001 or abs(p_mark_price-v_mean)/v_mean > 0.0001 then
+    raise exception 'mark/index price must match validated source mean';
+  end if;
+  v_max_dev := 0;
+  for i in 0..v_count-1 loop
+    v_src := p_sources->i;
+    v_max_dev := greatest(v_max_dev, abs(((v_src->>'price')::numeric - v_mean)/v_mean)*100);
+  end loop;
+  v_status := case when v_count >= 3 and v_max_dev < 2 then 'ok'
+                   when v_count >= 2 then 'degraded' else 'stale' end;
+  insert into public.perpetual_mark_price_feed(symbol,index_price,mark_price,sources,source_count,max_deviation_pct,status)
+  values (p_symbol,p_index_price,p_mark_price,p_sources,v_count,v_max_dev,v_status);
+  return jsonb_build_object('ok',true,'status',v_status,'source_count',v_count,'max_deviation_pct',v_max_dev);
+end;
+$$; or p_index_price is null or p_index_price <= 0
+     or p_mark_price is null or p_mark_price <= 0 or p_max_age_sec is null or p_max_age_sec <= 0 then
+    raise exception 'invalid mark price payload';
+  end if;
+  if p_sources is null or jsonb_typeof(p_sources) <> 'array' or jsonb_array_length(p_sources) < 2 then
+    raise exception 'mark price requires at least 2 sources';
+  end if;
+  v_count := jsonb_array_length(p_sources);
+  v_mean := 0;
+  for i in 0..v_count-1 loop
+    v_src := p_sources->i;
+    v_mean := v_mean + (v_src->>'price')::numeric;
+  end loop;
+  v_mean := v_mean / v_count;
+  v_max_dev := 0;
+  for i in 0..v_count-1 loop
+    v_src := p_sources->i;
+    v_max_dev := greatest(v_max_dev, abs(((v_src->>'price')::numeric - v_mean)/v_mean)*100);
+  end loop;
+  v_status := case when v_count >= 3 and v_max_dev < 2 then 'ok'
+                   when v_count >= 2 then 'degraded' else 'stale' end;
+  insert into public.perpetual_mark_price_feed(symbol,index_price,mark_price,sources,source_count,max_deviation_pct,status)
+  values (p_symbol,p_index_price,p_mark_price,p_sources,v_count,v_max_dev,v_status);
+  return jsonb_build_object('ok',true,'status',v_status,'source_count',v_count,'max_deviation_pct',v_max_dev);
+end;
+$$;
+       or (v_src->>'price')::numeric <= 0
+       or coalesce(v_src->>'ts','') !~ '^[0-9]+
+  end loop;
+  v_mean := v_mean / v_count;
+  v_max_dev := 0;
+  for i in 0..v_count-1 loop
+    v_src := p_sources->i;
+    v_max_dev := greatest(v_max_dev, abs(((v_src->>'price')::numeric - v_mean)/v_mean)*100);
+  end loop;
+  v_status := case when v_count >= 3 and v_max_dev < 2 then 'ok'
+                   when v_count >= 2 then 'degraded' else 'stale' end;
+  insert into public.perpetual_mark_price_feed(symbol,index_price,mark_price,sources,source_count,max_deviation_pct,status)
+  values (p_symbol,p_index_price,p_mark_price,p_sources,v_count,v_max_dev,v_status);
+  return jsonb_build_object('ok',true,'status',v_status,'source_count',v_count,'max_deviation_pct',v_max_dev);
+end;
+$$; or p_index_price is null or p_index_price <= 0
+     or p_mark_price is null or p_mark_price <= 0 or p_max_age_sec is null or p_max_age_sec <= 0 then
+    raise exception 'invalid mark price payload';
+  end if;
+  if p_sources is null or jsonb_typeof(p_sources) <> 'array' or jsonb_array_length(p_sources) < 2 then
+    raise exception 'mark price requires at least 2 sources';
+  end if;
+  v_count := jsonb_array_length(p_sources);
+  v_mean := 0;
+  for i in 0..v_count-1 loop
+    v_src := p_sources->i;
+    v_mean := v_mean + (v_src->>'price')::numeric;
+  end loop;
+  v_mean := v_mean / v_count;
+  v_max_dev := 0;
+  for i in 0..v_count-1 loop
+    v_src := p_sources->i;
+    v_max_dev := greatest(v_max_dev, abs(((v_src->>'price')::numeric - v_mean)/v_mean)*100);
+  end loop;
+  v_status := case when v_count >= 3 and v_max_dev < 2 then 'ok'
+                   when v_count >= 2 then 'degraded' else 'stale' end;
+  insert into public.perpetual_mark_price_feed(symbol,index_price,mark_price,sources,source_count,max_deviation_pct,status)
+  values (p_symbol,p_index_price,p_mark_price,p_sources,v_count,v_max_dev,v_status);
+  return jsonb_build_object('ok',true,'status',v_status,'source_count',v_count,'max_deviation_pct',v_max_dev);
+end;
+$$;
+       or abs(extract(epoch from now())*1000 - (v_src->>'ts')::numeric) > p_max_age_sec*1000 then
+      raise exception 'invalid or stale mark price source';
+    end if;
+    v_mean := v_mean + (v_src->>'price')::numeric;
+  end loop;
+  v_mean := v_mean / v_count;
+  v_max_dev := 0;
+  for i in 0..v_count-1 loop
+    v_src := p_sources->i;
+    v_max_dev := greatest(v_max_dev, abs(((v_src->>'price')::numeric - v_mean)/v_mean)*100);
+  end loop;
+  v_status := case when v_count >= 3 and v_max_dev < 2 then 'ok'
+                   when v_count >= 2 then 'degraded' else 'stale' end;
+  insert into public.perpetual_mark_price_feed(symbol,index_price,mark_price,sources,source_count,max_deviation_pct,status)
+  values (p_symbol,p_index_price,p_mark_price,p_sources,v_count,v_max_dev,v_status);
+  return jsonb_build_object('ok',true,'status',v_status,'source_count',v_count,'max_deviation_pct',v_max_dev);
+end;
+$$; or p_index_price is null or p_index_price <= 0
+     or p_mark_price is null or p_mark_price <= 0 or p_max_age_sec is null or p_max_age_sec <= 0 then
+    raise exception 'invalid mark price payload';
+  end if;
   if p_sources is null or jsonb_typeof(p_sources) <> 'array' or jsonb_array_length(p_sources) < 2 then
     raise exception 'mark price requires at least 2 sources';
   end if;

@@ -206,3 +206,15 @@ test('perpetual cancellation uses a distinct operation id for the release ledger
   assert.ok(fn.includes('select v_cancel_op_id, p_user_id'));
   assert.ok(!fn.includes('returning id into v_order.reserve_operation_id'));
 });
+
+
+test('perpetual mark feed rejects invalid, stale, or source-detached prices', () => {
+  const migration = fs.readFileSync(path.join(root, 'supabase', 'sql', '0041_perpetual_contract_v1.sql'), 'utf8');
+  const start = migration.indexOf('create or replace function public.perp_record_mark_price(');
+  const end = migration.indexOf('$$;', start);
+  const fn = migration.slice(start, end);
+  assert.ok(fn.includes("raise exception 'invalid mark price payload'"));
+  assert.ok(fn.includes("raise exception 'invalid or stale mark price source'"));
+  assert.ok(fn.includes("mark/index price must match validated source mean"));
+  assert.ok(fn.includes("abs(extract(epoch from now())*1000"));
+});
