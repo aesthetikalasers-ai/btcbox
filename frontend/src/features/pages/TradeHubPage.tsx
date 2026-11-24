@@ -91,7 +91,6 @@ export function TradeHubPage() {
       {/* 4 Core Trading Product Cards (Institutional Grid) */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {showSpot ? (
-        {/* Spot Card */}
         <Card className="card-lift border-brand-border bg-brand-surface shadow-xl flex flex-col justify-between">
           <CardHeader>
             <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl border border-brand-accent/20 bg-brand-accent/10 text-brand-accent">
@@ -109,12 +108,9 @@ export function TradeHubPage() {
             </Button>
           </CardContent>
         </Card>
-
-        </Card>
         ) : null}
 
         {showPerpetual ? (
-        {/* Perpetual Card */}
         <Card className="card-lift border-brand-border bg-brand-surface shadow-xl flex flex-col justify-between">
           <CardHeader>
             <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl border border-brand-violet/20 bg-brand-violet/10 text-brand-violet">
@@ -132,12 +128,9 @@ export function TradeHubPage() {
             </Button>
           </CardContent>
         </Card>
-
-        </Card>
         ) : null}
 
         {showSeconds ? (
-        {/* Seconds Card */}
         <Card className="card-lift border-brand-border bg-brand-surface shadow-xl flex flex-col justify-between">
           <CardHeader>
             <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl border border-brand-cyan/20 bg-brand-cyan/10 text-brand-cyan">
@@ -155,12 +148,9 @@ export function TradeHubPage() {
             </Button>
           </CardContent>
         </Card>
-
-        </Card>
         ) : null}
 
         {showEarn ? (
-        {/* Earn Card */}
         <Card className="card-lift border-brand-border bg-brand-surface shadow-xl flex flex-col justify-between">
           <CardHeader>
             <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl border border-brand-success/20 bg-brand-success/10 text-brand-success">
