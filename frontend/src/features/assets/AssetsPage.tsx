@@ -105,14 +105,40 @@ export function AssetsPage() {
   }
 
   useEffect(() => {
-    const controller = new AbortController();
-    getPublicAssetCatalog(controller.signal).then(setAssetCatalog).catch(() => {
-      if (!controller.signal.aborted) setAssetCatalog([]);
-    });
-    getSpotMarketPairs(controller.signal).then(setEnabledSpotPairs).catch(() => {
-      if (!controller.signal.aborted) setEnabledSpotPairs([]);
-    });
-    return () => controller.abort();
+    let cancelled = false;
+    let refreshing = false;
+    let pending: AbortController | undefined;
+    const refresh = () => {
+      if (cancelled || refreshing || document.visibilityState !== "visible") return;
+      refreshing = true;
+      const controller = new AbortController();
+      pending = controller;
+      const timeout = window.setTimeout(() => controller.abort(), 10000);
+      Promise.allSettled([
+        getPublicAssetCatalog(controller.signal),
+        getSpotMarketPairs(controller.signal),
+      ]).then(([catalogResult, pairsResult]) => {
+        if (cancelled) return;
+        if (catalogResult.status === "fulfilled") setAssetCatalog(catalogResult.value);
+        else setAssetCatalog([]);
+        if (pairsResult.status === "fulfilled") setEnabledSpotPairs(pairsResult.value);
+        else setEnabledSpotPairs([]);
+      }).finally(() => {
+        window.clearTimeout(timeout);
+        refreshing = false;
+      });
+    };
+    refresh();
+    const poll = window.setInterval(refresh, 30000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      cancelled = true;
+      window.clearInterval(poll);
+      pending?.abort();
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, []);
 
   useEffect(() => {
