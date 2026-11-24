@@ -156,3 +156,26 @@ test('perpetual trade history maps database IDs, participant side and own fee to
   assert.ok(route.includes("side: orderSides.get(orderId)"));
   assert.ok(route.includes("fee: maker ? t.maker_fee : t.taker_fee"));
 });
+
+
+test('perpetual funding settlement updates funding_paid once and cannot borrow another position margin', () => {
+  const migration = fs.readFileSync(path.join(root, 'supabase', 'sql', '0041_perpetual_contract_v1.sql'), 'utf8');
+  const start = migration.indexOf('create or replace function public.perp_settle_funding_one(');
+  const end = migration.indexOf('-- Liquidation check + execute.', start);
+  assert.ok(start >= 0 && end > start, 'funding settlement function must exist');
+  const fn = migration.slice(start, end);
+  assert.equal((fn.match(/funding_paid\\s*=\\s*funding_paid\\s*-\\s*v_payment/g) || []).length, 1,
+    'funding_paid must be accumulated exactly once per settlement');
+  assert.ok(fn.includes('where id=v_pos.id and isolated_margin >= -v_from_margin'),
+    'funding debit must be bounded by this position isolated margin');
+  assert.ok(fn.includes("raise exception 'funding isolated margin invariant failed'"),
+    'funding debit must fail closed when isolated margin is insufficient');
+});
+
+test('perpetual migration preserves existing production financial operation types', () => {
+  const migration = fs.readFileSync(path.join(root, 'supabase', 'sql', '0041_perpetual_contract_v1.sql'), 'utf8');
+  for (const operation of ['withdraw_settle', 'withdraw_paid', 'seconds_open', 'seconds_settle',
+    'spot_trade', 'deposit_credit', 'admin_adjustment', 'perp_trade', 'perp_liquidation']) {
+    assert.ok(migration.includes("'" + operation + "'"), 'missing operation type: ' + operation);
+  }
+});
