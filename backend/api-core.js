@@ -3055,7 +3055,7 @@ async function handleRequest(event, context) {
         msg: 'Perpetual markets are not enabled. No contract market is currently available.' }, 503);
     }
     try {
-      const markets = await perpRestGet('perpetual_markets?select=symbol,base_asset,quote_asset,enabled,status,price_tick,quantity_step,min_quantity,max_quantity,max_position_notional,max_leverage,maintenance_margin_rate,maker_fee_rate,taker_fee_rate,funding_interval_sec,funding_rate_cap,next_funding_at,mark_price_stale_sec&enabled=eq.true&order=symbol.asc');
+      const markets = await perpRestGet('perpetual_markets?select=symbol,base_asset,quote_asset,enabled,status,price_tick,quantity_step,min_quantity,min_notional,max_quantity,max_position_notional,max_leverage,maintenance_margin_rate,maker_fee_rate,taker_fee_rate,funding_interval_sec,funding_rate_cap,next_funding_at,mark_price_stale_sec&enabled=eq.true&order=symbol.asc');
       const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
       const withPrices = await Promise.all(markets.map(async (market) => {
         try {
