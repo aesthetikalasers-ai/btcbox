@@ -204,7 +204,7 @@ async function main() {
         markPrice = await perpetualBookMidPrice(symbol);
         res = await recordMark(symbol, indexPrice, markPrice, freshSources, maxAgeSec);
       } catch (bookError) {
-        if (!/insufficient two-level/.test(bookError.message)) throw bookError;
+        if (!module.exports.shouldUseBootstrapMark(bookError)) throw bookError;
         markPrice = indexPrice;
         res = await recordBootstrapMark(symbol, indexPrice, freshSources, maxAgeSec);
         console.warn('[perp-mark]', symbol, 'bootstrap anchor active; order book is not yet deep enough; funding snapshots remain blocked.');
@@ -224,4 +224,4 @@ if (require.main === module) {
   main().catch(e => { console.error('[perp-mark] fatal:', e.message); process.exit(3); });
 }
 
-module.exports = { calculateBookDepthMidPrice };
+module.exports = { calculateBookDepthMidPrice, shouldUseBootstrapMark: error => /insufficient two-level/.test(String(error && error.message || error)) };
