@@ -40,6 +40,8 @@ interface MarketMemoryRow {
 }
 
 export const ASSET_NAMES: Record<string, string> = {
+  USDT: "Tether",
+  USDC: "USD Coin",
   BTC: "Bitcoin",
   ETH: "Ethereum",
   SOL: "Solana",
@@ -48,21 +50,23 @@ export const ASSET_NAMES: Record<string, string> = {
   DOGE: "Dogecoin",
   ADA: "Cardano",
   AVAX: "Avalanche",
-  SUI: "Sui",
-  NEAR: "NEAR Protocol",
   LINK: "Chainlink",
   DOT: "Polkadot",
-  LTC: "Litecoin",
-  MATIC: "Polygon",
-  UNI: "Uniswap",
   TRX: "TRON",
+  LTC: "Litecoin",
   BCH: "Bitcoin Cash",
+  NEAR: "NEAR Protocol",
+  UNI: "Uniswap",
   ATOM: "Cosmos",
   ETC: "Ethereum Classic",
-  USDC: "USD Coin",
-  USDT: "Tether USD",
-  PEPE: "Pepe",
-};
+  APT: "Aptos",
+  ARB: "Arbitrum",
+  OP: "Optimism",
+  SUI: "Sui",
+  INJ: "Injective",
+  TIA: "Celestia",
+  FIL: "Filecoin",
+};;
 
 export const getAssetName = (sym: string): string => {
   const base = sym.replace(/USDT$/, "");
