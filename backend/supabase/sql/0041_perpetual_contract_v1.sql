@@ -11,13 +11,12 @@
 create extension if not exists pgcrypto;
 
 -- 1. Extend financial operation types without dropping the live constraint first.
--- NOT VALID avoids a full table scan while the new rule is installed; new writes are
--- checked immediately. The old constraint remains until the replacement exists.
-begin;
-set local lock_timeout = '3s';
-set local statement_timeout = '30s';
+-- Install a NOT VALID replacement (new writes are still checked), then remove/rename
+-- the old rule and validate existing rows. The whole sequence is one atomic DO statement.
 do $constraint$
 begin
+  perform set_config('lock_timeout','3s',true);
+  perform set_config('statement_timeout','30s',true);
   if not exists (
     select 1 from pg_constraint
     where conrelid='public.financial_operations'::regclass
@@ -26,25 +25,22 @@ begin
     alter table public.financial_operations
       add constraint financial_operations_operation_type_check_v2
       check (operation_type in (
-        -- Preserve legacy production and repository operation types.
         'deposit_credit','withdraw_freeze','withdraw_approve','withdraw_reject','withdraw_settle','withdraw_paid',
         'earn_subscribe','earn_redeem','admin_adjustment',
         'spot_trade','spot_order_reserve','spot_order_cancel',
         'seconds_open','seconds_settle','migration_opening_balance',
-        -- Perpetual v1 operation types.
         'perp_order_reserve','perp_trade','perp_order_cancel','perp_funding',
         'perp_liquidation','perp_insurance_cover','perp_bad_debt'
       )) not valid;
   end if;
+  alter table public.financial_operations
+    drop constraint if exists financial_operations_operation_type_check;
+  alter table public.financial_operations
+    rename constraint financial_operations_operation_type_check_v2 to financial_operations_operation_type_check;
+  alter table public.financial_operations
+    validate constraint financial_operations_operation_type_check;
 end
 $constraint$;
-alter table public.financial_operations
-  drop constraint if exists financial_operations_operation_type_check;
-alter table public.financial_operations
-  rename constraint financial_operations_operation_type_check_v2 to financial_operations_operation_type_check;
-alter table public.financial_operations
-  validate constraint financial_operations_operation_type_check;
-commit;
 
 -- Insurance fund is a normal financial account (platform-owned). Ensure it exists.
 insert into public.financial_accounts(user_id, asset) values ('__perp_insurance__', 'USDT')
