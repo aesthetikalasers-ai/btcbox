@@ -119,6 +119,42 @@ export async function probeHealth(signal?: AbortSignal): Promise<HealthProbeResu
   }
 }
 
+export interface PublicAssetConfig {
+  code: string;
+  name: string;
+  display_name: string;
+  display_precision: number;
+  enabled: boolean;
+  visible: boolean;
+  sort_order: number;
+}
+
+export async function getPublicAssetCatalog(signal?: AbortSignal): Promise<PublicAssetConfig[]> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/assets`, {
+      method: "GET", credentials: "include", headers: { Accept: "application/json" },
+      cache: "no-store", signal,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") throw error;
+    throw new ApiError("Asset configuration is temporarily unavailable.", 0, "ASSET_CATALOG_UNAVAILABLE");
+  }
+  const payload = await response.json().catch(() => null) as { ok?: boolean; assets?: PublicAssetConfig[]; msg?: string; code?: string } | null;
+  if (!response.ok || payload?.ok !== true || !Array.isArray(payload.assets)) {
+    throw new ApiError(payload?.msg || "Asset configuration is temporarily unavailable.", response.status, payload?.code || "ASSET_CATALOG_UNAVAILABLE");
+  }
+  const valid = payload.assets.filter(asset => asset && /^[A-Z0-9]{2,16}$/.test(asset.code) &&
+    typeof asset.name === "string" && typeof asset.display_name === "string" &&
+    Number.isInteger(asset.display_precision) && asset.display_precision >= 0 && asset.display_precision <= 18 &&
+    typeof asset.enabled === "boolean" && typeof asset.visible === "boolean" &&
+    Number.isInteger(asset.sort_order) && asset.sort_order >= 0);
+  if (valid.length !== 26 || new Set(valid.map(asset => asset.code)).size !== 26) {
+    throw new ApiError("BTCBOX returned an incomplete asset configuration.", 502, "INVALID_ASSET_CATALOG");
+  }
+  return valid.sort((a, b) => a.sort_order - b.sort_order || a.code.localeCompare(b.code));
+}
+
 export async function getSpotMarketPairs(signal?: AbortSignal): Promise<SpotMarketPair[]> {
   if (DEMO_PREVIEW_ACTIVE) return getDemoMarketPairs();
   try {
