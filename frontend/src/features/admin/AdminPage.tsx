@@ -1292,7 +1292,7 @@ export function AdminPage() {
       </CardContent></Card>
     </div> : null}
 
-    !loading && tab === "financial-adjustments" ? <Card><CardHeader><CardTitle>{adminText("Financial adjustments")}</CardTitle><CardDescription>{adminText("Manual credit and manual debit are separate actions. Select a user in the User centre first.")}</CardDescription></CardHeader><CardContent>
+    {!loading && tab === "financial-adjustments" ? <Card><CardHeader><CardTitle>{adminText("Financial adjustments")}</CardTitle><CardDescription>{adminText("Manual credit and manual debit are separate actions. Select a user in the User centre first.")}</CardDescription></CardHeader><CardContent>
         {!selectedUser ? <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-brand-text-muted">{adminText("Select a user from the User centre to load their current balances.")}</p><Button size="sm" variant="outline" onClick={() => setTab("users")}>{adminText("Open User centre")}</Button></div> : <>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-semibold">{selectedUser.email} · <span className="font-mono">{selectedUser.uid}</span></p>{hasPermission("deposits.read") ? <Badge variant="outline">{selectedUser.financial_balance_source === "postgres_financial_ledger" ? adminText("Balances: PostgreSQL ledger") : selectedUser.financial_balance_source === "legacy_state_retention_limited" ? adminText("Balances: legacy state · limited") : adminText("Balances: source unknown")}</Badge> : null}</div>
           <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label={adminText("Financial action")}>
