@@ -1,0 +1,35 @@
+name: Perpetual USD-M exchange filter audit
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "backend/scripts/audit-binance-usdm-market-filters.js"
+      - "backend/tests/perp-exchange-info-audit.test.js"
+      - ".github/workflows/perpetual-exchange-info-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  exchange-filter-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Test filter extraction
+        run: node --test backend/tests/perp-exchange-info-audit.test.js
+      - name: Fetch current Binance USD-M filters (read-only)
+        run: |
+          node backend/scripts/audit-binance-usdm-market-filters.js | tee /tmp/perp-usdm-filters.json
+          {
+            echo '### Binance USD-M perpetual filter snapshot'
+            echo 'This is external reference data only. BTCBOX market rows are not modified.'
+            echo '```json'
+            cat /tmp/perp-usdm-filters.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
