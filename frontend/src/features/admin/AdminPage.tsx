@@ -137,6 +137,8 @@ export function AdminPage() {
   const [notice, setNotice] = useState("");
   const [stats, setStats] = useState<Record<string, unknown> | null>(null);
   const [users, setUsers] = useState<AdminUserRecord[]>([]);
+  const [usersDirectoryCompleteness, setUsersDirectoryCompleteness] = useState<"snapshot" | "limit_reached" | null>(null);
+  const [usersDirectoryMatchedCount, setUsersDirectoryMatchedCount] = useState(0);
   const [search, setSearch] = useState("");
   const [selectedUser, setSelectedUser] = useState<AdminUserRecord | null>(null);
   const [financialAction, setFinancialAction] = useState<"credit" | "debit">("credit");
@@ -317,10 +319,14 @@ export function AdminPage() {
       if (tab === "users") {
         userDetailRequestRef.current += 1;
         setUsers([]);
+        setUsersDirectoryCompleteness(null);
+        setUsersDirectoryMatchedCount(0);
         setSelectedUser(null);
         const snapshot = await getAdminUsers(token, search);
         if (requestId !== tabLoadRequestRef.current) return;
         setUsers(snapshot.users);
+        setUsersDirectoryCompleteness(snapshot.completeness);
+        setUsersDirectoryMatchedCount(snapshot.matched_count);
       }
       if (tab === "deposit-records") {
         setDeposits([]);
@@ -1299,7 +1305,7 @@ export function AdminPage() {
 
     {!loading && tab === "users" ? <div className="grid gap-4">
       <Card><CardHeader><CardTitle>{adminText("Users")}</CardTitle><CardDescription>{adminText("Search for a user and open their record. Financial operations are managed in the Finance centre.")}</CardDescription></CardHeader><CardContent>
-        <form className="mb-3 flex gap-2" onSubmit={event => { event.preventDefault(); void loadTab(); }}><input value={search} onChange={event => setSearch(event.target.value)} placeholder={adminText("Search UID or email")} className="h-11 min-w-0 flex-1 rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15"/><Button size="sm" type="submit">{adminText("Search")}</Button></form>
+        <div className="mb-3 flex flex-wrap items-center gap-2"><Badge variant="outline">{adminText("Source: BTCBOX state user directory")}</Badge>{usersDirectoryCompleteness === "limit_reached" ? <Badge variant="destructive">{adminText("Result limit reached")}</Badge> : usersDirectoryCompleteness === "snapshot" ? <Badge variant="outline">{adminText("Snapshot results")}</Badge> : null}<span className="text-xs text-brand-text-muted">{usersDirectoryMatchedCount} {adminText("matching users")}</span></div><form className="mb-3 flex gap-2" onSubmit={event => { event.preventDefault(); void loadTab(); }}><input value={search} onChange={event => setSearch(event.target.value)} placeholder={adminText("Search UID or email")} className="h-11 min-w-0 flex-1 rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15"/><Button size="sm" type="submit">{adminText("Search")}</Button></form>
         <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">UID</th><th className="px-3 py-2.5">{adminText("Email")}</th>{hasPermission("financial_audit.read") ? <th className="px-3 py-2.5 text-right">{adminText("Financial total (USDT)")}</th> : null}<th className="px-3 py-2.5">{adminText("KYC")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5 text-right">{adminText("Action")}</th></tr></thead><tbody>{users.map(user=><tr key={user.uid} className="border-b border-brand-border-subtle transition-colors hover:bg-brand-surface-hover/40"><td className="px-3 py-2.5 font-mono text-xs">{user.uid}</td><td className="px-3 py-2.5">{user.email}</td>{hasPermission("financial_audit.read") ? <td className="px-3 py-2.5 text-right"><div className="font-mono tabular-nums">{user.total_usdt == null ? "—" : asText(user.total_usdt)}</div><div className="mt-1 text-[10px] text-brand-text-muted">{user.financial_summary_source === "postgres_financial_ledger" ? adminText("Balances: PostgreSQL ledger") : user.financial_summary_source === "legacy_state_retention_limited" ? adminText("Balances: legacy state · limited") : adminText("Balances: source unknown")}</div></td> : null}<td className="px-3 py-2.5"><Badge variant={statusVariant(user.kyc_status || user.kyc?.status || "")}>{user.kyc_status || user.kyc?.status || "—"}</Badge></td><td className="px-3 py-2.5"><Badge variant={user.frozen?"destructive":"success"}>{user.frozen?adminText("Frozen"):adminText("Active")}</Badge></td><td className="px-3 py-2.5 text-right"><div className="flex justify-end gap-2"><Button size="sm" variant="outline" onClick={()=>{setFinancialAction("credit");void selectUser(user.uid).then(loaded=>{if(loaded)setTab("financial-adjustments");});}}>{adminText("Open")}</Button>{hasPermission("users.freeze")?<Button size="sm" variant={user.frozen?"outline":"destructive"} onClick={()=>{setReviewDialog({kind:"user-freeze",uid:user.uid,frozen:!user.frozen});setReviewReason("");setError("");setNotice("");}}>{adminText(user.frozen?"Unfreeze":"Freeze")}</Button>:null}</div></td></tr>)}{users.length===0 ? <tr><td colSpan={hasPermission("financial_audit.read") ? 6 : 5} className="px-3 py-10 text-center text-sm text-brand-text-muted">暂无用户记录，调整搜索条件后重试。</td></tr> : null}</tbody></table></div>
       </CardContent></Card>
     </div> : null}
