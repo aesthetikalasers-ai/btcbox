@@ -2358,9 +2358,9 @@ async function handleRequest(event, context) {
       withdrawals: financialSnapshot ? financialSnapshot.withdrawals : user.withdrawals.slice(-20),
       earn_records: financialSnapshot ? financialSnapshot.earn_records : user.earn_records,
       fund_password_set: !!(user.fund_password_hash || user.fund_password),
-      // OAuth/magic-link accounts have no locally usable password; require an enabled
-      // TOTP factor for sensitive fund-password changes instead of accepting session-only authority.
-      fundpwd_reauth_mode: Array.isArray(user.auth_providers) && user.auth_providers.length ? 'twofa' : 'password',
+      // 2FA is optional. Password accounts re-enter their BTCBOX password;
+      // OAuth-only accounts must have a recent authenticated session.
+      fundpwd_reauth_mode: user.login_password_hash && user.login_password_salt ? 'password' : 'recent_signin',
       twofa_enabled: user.twofa_enabled,
       deposit_addresses: safeDepositAddresses(db.deposit_addresses),
       addresses: (user.addresses || []).map(function(a){ const out=Object.assign({},a); if(out.type==='crypto' && out.address) out.address=out.address.length>14?out.address.slice(0,6)+'••••••'+out.address.slice(-6):out.address; if(out.account_number) out.account_number='••••'+out.account_number.slice(-4); if(out.iban) out.iban=out.iban.slice(0,2)+'••••••••'+out.iban.slice(-4); if(out.routing_number) out.routing_number='••••'+out.routing_number.slice(-4); return out; }),
@@ -3374,16 +3374,21 @@ async function handleRequest(event, context) {
     const pwd = String(body.fund_password || '');
     const fpValid = validateFundPassword(pwd);
     if (!fpValid.ok) return json({ ok: false, code: 'FUND_PASSWORD_FORMAT', msg: fpValid.msg }, 400);
-    const code = String(body.twofa_code || '');
-    if (Array.isArray(user.auth_providers) && user.auth_providers.length) {
-      // Supabase OAuth/magic-link users do not have a usable local password hash.
-      // Require an already-enabled TOTP factor rather than silently downgrading to session-only authorization.
-      if (!user.twofa_enabled || !user.twofa_secret) return json({ ok: false, code: 'FUND_PASSWORD_REAUTH_REQUIRED', msg: 'Enable two-factor authentication before setting or changing your fund password.' }, 403);
-      if (!/^\d{6}$/.test(code) || !consumeTotpStep(user, code)) return json({ ok: false, code: 'TWOFA_INVALID', msg: 'Invalid 2FA code.' }, 403);
-    } else {
+    // 2FA is optional for fund-password setup. Accounts with a local BTCBOX
+    // password must re-enter it; OAuth-only accounts must have signed in
+    // recently. An enabled TOTP factor is enforced during sign-in and is not
+    // an additional prerequisite for this settings operation.
+    const hasLocalPassword = !!(user.login_password_hash && user.login_password_salt && user.login_password_algo === 'pbkdf2-sha256-600000');
+    if (hasLocalPassword) {
       const currentPassword = String(body.current_password || '');
-      if (!currentPassword || hashPassword(currentPassword, user.salt) !== user.password_hash) return json({ ok: false, code: 'REAUTH_FAILED', msg: 'The current login password is incorrect.' }, 403);
-      if (user.twofa_enabled && (!/^\d{6}$/.test(code) || !consumeTotpStep(user, code))) return json({ ok: false, code: 'TWOFA_INVALID', msg: 'Invalid 2FA code.' }, 403);
+      if (!currentPassword || !verifyBtcboxLoginPassword(user, currentPassword)) return json({ ok: false, code: 'REAUTH_FAILED', msg: 'The current login password is incorrect.' }, 403);
+    } else {
+      const sessionRecord = getSessionRecord(db, event);
+      const createdAt = Number(sessionRecord && sessionRecord.session && sessionRecord.session.created_at);
+      const sessionAge = Date.now() - createdAt;
+      if (!Number.isFinite(createdAt) || !Number.isFinite(sessionAge) || sessionAge < 0 || sessionAge > 5 * 60 * 1000) {
+        return json({ ok: false, code: 'RECENT_REAUTH_REQUIRED', msg: 'Please sign in again before setting or changing your fund password.' }, 403);
+      }
     }
     const fundSalt = genSalt();
     user.fund_password_salt = fundSalt;
