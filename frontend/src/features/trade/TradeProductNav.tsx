@@ -1,6 +1,8 @@
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { ArrowLeftRight, CandlestickChart, Sprout, TrendingUp } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
+import { getPublicAssetCatalog, type PublicAssetConfig } from "../../lib/api";
 import { cn } from "../../lib/utils";
 
 type ProductKey = "spot" | "perpetual" | "seconds" | "earn";
@@ -39,6 +41,26 @@ export function TradeProductNav({ leftIndent = "px-3.5 sm:px-4 md:px-6 lg:px-8" 
   const { t } = useI18n();
   const { pathname } = useLocation();
   const active = activeProduct(pathname);
+  const [assetCatalog, setAssetCatalog] = useState<PublicAssetConfig[] | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    getPublicAssetCatalog(controller.signal)
+      .then((assets) => { if (!controller.signal.aborted) setAssetCatalog(assets); })
+      .catch(() => { if (!controller.signal.aborted) setAssetCatalog([]); });
+    return () => controller.abort();
+  }, []);
+
+  const availableProducts = assetCatalog
+    ? PRODUCTS.filter(({ key }) => assetCatalog.some((asset) =>
+        asset.enabled && asset.visible &&
+        (key === "spot" ? asset.spot_enabled :
+          key === "perpetual" ? asset.perpetual_enabled :
+            key === "seconds" ? asset.seconds_enabled : asset.earn_enabled)
+      ))
+    : [];
+
+  if (availableProducts.length === 0) return null;
 
   return (
     <nav
@@ -57,7 +79,7 @@ export function TradeProductNav({ leftIndent = "px-3.5 sm:px-4 md:px-6 lg:px-8" 
       />
 
       <div className={cn("relative flex min-w-full items-stretch gap-5 overflow-x-auto no-scrollbar", leftIndent)}>
-        {PRODUCTS.map(({ key, label, to, icon: Icon }) => {
+        {availableProducts.map(({ key, label, to, icon: Icon }) => {
           const isActive = active === key;
           return (
             <Link
