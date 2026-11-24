@@ -377,6 +377,8 @@ const apiAdapter = {
     if(p.twofa_code) body.twofa_code=p.twofa_code;
     return apiFetch('/withdraw',{method:'POST',body:body});
   },
+  // WITHDRAW -> GET /api/withdrawal/status?request_id= (owner-scoped canonical PostgreSQL history lookup)
+  async withdrawalStatus(requestId){ return apiFetch('/withdrawal/status?request_id='+encodeURIComponent(requestId)); },
   // TRADE -> POST /api/order {symbol(BTCUSDT),side(BUY/SELL),type(limit),qty/price(decimal strings),client_order_id(16+),request_id}
   async placeOrder(o){
     const body={symbol:o.symbol, side:String(o.side||'').toUpperCase(), type:String(o.type||'limit').toLowerCase(), qty:String(o.qty), price:String(o.price), client_order_id:o.client_order_id||uid(), request_id:o.request_id||uid()};
