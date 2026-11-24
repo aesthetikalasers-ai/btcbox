@@ -32,6 +32,8 @@ DECLARE
   v_cancel_requests regclass := to_regclass('public.financial_matching_cancel_requests');
   v_admin_members regclass := to_regclass('private.admin_memberships');
   v_market_requests regclass := to_regclass('private.spot_market_request_idempotency');
+  v_market_categories regclass := to_regclass('public.btcbox_market_categories');
+  v_asset_categories regclass := to_regclass('public.btcbox_asset_category_assignments');
   v_proc regprocedure;
   v_signature text;
 BEGIN
@@ -67,6 +69,23 @@ BEGIN
   END IF;
   IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid=v_market_requests) THEN
     RAISE EXCEPTION 'private.spot_market_request_idempotency must have RLS enabled';
+  END IF;
+  IF v_market_categories IS NULL OR v_asset_categories IS NULL THEN
+    RAISE EXCEPTION 'market category taxonomy tables were not installed';
+  END IF;
+  IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid=v_market_categories)
+     OR NOT (SELECT relrowsecurity FROM pg_class WHERE oid=v_asset_categories) THEN
+    RAISE EXCEPTION 'market category tables must have RLS enabled';
+  END IF;
+  IF (SELECT count(*) FROM public.btcbox_market_categories
+      WHERE category_key IN ('meme','ai','erc404','inscription')) <> 4 THEN
+    RAISE EXCEPTION 'market category taxonomy seed is incomplete';
+  END IF;
+  IF has_table_privilege('anon','public.btcbox_market_categories','SELECT')
+     OR has_table_privilege('authenticated','public.btcbox_asset_category_assignments','SELECT')
+     OR NOT has_table_privilege('service_role','public.btcbox_market_categories','SELECT')
+     OR NOT has_table_privilege('service_role','public.btcbox_asset_category_assignments','INSERT') THEN
+    RAISE EXCEPTION 'market category table grants are not service-role-only';
   END IF;
 
   v_proc := to_regprocedure('public.admin_manual_deposit_atomic(text,text,text,text,numeric,text,text,text,text)');
