@@ -34,6 +34,7 @@ DECLARE
   v_market_requests regclass := to_regclass('private.spot_market_request_idempotency');
   v_market_categories regclass := to_regclass('public.btcbox_market_categories');
   v_asset_categories regclass := to_regclass('public.btcbox_asset_category_assignments');
+  v_funding_clearing regclass := to_regclass('public.perpetual_funding_clearing_ledger');
   v_proc regprocedure;
   v_signature text;
 BEGIN
@@ -59,6 +60,24 @@ BEGIN
   IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid=v_admin_members) THEN
     RAISE EXCEPTION 'private.admin_memberships must have RLS enabled';
   END IF;
+  IF v_funding_clearing IS NULL THEN
+    RAISE EXCEPTION 'perpetual funding clearing ledger was not installed';
+  END IF;
+  IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid=v_funding_clearing) THEN
+    RAISE EXCEPTION 'perpetual funding clearing ledger must have RLS enabled';
+  END IF;
+  IF has_table_privilege('anon','public.perpetual_funding_clearing_ledger','SELECT')
+     OR has_table_privilege('authenticated','public.perpetual_funding_clearing_ledger','SELECT')
+     OR NOT has_table_privilege('service_role','public.perpetual_funding_clearing_ledger','INSERT') THEN
+    RAISE EXCEPTION 'perpetual funding clearing ledger grants are not service-role-only';
+  END IF;
+  v_proc := to_regprocedure('public.perp_settle_funding_market(text,timestamptz)');
+  IF v_proc IS NULL OR NOT has_function_privilege('service_role',v_proc,'EXECUTE')
+     OR has_function_privilege('anon',v_proc,'EXECUTE')
+     OR has_function_privilege('authenticated',v_proc,'EXECUTE') THEN
+    RAISE EXCEPTION 'atomic perpetual funding RPC grants are not service-role-only';
+  END IF;
+
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint
     WHERE conrelid='public.seconds_contract_positions'::regclass
