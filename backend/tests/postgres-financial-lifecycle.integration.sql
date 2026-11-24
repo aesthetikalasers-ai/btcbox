@@ -696,7 +696,9 @@ BEGIN
     'perp-limit-valid','perp-order-ci','BTCUSDT','limit','buy',4000,0.005,2,false,false,
     'perp-limit-filter-0001'
   );
-  IF v_result->>'ok'<>'true' OR v_result->>'status'<>'open' THEN
+  IF v_result->>'ok'<>'true' OR NOT EXISTS (
+    SELECT 1 FROM public.perpetual_orders WHERE id='perp-limit-valid' AND status='open'
+  ) THEN
     RAISE EXCEPTION 'limit order did not use regular LOT_SIZE: %',v_result;
   END IF;
 
