@@ -2878,7 +2878,7 @@ async function handleRequest(event, context) {
           !Number.isInteger(Number(item.term_days)) || !Number.isFinite(Number(item.early_fee_percent)) ||
           !Number.isInteger(Number(item.amount_scale)) || item.active !== true;
       })) return json({ ok: false, code: 'EARN_CATALOG_INVALID', msg: 'Earn product data is invalid.' }, 503);
-      const availableProducts = rows.filter(item => isAssetModuleEnabled(db, item.asset, 'earn_enabled'));
+      const availableProducts = rows.filter(item => isAssetModuleEnabled(db, item.asset, 'earn_enabled') && isAssetVisible(db, item.asset));
       return json({ ok: true, products: availableProducts, actions_enabled: financialWritesEnabled() && supabaseStorageConfigured() && availableProducts.length > 0 });
     } catch (e) {
       return json({ ok: false, code: 'EARN_CATALOG_UNAVAILABLE', msg: 'Earn products are temporarily unavailable.' }, 503);
@@ -2962,7 +2962,7 @@ async function handleRequest(event, context) {
       if (!rpc.ok || !result || result.ok !== true || !validPolicy) {
         return json({ ok: false, code: 'SECONDS_POLICY_UNAVAILABLE', msg: 'Short-term contract policy is not configured or is invalid.' }, 503);
       }
-      const activeSymbols = policy.symbols.filter(symbol => isAssetModuleEnabled(db, symbol, 'seconds_enabled'));
+      const activeSymbols = policy.symbols.filter(symbol => isAssetModuleEnabled(db, symbol, 'seconds_enabled') && isAssetVisible(db, symbol));
       if (!activeSymbols.length) return json({ ok: false, code: 'SECONDS_ASSETS_DISABLED', msg: 'No assets are currently enabled for short-term contracts.' }, 403);
       return json({ ok: true, policy: { ...policy, symbols: activeSymbols }, actions_enabled: financialWritesEnabled() });
     } catch (_) {
@@ -3084,7 +3084,7 @@ async function handleRequest(event, context) {
     }
     try {
       const markets = await perpRestGet('perpetual_markets?select=symbol,base_asset,quote_asset,enabled,status,price_tick,quantity_step,min_quantity,max_quantity,max_position_notional,max_leverage,maintenance_margin_rate,maker_fee_rate,taker_fee_rate,funding_interval_sec,funding_rate_cap,next_funding_at,mark_price_stale_sec&enabled=eq.true&order=symbol.asc');
-      const availableMarkets = markets.filter(market => isAssetModuleEnabled(db, market.base_asset, 'perpetual_enabled') && isAssetModuleEnabled(db, market.quote_asset, 'perpetual_enabled'));
+      const availableMarkets = markets.filter(market => isAssetModuleEnabled(db, market.base_asset, 'perpetual_enabled') && isAssetModuleEnabled(db, market.quote_asset, 'perpetual_enabled') && isAssetVisible(db, market.base_asset) && isAssetVisible(db, market.quote_asset));
       return json({ ok: true, perpetual_enabled: perpetualEngineEnabled() && availableMarkets.length > 0, markets: availableMarkets });
     } catch (e) { return json({ ok: true, perpetual_enabled: false, markets: [] }, 200); }
   }
