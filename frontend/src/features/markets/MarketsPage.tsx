@@ -285,19 +285,42 @@ export function MarketsPage() {
   });
 
   useEffect(() => {
-    const controller = new AbortController();
-    getPublicAssetCatalog(controller.signal).then((assets) => {
-      if (!controller.signal.aborted) {
-        setAssetCatalog(assets);
-        setAssetCatalogError("");
-      }
-    }).catch(() => {
-      if (!controller.signal.aborted) {
-        setAssetCatalog(null);
-        setAssetCatalogError("Asset configuration is temporarily unavailable.");
-      }
-    });
-    return () => controller.abort();
+    let cancelled = false;
+    let refreshing = false;
+    let pending: AbortController | undefined;
+    const refresh = () => {
+      if (cancelled || refreshing || document.visibilityState !== "visible") return;
+      refreshing = true;
+      const controller = new AbortController();
+      pending = controller;
+      const timeout = window.setTimeout(() => controller.abort(), 10000);
+      getPublicAssetCatalog(controller.signal)
+        .then((assets) => {
+          if (cancelled) return;
+          setAssetCatalog(assets);
+          setAssetCatalogError("");
+        })
+        .catch((cause: unknown) => {
+          if (cancelled || (cause instanceof Error && cause.name === "AbortError")) return;
+          setAssetCatalog(null);
+          setAssetCatalogError("Asset configuration is temporarily unavailable.");
+        })
+        .finally(() => {
+          window.clearTimeout(timeout);
+          refreshing = false;
+        });
+    };
+    refresh();
+    const poll = window.setInterval(refresh, 30000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      cancelled = true;
+      window.clearInterval(poll);
+      pending?.abort();
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, []);
 
   // Poll the market feed every 5s. Abort in-flight requests on unmount so a
