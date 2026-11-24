@@ -994,10 +994,11 @@ export function SpotTradingPage(){
     trailing={<Link to="/orders" aria-label={t("Order history")} title={t("Order history")}><History className="h-4 w-4"/></Link>}
    >{ordersExpanded?(bottomTab==="orders"?<div id="trade-orders-body" className="space-y-1">{openOrders.length?openOrders.map((item,index)=>{const id=String(item.order_id??item.id??index);return <div key={id} className="spot-order-row"><div className="spot-order-summary"><p className="font-semibold">{item.symbol||symbol} · {item.side==="buy"?t("Buy"):item.side==="sell"?t("Sell"):item.side||"—"}</p><p className="spot-order-values">{t("Price")} {amountText(item.price)} · {t("Remaining")} {amountText(item.remaining_quantity??item.quantity)}</p><Badge variant="outline">{item.status}</Badge></div><Button size="sm" variant="outline" disabled={busy||!tradingStatus?.spot_cancel_enabled} onClick={()=>void cancelOrder(item)}>{cancelRequestIds[id]?t("Retry cancel"):t("Cancel")}</Button></div>;}):<p className="spot-orders-empty text-sm text-brand-text-muted">{t("No open orders")}</p>}</div>:<div className="spot-asset-strip"><div><span>{t("Available")} · {base}</span><strong>{availableBalances[base]?.free!==undefined?amountText(availableBalances[base].free):"—"}</strong></div><div><span>{t("Available")} · USDT</span><strong>{availableBalances.USDT?.free!==undefined?amountText(availableBalances.USDT.free):"—"}</strong></div><Link to="/assets">{t("View assets")}</Link></div>):null}</BottomOrderPanel>
   </div>
-  {/* 最新成交（成交明细）：放在双栏交易网格之后，避免成为网格的一列 */}
-  <section aria-label={t("Recent trades")} className="mt-2 min-w-0">
+  {/* Mobile spot trading intentionally omits the recent-trades panel.
+      Keep the desktop/tablet tape mounted only where it remains part of the layout. */}
+  {!isPhone ? <section aria-label={t("Recent trades")} className="mt-2 min-w-0">
     <TradesPanel symbol={symbol} limit={6} />
-  </section>
+  </section> : null}
 
  </PageFrame>;
  const terminalBody=compactTrade||isPhone?<>{compactTerminal}{orderConfirmation}</>:<>{proTerminal}{orderConfirmation}</>;
