@@ -218,3 +218,15 @@ test('perpetual mark feed rejects invalid, stale, or source-detached prices', ()
   assert.ok(fn.includes("mark/index price must match validated source mean"));
   assert.ok(fn.includes("abs(extract(epoch from now())*1000"));
 });
+
+
+test('perpetual matching caps maker reduce-only fills to live opposite position and cancels exhausted remainder', () => {
+  const migration = fs.readFileSync(path.join(root, 'supabase', 'sql', '0041_perpetual_contract_v1.sql'), 'utf8');
+  const start = migration.indexOf('create or replace function public.perp_submit_order(');
+  const end = migration.indexOf('$$;', start);
+  const fn = migration.slice(start, end);
+  assert.ok(fn.includes('v_maker_reducible_remaining'));
+  assert.ok(fn.includes("((side='long' and v_maker.side='sell') or (side='short' and v_maker.side='buy'))"));
+  assert.ok(fn.includes('coalesce(v_maker_reducible_remaining, v_maker.remaining_quantity)'));
+  assert.ok(fn.includes("where id=v_maker.id and status in ('open','partially_filled')"));
+});

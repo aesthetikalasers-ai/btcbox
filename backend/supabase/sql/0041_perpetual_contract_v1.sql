@@ -379,7 +379,8 @@ declare
   v_filled_qty numeric(38,18) := 0;
   v_filled_quote numeric(38,18) := 0;
   v_pos_check record;
-  v_reducible_remaining numeric(38,18); -- FIX (Medium): reduce-only fill cap = opposite position size; NULL = no cap.
+  v_reducible_remaining numeric(38,18); -- taker reduce-only cap; NULL = no cap
+  v_maker_reducible_remaining numeric(38,18); -- maker reduce-only cap; NULL = no cap
 begin
   -- 0. Input validation.
   if coalesce(p_order_id,'')='' or coalesce(p_user_id,'')='' or coalesce(p_symbol,'') !~ '^[A-Z0-9]{3,20}$'
@@ -492,7 +493,22 @@ begin
       limit 1 for update;
     exit when not found;
 
-    v_fill := least(v_remaining, v_maker.remaining_quantity, coalesce(v_reducible_remaining, v_remaining)); -- FIX (Medium): cap reduce-only fills at remaining position size
+    v_maker_reducible_remaining := null;
+    if v_maker.reduce_only or v_maker.close_position then
+      select quantity into v_maker_reducible_remaining
+        from public.perpetual_positions
+       where user_id=v_maker.user_id and symbol=p_symbol
+         and ((side='long' and v_maker.side='sell') or (side='short' and v_maker.side='buy'))
+       for update;
+      if not found or v_maker_reducible_remaining <= 0 then
+        update public.perpetual_orders set status='cancelled', remaining_quantity=0, reserved_margin=0, updated_at=now()
+         where id=v_maker.id and status in ('open','partially_filled');
+        continue;
+      end if;
+    end if;
+    v_fill := least(v_remaining, v_maker.remaining_quantity,
+      coalesce(v_reducible_remaining, v_remaining),
+      coalesce(v_maker_reducible_remaining, v_maker.remaining_quantity));
     v_exec_price := v_maker.price;
     v_quote := v_fill * v_exec_price;
     v_taker_fee := v_quote * v_market.taker_fee_rate;
@@ -571,7 +587,14 @@ begin
       avg_fill_price=case when avg_fill_price is null then v_exec_price
                           else (avg_fill_price*(quantity-remaining_quantity)+v_exec_price*v_fill)/(quantity-remaining_quantity+v_fill) end,
       updated_at=now() where id=v_maker.id;
-    if v_reducible_remaining is not null then -- FIX (Medium): reduce-only exhausted -> stop; never flip into reverse position
+    if v_maker_reducible_remaining is not null then
+      v_maker_reducible_remaining := v_maker_reducible_remaining - v_fill;
+      if v_maker_reducible_remaining <= 0 then
+        update public.perpetual_orders set status='cancelled', remaining_quantity=0, reserved_margin=0, updated_at=now()
+         where id=v_maker.id and status in ('open','partially_filled');
+      end if;
+    end if;
+    if v_reducible_remaining is not null then -- reduce-only taker exhausted -> stop; never flip into reverse position
       v_reducible_remaining := v_reducible_remaining - v_fill;
       if v_reducible_remaining <= 0 then exit; end if;
     end if;
