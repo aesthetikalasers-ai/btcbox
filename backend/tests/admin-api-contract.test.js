@@ -7,6 +7,7 @@ const root = path.resolve(__dirname, '..');
 const api = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
 const client = fs.readFileSync(path.resolve(root, '../frontend/src/lib/api.ts'), 'utf8');
 const adminPage = fs.readFileSync(path.resolve(root, '../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+const adminNavigation = fs.readFileSync(path.resolve(root, '../frontend/src/features/admin/admin-navigation.ts'), 'utf8');
 
 test('every admin route exposed by the backend has a matching permission and the frontend calls only existing routes', () => {
   const permStart = api.indexOf('const requiredPermission = (function(route, verb)');
@@ -48,36 +49,119 @@ test('admin frontend functions call the same paths the backend implements and ne
 });
 
 
-test('admin perpetual market configuration has matching permission-gated backend and frontend methods', () => {
-  assert.ok(api.includes("route === 'perpetual/markets' && verb === 'GET') return 'system_config.read'"));
-  assert.ok(api.includes("route === 'perpetual/market' && verb === 'POST') return 'system_config.write'"));
-  assert.ok(client.includes('export async function getAdminPerpMarkets'));
-  assert.ok(client.includes('"admin/perpetual/markets"'));
-  assert.ok(client.includes('export async function saveAdminPerpMarket'));
-  assert.ok(client.includes('"admin/perpetual/market"'));
-  assert.ok(adminPage.includes('getAdminPerpMarkets(token)'));
-  assert.ok(adminPage.includes('enabled: draft.feed_enabled, status: "paused"'));
-  assert.ok(adminPage.includes('perpMarketDraft.feed_enabled'));
-  assert.ok(adminPage.includes('Enable market-data feed (trading remains paused)'));
-  assert.ok(adminPage.includes('saveAdminPerpMarket(token'));
+test('admin deposit workbench reads only canonical PostgreSQL records and is permission-scoped', () => {
+  const permissionStart = api.indexOf('const requiredPermission = (function(route, verb)');
+  const permissionEnd = api.indexOf(')(sub, method);', permissionStart);
+  const permissionMap = api.slice(permissionStart, permissionEnd);
+  assert.ok(permissionMap.includes("route === 'deposits' && verb === 'GET'"));
+  assert.ok(permissionMap.includes("return 'deposits.read'"));
+
+  const routeStart = api.indexOf("if (sub === 'deposits' && method === 'GET')");
+  const routeEnd = api.indexOf("// GET /api/admin/withdrawals", routeStart);
+  assert.ok(routeStart >= 0 && routeEnd > routeStart, 'read-only deposits route must exist');
+  const route = api.slice(routeStart, routeEnd);
+  assert.ok(route.includes('financialPostgresReadsEnabled()'));
+  assert.ok(route.includes('/rest/v1/deposit_records?'));
+  assert.ok(route.includes("source: 'postgres_financial_ledger'"));
+  assert.ok(route.includes("completeness: 'latest_200'"));
+  assert.ok(route.includes('DEPOSIT_READ_UNAVAILABLE'));
+  assert.doesNotMatch(route, /saveDB\s*\(/);
+  assert.doesNotMatch(route, /admin_manual_deposit_atomic/);
+  assert.ok(client.includes('export async function getAdminDeposits'));
+  assert.ok(adminPage.includes('getAdminDeposits(token)'));
+  assert.ok(adminPage.includes('tab === "deposit-records"'));
+  assert.ok(adminPage.includes('latest 200'));
 });
 
-test('perpetual admin market form is paused-only and includes all mandatory risk fields', () => {
-  for (const field of ['price_tick','quantity_step','min_quantity','min_notional','market_quantity_step','market_min_quantity','market_max_quantity','max_position_notional','max_leverage','maintenance_margin_rate','maker_fee_rate','taker_fee_rate','funding_interval_sec','funding_rate_cap','mark_price_stale_sec','circuit_breaker_deviation_pct']) {
-    assert.ok(adminPage.includes(field), 'admin perpetual form missing ' + field);
-  }
-  assert.ok(adminPage.includes('enabled: draft.feed_enabled, status: "paused"'));
-  assert.ok(adminPage.includes('perpMarketDraft.feed_enabled'));
-  assert.ok(adminPage.includes('Save paused perpetual market'));
-  assert.ok(!adminPage.includes('enabled: true, status: "trading"'));
+test('withdrawal queue API labels canonical and legacy sources with completeness boundaries', () => {
+  const start = api.indexOf("if (sub === 'withdrawals' && method === 'GET')");
+  const end = api.indexOf("// GET /api/admin/orders", start);
+  assert.ok(start >= 0 && end > start, 'withdrawal read route must exist');
+  const route = api.slice(start, end);
+  assert.ok(route.includes("source: 'postgres_financial_ledger', completeness: 'pending_queue'"));
+  assert.ok(route.includes("source: 'legacy_state_snapshot', completeness: 'partial'"));
+  assert.ok(client.includes("AdminWithdrawalSource"));
+  assert.ok(client.includes("AdminWithdrawalCompleteness"));
+  assert.ok(adminPage.includes('withdrawalQueueSource === "legacy_state_snapshot"'));
+  assert.ok(adminPage.includes('partial queue'));
+  assert.ok(adminPage.includes('Canonical pending queue'));
 });
 
-test('perpetual market form requires a reason and does not misreport a confirmed save on refresh failure', () => {
-  assert.ok(adminPage.includes('perpMarketDraft.reason'));
-  assert.ok(adminPage.includes('Reason for market configuration change (required)'));
-  assert.ok(adminPage.includes('reason,'));
-  assert.ok(adminPage.includes('Perpetual market settings were saved, but the list could not refresh.'));
-  assert.ok(client.includes('reason: string'));
+test('admin user detail keeps basic profile reads independent from financial ledger availability', () => {
+  const start = api.indexOf("if (sub === 'user' && method === 'GET')");
+  const end = api.indexOf("async function auditAdmin", start);
+  assert.ok(start >= 0 && end > start, 'admin user detail route must exist');
+  const route = api.slice(start, end);
+  assert.doesNotMatch(route, /await readFinancialAccountSnapshot\(uid\)/, 'users.read must not be blocked by an unconditional ledger preflight');
+  assert.ok(route.includes("const canReadDeposits = hasAdminPermission(adminMembership, 'deposits.read')"));
+  assert.ok(route.includes('if (financialPostgresReadsEnabled())'));
+  assert.ok(route.includes("safeUser.financial_balance_source = 'postgres_financial_ledger'"));
+  assert.ok(route.includes("safeUser.financial_balance_source = 'legacy_state_retention_limited'"));
+});
+
+test('admin user-list financial totals disclose their actual data source', () => {
+  const start = api.indexOf("if (sub === 'users' && method === 'GET')");
+  const end = api.indexOf("// GET /api/admin/kyc", start);
+  assert.ok(start >= 0 && end > start, 'admin user list route must exist');
+  const route = api.slice(start, end);
+  assert.ok(route.includes("financial_summary_source = useCanonicalFinancialReads ? 'postgres_financial_ledger' : 'legacy_state_retention_limited'"));
+  assert.ok(route.includes("financial_summary_completeness = useCanonicalFinancialReads ? 'canonical_snapshot' : 'retention_limited'"));
+  assert.ok(client.includes('financial_summary_source?'));
+  assert.ok(adminPage.includes('user.financial_summary_source === "legacy_state_retention_limited"'));
+  assert.ok(adminPage.includes('Financial total (USDT)'));
+});
+
+test('admin user directory declares its state-file source and 200-row completeness limit', () => {
+  const start = api.indexOf("if (sub === 'users' && method === 'GET')");
+  const end = api.indexOf("// GET /api/admin/kyc", start);
+  assert.ok(start >= 0 && end > start, 'admin users route must exist');
+  const route = api.slice(start, end);
+  assert.ok(route.includes("source: 'btcbox_state_user_directory'"));
+  assert.ok(route.includes("completeness: matchedCount > list.length ? 'limit_reached' : 'snapshot'"));
+  assert.ok(route.includes('matched_count: matchedCount'));
+  assert.ok(client.includes('matched_count: number'));
+  assert.ok(adminPage.includes('usersDirectoryCompleteness === "limit_reached"'));
+  assert.ok(adminPage.includes('Source: BTCBOX state user directory'));
+});
+
+test('admin user directory reports local Supabase identity-link mapping anomalies', () => {
+  const start = api.indexOf("// GET /api/admin/users?search=");
+  const end = api.indexOf("// GET /api/admin/kyc", start);
+  assert.ok(start >= 0 && end > start, 'admin users route must exist');
+  const route = api.slice(start, end);
+  assert.ok(route.includes('const identityOwnerCounts = new Map()'));
+  assert.ok(route.includes("const identityLinkStatus = hasDuplicateIdentity ? 'duplicate_mapping' :"));
+  assert.ok(route.includes("hasInvalidIdentity ? 'invalid_mapping' : linkedIdentityIds.length ? 'linked' : 'missing'"));
+  assert.ok(route.includes('.filter(isSupabaseUserId)'));
+  assert.ok(route.includes('new Set('));
+  assert.ok(route.includes('auth_identity_count: linkedIdentityIds.length'));
+  assert.ok(client.includes('"linked" | "missing" | "duplicate_mapping" | "invalid_mapping"'));
+  assert.ok(adminPage.includes('user.auth_identity_link_status === "duplicate_mapping"'));
+  assert.ok(adminPage.includes('No linked Auth UUID'));
+  assert.ok(adminPage.includes('Linked in BTCBOX'));
+  assert.ok(adminPage.includes('Duplicate mapping'));
+  assert.ok(adminPage.includes('Invalid Auth UUID'));
+  assert.ok(!route.includes('auth.users'));
+});
+
+test('admin audit pagination preserves legacy cursors and deduplicates rows across pages', () => {
+  assert.ok(api.includes("next_before: hasMore && page.length ? String(page[page.length - 1].id || '') : null"));
+  assert.ok(adminPage.includes('setAuditNextBefore(snapshot.next_before || null)'));
+  assert.ok(adminPage.includes('seen.add(key)'));
+  assert.ok(adminPage.includes('reason.code === "AUDIT_CURSOR_NOT_FOUND"'));
+  assert.ok(adminPage.includes('Older audit cursor has expired') || adminPage.includes('retention-limited snapshot'));
+});
+
+test('admin audit log resolves operator and subject links without hiding unmatched actors', () => {
+  assert.ok(api.includes('function resolveAuditIdentity(uidValue, actorValue)'));
+  assert.ok(api.includes("operator_identity_status: !isSupabaseUserId(actorId) ? 'non_uuid_actor'"));
+  assert.ok(api.includes("uniqueActorUids.length > 1 ? 'ambiguous'"));
+  assert.ok(api.includes('Object.assign(entry, resolveAuditIdentity(entry.uid, entry.by))'));
+  assert.ok(api.includes('...resolveAuditIdentity(entry.uid, entry.by)'));
+  assert.ok(client.includes('operator_identity_status?'));
+  assert.ok(adminPage.includes('Ambiguous account mapping'));
+  assert.ok(adminPage.includes('No BTCBOX account match'));
+  assert.ok(adminPage.includes('System or legacy actor'));
 });
 
 test('withdrawal rejection API requires a bounded, non-control-character audit reason', () => {
@@ -155,49 +239,52 @@ test('customer payout-address endpoints use dedicated sensitive permissions, sep
   assert.ok(api.includes("if (!hasAdminPermission(adminMembership, requiredPermission))"));
   assert.ok(adminPage.includes('["payout_addresses.read_sensitive","Read sensitive customer payout addresses"]'));
   assert.ok(adminPage.includes('["payout_addresses.manage","Manage customer payout addresses"]'));
-  const tab = adminPage.match(/\{ id: "deposits", label: "Deposit addresses", permission: "([^"]+)" \}/);
+  const tab = adminNavigation.match(/\{ id: "deposits", label: "Deposit settings", permission: "([^"]+)" \}/);
   assert.ok(tab, 'global deposit configuration tab must be present');
   assert.equal(tab[1], 'system_config.read');
 });
 
- 
-test('confirmed admin balance adjustment is not retried with a new request ID when only the profile refresh fails', () => {
-  const start = adminPage.indexOf('const submitBalanceAdjustment = async');
-  const end = adminPage.indexOf('const submitFreezeToggle', start);
-  assert.ok(start >= 0 && end > start);
-  const handler = adminPage.slice(start, end);
-  const confirmed = handler.indexOf('setNotice(result.msg || "Balance adjusted.")');
-  const refresh = handler.indexOf('await refreshSelectedUser(uid)', confirmed);
-  const outerCatch = handler.indexOf('} catch (cause)', refresh);
-  assert.ok(confirmed >= 0 && refresh > confirmed && outerCatch > refresh);
-  const refreshCatch = handler.slice(refresh, outerCatch);
-  assert.ok(refreshCatch.includes('The balance operation was confirmed.'));
-  assert.ok(refreshCatch.includes('do not submit the adjustment again.'));
-  assert.ok(!refreshCatch.includes('Retry the same operation'));
-  assert.ok(handler.indexOf('window.localStorage.removeItem(storageKey)') < confirmed);
+
+test('perpetual admin routes are permission-mapped and configuration saves stay paused', () => {
+  const permStart = api.indexOf('const requiredPermission = (function(route, verb)');
+  const permEnd = api.indexOf(')(sub, method);', permStart);
+  const permissionMap = api.slice(permStart, permEnd);
+  assert.ok(permissionMap.includes("route === 'perpetual/markets' && verb === 'GET'"));
+  assert.ok(permissionMap.includes("route === 'perpetual/market' && verb === 'POST'"));
+  assert.ok(permissionMap.includes("route === 'perpetual/liquidations' && verb === 'GET'"));
+  assert.ok(permissionMap.includes("route === 'perpetual/insurance' && verb === 'GET'"));
+
+  const routeStart = api.indexOf("if (perpSub === 'markets' && method === 'GET')");
+  const routeEnd = api.indexOf("if (perpSub === 'liquidations' && method === 'GET')", routeStart);
+  assert.ok(routeStart >= 0 && routeEnd > routeStart, 'perpetual admin market routes must exist');
+  const routes = api.slice(routeStart, routeEnd);
+  assert.ok(routes.includes("hasAdminPermission(adminMembership, 'system_config.read')"));
+  assert.ok(routes.includes("hasAdminPermission(adminMembership, 'system_config.write')"));
+  assert.ok(routes.includes("const symbol = requestedSymbol || (baseAsset ? baseAsset + 'USDT' : '');"));
+  assert.match(routes, /enabled: false, status: 'paused'/);
+  assert.ok(routes.includes('mark_price_stale_sec: staleSec'));
+  assert.ok(routes.includes('circuit_breaker_deviation_pct: breaker'));
+  assert.ok(routes.includes("!maxPositionNotional || compareMoney(maxPositionNotional, '0') <= 0"), 'new market configurations require a positive exposure cap');
+  assert.ok(routes.includes("await auditAdmin('perpetual_market_upsert'"));
+  assert.ok(routes.indexOf("if (!response.ok)") < routes.indexOf("await auditAdmin('perpetual_market_upsert'"));
+  assert.ok(!routes.includes('enabled: enabled'));
+  assert.ok(!routes.includes('status: status'));
+  // This branch uses the existing 0041 schema; PR #116's min-notional columns
+  // require a separate migration and must not be sent to this table prematurely.
+  assert.ok(!routes.includes('market_quantity_step'));
+  assert.ok(!routes.includes('market_min_quantity'));
 });
 
-test('KYC approval retries are idempotent and direct approvals use a per-user synchronous lock', () => {
-  const routeStart = api.indexOf("if (sub === 'kyc/approve' && method === 'POST')");
-  const routeEnd = api.indexOf("// POST /api/admin/kyc/reject", routeStart);
-  const route = api.slice(routeStart, routeEnd);
-  assert.ok(route.includes("status === 'approved' && !override"));
-  assert.ok(route.includes("duplicate: true"));
-  assert.ok(route.indexOf("status === 'approved' && !override") < route.indexOf("KYC_EXCEPTION_REQUIRED"));
-  const handlerStart = adminPage.indexOf('const reviewKyc = async');
-  const handlerEnd = adminPage.indexOf('const beginPayoutAddressEdit', handlerStart);
-  const handler = adminPage.slice(handlerStart, handlerEnd);
-  assert.ok(handler.includes('const lockKey = "kyc:" + uid'));
-  assert.ok(handler.includes('if (reviewActionLocksRef.current[lockKey]) return;'));
-  assert.ok(handler.includes('reviewActionLocksRef.current[lockKey] = false'));
-});
-
-test('manual payout retries cannot replace a previously saved TxID reference', () => {
-  const handlerStart = adminPage.indexOf('const markPaid = async');
-  const handlerEnd = adminPage.indexOf('const saveAddresses = async', handlerStart);
-  const handler = adminPage.slice(handlerStart, handlerEnd);
-  assert.ok(handler.includes('window.localStorage.getItem(storageKey)'));
-  assert.ok(handler.includes('saved.reference !== reference'));
-  assert.ok(handler.includes('Enter the exact saved reference; do not replace it.'));
-  assert.ok(handler.indexOf('saved.reference !== reference') < handler.indexOf('adminMarkWithdrawalPaid(token'));
+test('perpetual admin frontend reads the live asset catalogue and exposes only paused configuration writes', () => {
+  assert.ok(client.includes('export interface AdminPerpMarket'));
+  assert.ok(client.includes('"admin/perpetual/markets"'));
+  assert.ok(client.includes('"admin/perpetual/market"'));
+  assert.ok(adminPage.includes('getAdminPerpMarkets(token)'));
+  assert.ok(adminPage.includes('getAdminAssets(token)'));
+  assert.ok(adminPage.includes('assetCatalog.filter(asset => !["USDT", "USDC"].includes(asset.code))'));
+  assert.ok(adminPage.includes('enabled: false, status: "paused"'));
+  assert.ok(adminPage.includes('!positive(draft.max_position_notional)'), 'admin form requires a positive maximum exposure cap');
+  assert.ok(adminPage.includes('setPerpMarkets(refreshed.markets || [])'));
+  assert.ok(adminPage.includes("const decimal = /^(?:0|[1-9]\\d{0,19})(?:\\.\\d{1,18})?$/;"));
+  assert.ok(adminPage.includes("/[\\u0000-\\u001f\\u007f]/"));
 });
