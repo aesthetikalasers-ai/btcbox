@@ -4536,9 +4536,12 @@ async function handleRequest(event, context) {
         const identityMatches = !!searchQuery && [uid, email, username].some(function(value) {
           return value.toLowerCase().includes(searchQuery);
         });
-        const exactMessageMatches = searchQuery ? conversation.filter(function(m) {
+        const exactMessageIndex = searchQuery ? conversation.findIndex(function(m) {
           return m && String(m.id || '').toLowerCase() === searchQuery;
-        }) : [];
+        }) : -1;
+        const exactMessageMatches = exactMessageIndex >= 0
+          ? conversation.slice(Math.max(0, exactMessageIndex - 10), Math.min(conversation.length, exactMessageIndex + 11))
+          : [];
         const selectedMessages = !searchQuery
           ? conversation.slice(-100)
           : exactMessageMatches.length
@@ -4548,6 +4551,11 @@ async function handleRequest(event, context) {
               : conversation.filter(function(m) {
                   return m && String(m.id || '').toLowerCase().includes(searchQuery);
                 });
+        let threadUnansweredCount = 0;
+        for (let index = conversation.length - 1; index >= 0; index -= 1) {
+          if (conversation[index] && conversation[index].from === 'admin') break;
+          if (conversation[index] && conversation[index].from === 'user') threadUnansweredCount += 1;
+        }
         if (searchQuery && selectedMessages.length === 0) return;
 
         selectedMessages.slice(-100).forEach(function (m) {
@@ -4560,7 +4568,8 @@ async function handleRequest(event, context) {
             from: m.from,
             content: String(m.content || ''),
             time: String(m.time || ''),
-            admin_unread_count: unreadCount
+            admin_unread_count: unreadCount,
+            thread_unanswered_count: threadUnansweredCount
           });
         });
       });
