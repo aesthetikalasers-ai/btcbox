@@ -52,7 +52,7 @@ test('local integration serves real JSON APIs and SPA deep links on one origin',
   // Without Supabase, the public catalogue may use a bounded display-only
   // fallback. It must never mark fallback pairs as eligible for order entry.
   assert.equal(marketPairs.status, 200);
-  assert.match(marketPairs.headers.get('content-type'), /application\\/json/);
+  assert.match(marketPairs.headers.get('content-type'), /application\/json/);
   const marketPayload = await marketPairs.json();
   assert.equal(marketPayload.ok, true);
   assert.equal(marketPayload.catalog_source, 'static-fallback');
