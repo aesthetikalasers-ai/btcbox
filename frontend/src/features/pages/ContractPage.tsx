@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogTitle } from "@radix-ui/react-dialog";
-import { AlertCircle, BarChart3, CheckCircle2, ChevronDown, Inbox, Minus, MoreHorizontal, Plus, TrendingDown, TrendingUp, TriangleAlert } from "lucide-react";
+import { AlertCircle, BarChart3, CheckCircle2, ChevronDown, Inbox, Minus, Plus, TrendingDown, TrendingUp, TriangleAlert } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
@@ -607,7 +607,6 @@ export function ContractPage() {
           <CardTitle className="text-sm font-bold">{t("Positions")}</CardTitle>
           <Badge variant="outline" className="border-brand-border-subtle bg-brand-surface-2 font-mono text-[11px] text-brand-text-secondary">{positions.length}</Badge>
         </div>
-        <CardDescription>{positionsLoading ? t("Loading…") : positionsError ? positionsError : `${positions.length} ${t("Open positions").toLowerCase()}`}</CardDescription>
       </CardHeader>
       <CardContent className="pt-4">{positionsBody}</CardContent>
     </Card>
@@ -738,9 +737,6 @@ export function ContractPage() {
           <CardTitle className="text-sm font-bold">{t("Place order")}</CardTitle>
           <Badge variant="outline" className="border-brand-violet/30 bg-brand-violet/10 font-mono text-[11px] text-brand-violet">{effectiveLeverage}×</Badge>
         </div>
-        <CardDescription className="truncate">
-          {selectedMarket ? `${selectedMarket.base_asset} / ${selectedMarket.quote_asset}` : t("Contract markets")}
-        </CardDescription>
       </CardHeader>
       <CardContent className="pt-4">
         <form onSubmit={(e) => void submitOrder(e)} className="space-y-3.5">
@@ -858,7 +854,6 @@ export function ContractPage() {
           >
             {side === "buy" ? `${t("Long")} ${selectedMarket?.base_asset ?? ""}` : `${t("Short")} ${selectedMarket?.base_asset ?? ""}`}
           </Button>
-          <p className="text-center text-[10px] leading-relaxed text-brand-text-faint">{t("Perpetual orders are submitted to the BTCBOX matching engine and confirmed by the server.")}</p>
         </form>
       </CardContent>
     </Card>
@@ -1140,11 +1135,11 @@ export function ContractPage() {
       <h1 className="sr-only">{t("Perpetual")}</h1>
       {/* 移动端产品切换入口（现货 / 永续 / 秒合约 / 理财）：桌面端由全局顶栏承担，
           移动端顶栏收敛后这里补一个与现货页一致的产品导航。 */}
-      <div className="lg:hidden">
+      <div className="xl:hidden">
         <TradeProductNav />
       </div>
-      <div className="mx-auto flex min-h-dvh w-full min-w-0 max-w-[430px] flex-col bg-brand-bg px-0 pb-[calc(132px+env(safe-area-inset-bottom))] text-brand-text min-[600px]:max-w-[960px] min-[600px]:px-4 lg:max-w-[1560px] lg:gap-4 lg:px-8 lg:pb-6 lg:pt-4">
-        <header className="flex min-w-0 flex-col justify-center gap-2 px-4 pt-2.5 pb-1 lg:h-auto lg:rounded-xl lg:border lg:border-brand-border lg:bg-brand-surface lg:px-4 lg:py-2">
+      <div className="mx-auto flex min-h-dvh w-full min-w-0 max-w-[430px] flex-col bg-brand-bg px-0 pb-[calc(132px+env(safe-area-inset-bottom))] text-brand-text min-[600px]:max-w-[960px] min-[600px]:px-4 xl:max-w-[1560px] xl:gap-4 xl:px-8 xl:pb-6 xl:pt-4">
+        <header className="flex min-w-0 flex-col justify-center gap-2 px-4 pt-2.5 pb-1 xl:h-auto xl:rounded-xl xl:border xl:border-brand-border xl:bg-brand-surface xl:px-4 xl:py-2">
           {/* 行 1：合约名（市场选择）+ 永续标签 + 图表/更多 图标 */}
           <div className="flex min-w-0 items-center gap-2">
             <div className="relative min-w-0">
@@ -1165,9 +1160,6 @@ export function ContractPage() {
               <Button type="button" variant="ghost" size="icon" aria-label={t("Chart")} className="h-8 w-8 text-brand-text-muted" onClick={() => setDialogOpen(true)}>
                 <BarChart3 className="h-4 w-4" aria-hidden="true" />
               </Button>
-              <Button type="button" variant="ghost" size="icon" aria-label={t("More")} className="h-8 w-8 text-brand-text-muted">
-                <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
-              </Button>
             </div>
           </div>
           {/* 币安式：涨跌幅紧跟交易对名下方（红绿醒目） */}
@@ -1180,7 +1172,7 @@ export function ContractPage() {
                 {`${displayChg >= 0 ? "+" : ""}${displayChg.toFixed(2)}%`}
               </span>
             ) : null}
-            <div className="ml-auto hidden min-w-0 shrink-0 items-center gap-2 text-right text-[11px] text-brand-text-muted lg:flex">
+            <div className="ml-auto hidden min-w-0 shrink-0 items-center gap-2 text-right text-[11px] text-brand-text-muted xl:flex">
               <span className="flex items-center gap-1"><span>{t("Mark")}</span><span className="bf-tabular font-mono text-brand-text-secondary">{money(markPrice, locale)}</span></span>
               <span className="flex items-center gap-1"><span>{t("Index")}</span><span className="bf-tabular font-mono text-brand-text-secondary">{money(indexPrice, locale)}</span></span>
             </div>
@@ -1211,7 +1203,7 @@ export function ContractPage() {
 
         {markets.length > 0 ? (
           <>
-            <div className="lg:hidden">
+            <div className="xl:hidden">
               {/* 左右双栏：左下单 + 右紧凑盘口（底边严格齐平），顶部加呼吸间距 */}
               <div data-testid="perp-mobile-workspace" className="compact-trade-form mt-2.5 grid grid-cols-2 items-start gap-2 border-t border-brand-border/40 px-4 pt-2">
                 {/* 左：移动端紧凑下单表单 */}
@@ -1229,7 +1221,7 @@ export function ContractPage() {
                     </span>
                   </div>
 
-                  <div className="pb-0.5 text-[9px] font-medium text-brand-text-muted">{t("Spot reference depth")}</div>
+                  <div className="pb-0.5 text-[9px] font-medium text-brand-text-muted">{t("Spot reference")}</div>
                   {/* 表头（币安风格：币种名 + 单位分两行） */}
                   <div className="grid grid-cols-[1.1fr_0.9fr] border-b border-white/5 pb-0.5 font-semibold leading-tight text-[10px] text-brand-text-muted">
                     <span>{t("Price")}<br />(USDT)</span>
@@ -1334,16 +1326,22 @@ export function ContractPage() {
               </div>
             </div>
 
-            <div className="hidden min-w-0 items-start gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,360px)]">
-              <div className="flex min-w-0 flex-col gap-4">
+            <div data-testid="perp-desktop-terminal" className="hidden min-w-0 gap-3 xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(260px,320px)_minmax(280px,340px)]">
+              <section aria-label={t("Perpetual chart")} className="min-w-0 overflow-hidden rounded-xl border border-brand-border bg-brand-surface">
+                <KlinePanel symbol={selectedMarket?.symbol ?? symbol ?? "BTCUSDT"} height={440} />
+              </section>
+              <section aria-label={t("Order book")} className="min-w-0">
+                <OrderBookDepth mid={depthMid} book={displayBook} streamState={liveDepth.state} usdtUsd={usdtUsd} />
+              </section>
+              <section aria-label={t("Order entry")} className="min-w-0">
+                {orderEntryCard}
+              </section>
+              <div className="col-span-full grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-3">
                 {signedOut ? null : positionsCard}
                 {historyCard}
               </div>
-              <div className="flex min-w-0 flex-col gap-4">
-                {signedOut ? null : positionRiskCard}
-                {orderEntryCard}
-                <OrderBookDepth mid={depthMid} book={displayBook} streamState={liveDepth.state} usdtUsd={usdtUsd} />
-              </div>
+              {!signedOut ? <div className="col-span-full min-w-0">{positionRiskCard}</div> : null}
+            </div>
             </div>
           </>
         ) : null}
@@ -1387,7 +1385,7 @@ export function ContractPage() {
       </Dialog>
 
       {/* 移动端底部常驻 K 线抽屉（默认收起） */}
-      <div className="lg:hidden">
+      <div className="xl:hidden">
         <ChartDrawer symbol={selectedMarket?.symbol ?? "BTC/USDT"} marketType="perpetual" />
       </div>
     </>
