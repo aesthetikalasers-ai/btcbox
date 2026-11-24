@@ -1582,12 +1582,16 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 /* Tablet compact mode has no fixed mobile navigation, so dock the chart to the viewport edge. */
 @media (min-width: 768px) and (max-width: 1023px) {
   .trade-drawer-root { bottom: 0; }
-}
-/* Tablet chart drawers use page width from 600px instead of the 430px phone cap. */
-@media (min-width: 600px) and (max-width: 1023px) {
   .trade-drawer-panel { max-width: min(900px, 100%); }
   .trade-drawer-root--perpetual .trade-drawer-panel,
   .trade-drawer-root--spot .trade-drawer-panel { width: 100%; }
+}
+/* Extend full-width tablet treatment to perpetual only from 600px; preserve spot layout. */
+@media (min-width: 600px) and (max-width: 767px) {
+  .trade-drawer-root--perpetual .trade-drawer-panel {
+    width: 100%;
+    max-width: min(900px, 100%);
+  }
 }
 /* Desktop: the drawer is not used (chart is inline), hide it above 1024px. */
 @media (min-width: 1024px) {
