@@ -3055,7 +3055,7 @@ async function handleRequest(event, context) {
         msg: 'Perpetual markets are not enabled. No contract market is currently available.' }, 503);
     }
     try {
-      const markets = await perpRestGet('perpetual_markets?select=symbol,base_asset,quote_asset,enabled,status,price_tick,quantity_step,min_quantity,min_notional,max_quantity,max_position_notional,max_leverage,maintenance_margin_rate,maker_fee_rate,taker_fee_rate,funding_interval_sec,funding_rate_cap,next_funding_at,mark_price_stale_sec&enabled=eq.true&order=symbol.asc');
+      const markets = await perpRestGet('perpetual_markets?select=symbol,base_asset,quote_asset,enabled,status,price_tick,quantity_step,min_quantity,min_notional,market_quantity_step,market_min_quantity,market_max_quantity,max_quantity,max_position_notional,max_leverage,maintenance_margin_rate,maker_fee_rate,taker_fee_rate,funding_interval_sec,funding_rate_cap,next_funding_at,mark_price_stale_sec&enabled=eq.true&order=symbol.asc');
       const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
       const withPrices = await Promise.all(markets.map(async (market) => {
         try {
@@ -4748,9 +4748,13 @@ async function handleRequest(event, context) {
         const quantityStep = parseMoneyInput(body.quantity_step);
         const minQuantity = parseMoneyInput(body.min_quantity);
         const minNotional = parseMoneyInput(body.min_notional);
+        const marketQuantityStep = parseMoneyInput(body.market_quantity_step);
+        const marketMinQuantity = parseMoneyInput(body.market_min_quantity);
+        const marketMaxQuantity = body.market_max_quantity ? parseMoneyInput(body.market_max_quantity) : null;
         const maxQuantity = body.max_quantity ? parseMoneyInput(body.max_quantity) : null;
         const maxPositionNotional = body.max_position_notional ? parseMoneyInput(body.max_position_notional) : null;
         const invalidOptionalLimits = (body.max_quantity && !maxQuantity) || (body.max_position_notional && !maxPositionNotional);
+        const invalidMarketMax = body.market_max_quantity && !marketMaxQuantity;
         const maxLeverage = Number(body.max_leverage);
         const mmr = body.maintenance_margin_rate === undefined ? null : Number(body.maintenance_margin_rate);
         const makerFee = body.maker_fee_rate === undefined ? 0 : Number(body.maker_fee_rate);
@@ -4763,17 +4767,20 @@ async function handleRequest(event, context) {
         if (!/^[A-Z0-9]{3,20}$/.test(symbol) || !/^[A-Z0-9]{2,16}$/.test(baseAsset)
             || symbol !== baseAsset + 'USDT'
             || !priceTick || compareMoney(priceTick,'0')<=0 || !quantityStep || compareMoney(quantityStep,'0')<=0
-            || !minQuantity || compareMoney(minQuantity,'0')<=0 || !minNotional || compareMoney(minNotional,'0')<=0 || !Number.isInteger(maxLeverage) || maxLeverage < 1 || maxLeverage > 100
+            || !minQuantity || compareMoney(minQuantity,'0')<=0 || !minNotional || compareMoney(minNotional,'0')<=0
+            || !marketQuantityStep || compareMoney(marketQuantityStep,'0')<=0 || !marketMinQuantity || compareMoney(marketMinQuantity,'0')<=0
+            || (marketMaxQuantity && compareMoney(marketMaxQuantity,marketMinQuantity)<0) || !Number.isInteger(maxLeverage) || maxLeverage < 1 || maxLeverage > 100
             || !['trading','paused','open_only','liquidation_only'].includes(status)
             || mmr === null || mmr < 0 || mmr > 0.5 || makerFee < 0 || takerFee < 0 || fundingInterval !== 28800 || fundingCap <= 0 || fundingCap > 0.0075
-            || invalidOptionalLimits || !Number.isFinite(makerFee) || makerFee < 0 || makerFee > 0.1 || !Number.isFinite(takerFee) || takerFee < 0 || takerFee > 0.1
+            || invalidOptionalLimits || invalidMarketMax || !Number.isFinite(makerFee) || makerFee < 0 || makerFee > 0.1 || !Number.isFinite(takerFee) || takerFee < 0 || takerFee > 0.1
             || !Number.isFinite(fundingCap) || reason.length < 5 || reason.length > 500 || /[\u0000-\u001f\u007f]/.test(reason)) {
           return json({ ok: false, code: 'INVALID_MARKET_CONFIG', msg: 'Invalid perpetual market configuration (max_leverage must be 1-100, mmr 0-0.5).' }, 400);
         }
         try {
           const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
           const payload = { symbol: symbol, base_asset: baseAsset, quote_asset: 'USDT', enabled: enabled, status: status,
-            price_tick: priceTick, quantity_step: quantityStep, min_quantity: minQuantity, min_notional: minNotional, max_quantity: maxQuantity,
+            price_tick: priceTick, quantity_step: quantityStep, min_quantity: minQuantity, min_notional: minNotional,
+            market_quantity_step: marketQuantityStep, market_min_quantity: marketMinQuantity, market_max_quantity: marketMaxQuantity, max_quantity: maxQuantity,
             max_position_notional: maxPositionNotional, max_leverage: maxLeverage, maintenance_margin_rate: mmr,
             maker_fee_rate: makerFee, taker_fee_rate: takerFee, funding_interval_sec: fundingInterval, funding_rate_cap: fundingCap,
             updated_at: new Date().toISOString() };
