@@ -9,6 +9,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const sql = fs.readFileSync(path.join(root, 'supabase/sql/0041_perpetual_contract_v1.sql'), 'utf8');
+const fundingSql = fs.readFileSync(path.join(root, 'supabase/sql/0046_perpetual_funding_atomic_clearing_v1.sql'), 'utf8');
+const fundingWorker = fs.readFileSync(path.join(root, 'scripts/perp-funding-worker.js'), 'utf8');
 
 test('0041 extends operation_type with perp_* and reuses financial_accounts/operations/ledger', () => {
   assert.ok(sql.includes("'perp_order_reserve'"));
@@ -202,4 +204,32 @@ test('perpetual markets reference the canonical asset registry and match the bas
   assert.ok(sql.includes('base_asset text not null references public.btcbox_assets(asset_code)'));
   assert.ok(sql.includes("quote_asset text not null default 'USDT' references public.btcbox_assets(asset_code)"));
   assert.ok(sql.includes('check (symbol = base_asset || quote_asset)'));
+});
+
+
+test('funding settlement is market-atomic and shares the order-entry advisory lock', () => {
+  assert.ok(fundingSql.includes("pg_advisory_xact_lock(hashtextextended('perp-market:'||p_symbol, 0))"));
+  assert.ok(fundingSql.includes('for update'));
+  assert.ok(fundingSql.includes('for v_pos in'));
+  assert.ok(fundingSql.includes('public.perp_settle_funding_one(p_symbol,p_funding_at,v_rate.rate,v_pos.user_id)'));
+  assert.ok(fundingSql.includes('update public.perpetual_markets'));
+  assert.ok(fundingSql.includes('next_funding_at=p_funding_at + (v_market.funding_interval_sec * interval'));
+  assert.ok(fundingSql.includes("revoke all on function public.perp_settle_funding_market(text,timestamptz) from public, anon, authenticated"));
+  assert.ok(fundingSql.includes("grant execute on function public.perp_settle_funding_market(text,timestamptz) to service_role"));
+});
+
+test('funding clearing ledger writes an equal-and-opposite counter-entry and backfills prior history', () => {
+  assert.ok(fundingSql.includes('create table if not exists public.perpetual_funding_clearing_ledger'));
+  assert.ok(fundingSql.includes('check (clearing_delta = -payment_delta)'));
+  assert.ok(fundingSql.includes('values (v_op,p_symbol,p_funding_at,p_user_id,v_payment,-v_payment)'));
+  assert.ok(fundingSql.includes('from public.perpetual_funding_history'));
+  assert.ok(fundingSql.includes('on conflict do nothing'));
+  assert.ok(fundingSql.includes('alter table public.perpetual_funding_clearing_ledger enable row level security'));
+});
+
+test('funding worker calls one atomic market RPC and never advances the boundary with REST PATCH', () => {
+  assert.ok(fundingWorker.includes("rpc('perp_settle_funding_market'"));
+  assert.ok(!fundingWorker.includes("rpc('perp_settle_funding_one'"));
+  assert.ok(!fundingWorker.includes("method: 'PATCH'"));
+  assert.ok(!fundingWorker.includes('perpetual_positions?select=user_id,symbol'));
 });
