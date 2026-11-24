@@ -144,6 +144,7 @@ test('perpetual admin routes are permission-mapped and configuration saves stay 
   const routes = api.slice(routeStart, routeEnd);
   assert.ok(routes.includes("hasAdminPermission(adminMembership, 'system_config.read')"));
   assert.ok(routes.includes("hasAdminPermission(adminMembership, 'system_config.write')"));
+  assert.ok(routes.includes("const symbol = requestedSymbol || (baseAsset ? baseAsset + 'USDT' : '');"));
   assert.match(routes, /enabled: false, status: 'paused'/);
   assert.ok(routes.includes('mark_price_stale_sec: staleSec'));
   assert.ok(routes.includes('circuit_breaker_deviation_pct: breaker'));
