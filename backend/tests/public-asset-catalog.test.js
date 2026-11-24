@@ -101,6 +101,7 @@ test('asset module flags independently gate new product entry while preserving e
   assert.ok(client.includes('typeof asset.earn_enabled === "boolean"'));
   assert.ok(assetsPage.includes('assetConfig.earn_enabled'));
   assert.ok(assetsPage.includes('assetCatalog.some(asset => asset.enabled && asset.visible && asset.earn_enabled)'));
+  assert.ok(assetsPage.includes('assetConfig?.enabled && assetConfig.visible && assetConfig.earn_enabled'));
 });
 
 test('trade product navigation follows public asset visibility and module switches', () => {
@@ -124,6 +125,7 @@ test('trade hub only renders product cards with eligible configured assets', () 
   assert.ok(tradeHub.includes('getPublicAssetCatalog(controller.signal)'));
   assert.ok(tradeHub.includes('const showSpot = !pairsLoading && !pairsError && spotPairs.length > 0'));
   assert.ok(tradeHub.includes('const showPerpetual = hasVisibleAssetModule("perpetual_enabled")'));
+  assert.ok(tradeHub.includes('!!usdtAsset?.enabled && !!usdtAsset.visible && !!usdtAsset.perpetual_enabled'));
   assert.ok(tradeHub.includes('const showSeconds = hasVisibleAssetModule("seconds_enabled", ["BTC", "ETH", "SOL", "BNB"])'));
   assert.ok(tradeHub.includes('const showEarn = hasVisibleAssetModule("earn_enabled")'));
   for (const condition of ['{showSpot ? (','{showPerpetual ? (','{showSeconds ? (','{showEarn ? (']) {
