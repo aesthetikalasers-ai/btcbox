@@ -4758,12 +4758,14 @@ async function handleRequest(event, context) {
         const fundingCap = body.funding_rate_cap === undefined ? 0.0075 : Number(body.funding_rate_cap);
         const status = String(body.status || 'paused').toLowerCase();
         const enabled = body.enabled === true;
+        const reason = String(body.reason || '').trim();
         if (!/^[A-Z0-9]{3,20}$/.test(symbol) || !/^[A-Z0-9]{2,16}$/.test(baseAsset)
             || symbol !== baseAsset + 'USDT'
             || !priceTick || compareMoney(priceTick,'0')<=0 || !quantityStep || compareMoney(quantityStep,'0')<=0
             || !minQuantity || compareMoney(minQuantity,'0')<=0 || !minNotional || compareMoney(minNotional,'0')<=0 || !Number.isInteger(maxLeverage) || maxLeverage < 1 || maxLeverage > 100
             || !['trading','paused','open_only','liquidation_only'].includes(status)
-            || mmr === null || mmr < 0 || mmr > 0.5 || makerFee < 0 || takerFee < 0 || fundingInterval <= 0 || fundingCap <= 0) {
+            || mmr === null || mmr < 0 || mmr > 0.5 || makerFee < 0 || takerFee < 0 || fundingInterval !== 28800 || fundingCap <= 0 || fundingCap > 0.0075
+            || reason.length < 5 || reason.length > 500 || /[\\u0000-\\u001f\\u007f]/.test(reason)) {
           return json({ ok: false, code: 'INVALID_MARKET_CONFIG', msg: 'Invalid perpetual market configuration (max_leverage must be 1-100, mmr 0-0.5).' }, 400);
         }
         try {
@@ -4773,10 +4775,14 @@ async function handleRequest(event, context) {
             max_position_notional: maxPositionNotional, max_leverage: maxLeverage, maintenance_margin_rate: mmr,
             maker_fee_rate: makerFee, taker_fee_rate: takerFee, funding_interval_sec: fundingInterval, funding_rate_cap: fundingCap,
             updated_at: new Date().toISOString() };
+          await auditAdmin('perpetual_market_upsert', symbol, JSON.stringify({ ...payload, reason: reason }), adminUserId);
+          await saveDB(db);
+          const auditFlush = await flushAdminAuditOutbox();
+          if (auditFlush.persistenceUnavailable) return json({ ok: false, code: 'AUDIT_OUTBOX_STATE_UNAVAILABLE' }, 503);
           const resp = await fetch(base + '/rest/v1/perpetual_markets?on_conflict=symbol', { method: 'POST', headers: { ...supabaseHeaders(), 'Prefer': 'resolution=merge-duplicates' }, body: JSON.stringify(payload) });
           if (!resp.ok) { const err = await resp.text().catch(()=>''); return json({ ok: false, code: 'PERPETUAL_MARKET_UPSERT_FAILED', detail: String(resp.status) }, 503); }
-          return json({ ok: true, symbol: symbol, enabled: enabled, status: status });
-        } catch (e) { return json({ ok: false, code: 'PERPETUAL_RPC_UNAVAILABLE' }, 503); }
+          return json({ ok: true, symbol: symbol, enabled: enabled, status: status, audit_sync_pending: auditFlush.pending });
+        } catch (e) { return json({ ok: false, code: e && e.code === 'ADMIN_AUDIT_OUTBOX_FULL' ? 'AUDIT_OUTBOX_FULL' : 'PERPETUAL_RPC_UNAVAILABLE' }, 503); }
       }
       if (perpSub === 'liquidations' && method === 'GET') {
         if (!hasAdminPermission(adminMembership, 'financial_audit.read')) return json({ ok: false, code: 'ADMIN_PERMISSION_DENIED', permission: 'financial_audit.read' }, 403);
