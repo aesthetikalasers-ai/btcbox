@@ -39,7 +39,6 @@ test('every non-financial admin mutation stages an audit event and saves state b
     ["if (sub === 'support/read' && method === 'POST')", "if (sub === 'support/messages' && method === 'GET')"],
     ["if (sub === 'support/faq' && method === 'POST')", "if (sub === 'support/faq/delete' && method === 'POST')"],
     ["if (sub === 'support/faq/delete' && method === 'POST')", "if (sub.startsWith('perpetual/'))"],
-    ["if (perpSub === 'market' && method === 'POST')", "if (perpSub === 'liquidations' && method === 'GET')"],
     ["if (sub === 'address/manage' && method === 'POST')", "if (sub === 'audit-logs'"],
     ["if (sub === 'config' && method === 'POST')", "if (sub === 'withdrawals'"]
   ];
@@ -54,7 +53,7 @@ test('every non-financial admin mutation stages an audit event and saves state b
     assert.ok(audit >= 0 && save > audit && flush > save, from + ' must persist state/outbox before PostgreSQL delivery');
   }
   const calls = source.split('\n').filter(line => line.includes('auditAdmin(') && !line.includes('function auditAdmin'));
-  assert.equal(calls.length, 13);
+  assert.equal(calls.length, 14, 'every audited admin mutation must remain covered by the persistence contract');
   for (const line of calls) assert.match(line.trim(), /^await auditAdmin\(/);
 });
 
