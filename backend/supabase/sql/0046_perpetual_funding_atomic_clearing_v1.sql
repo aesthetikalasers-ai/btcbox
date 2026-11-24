@@ -76,11 +76,30 @@ begin
   if abs(v_rate.rate) > v_market.funding_rate_cap then
     raise exception 'funding rate exceeds market cap';
   end if;
-  if v_rate.rate <> 0 and (
-       v_rate.mark_price is null or v_rate.mark_price <= 0
-       or v_rate.index_price is null or v_rate.index_price <= 0
-     ) then
-    raise exception 'non-zero funding requires recorded mark and index prices';
+  if p_rate is null or p_rate is distinct from v_rate.rate then
+    raise exception 'funding rate argument does not match the persisted snapshot';
+  end if;
+  if v_rate.settled then
+    raise exception 'funding rate snapshot is already settled';
+  end if;
+  if v_rate.mark_price is null or v_rate.mark_price <= 0
+     or v_rate.index_price is null or v_rate.index_price <= 0
+     or v_rate.premium_index is null then
+    raise exception 'funding requires a validated premium/index/mark snapshot';
+  end if;
+  if jsonb_typeof(v_rate.sources) <> 'array'
+     or jsonb_array_length(v_rate.sources) < 2 then
+    raise exception 'funding requires at least two recorded source samples';
+  end if;
+  if exists (
+    select 1
+      from jsonb_array_elements(v_rate.sources) s
+     where coalesce(s->>'source','') not in ('binance','okx','coingecko')
+  ) or (
+    select count(distinct s->>'source')
+      from jsonb_array_elements(v_rate.sources) s
+  ) < 2 then
+    raise exception 'funding source samples are invalid or duplicated';
   end if;
 
   v_idem := 'perp-funding-'||p_symbol||'-'||floor(extract(epoch from p_funding_at))::text||'-'||p_user_id;
@@ -188,24 +207,33 @@ begin
       'expected_funding_at',v_market.next_funding_at);
   end if;
 
-  -- v1 intentionally records zero funding until a validated premium-index
-  -- calculation is implemented. The batch transaction still exercises the
-  -- complete idempotent settlement and accounting path.
-  insert into public.perpetual_funding_rates(symbol,funding_at,rate,premium_index,settled)
-  values (p_symbol,p_funding_at,0,0,false)
-  on conflict (symbol,funding_at) do nothing;
-
+  -- A due boundary is never converted into a synthetic zero-rate event.
+  -- A separate trusted rate producer must persist a complete premium/index/mark
+  -- snapshot first. Missing or stale samples fail closed and do not advance time.
   select * into v_rate from public.perpetual_funding_rates
    where symbol=p_symbol and funding_at=p_funding_at for update;
-  if not found then raise exception 'funding rate row unavailable'; end if;
+  if not found then raise exception 'validated funding rate snapshot missing'; end if;
+  if v_rate.settled then raise exception 'funding rate snapshot already settled'; end if;
   if abs(v_rate.rate) > v_market.funding_rate_cap then
     raise exception 'funding rate exceeds market cap';
   end if;
-  if v_rate.rate <> 0 and (
-       v_rate.mark_price is null or v_rate.mark_price <= 0
-       or v_rate.index_price is null or v_rate.index_price <= 0
-     ) then
-    raise exception 'non-zero funding requires recorded mark and index prices';
+  if v_rate.mark_price is null or v_rate.mark_price <= 0
+     or v_rate.index_price is null or v_rate.index_price <= 0
+     or v_rate.premium_index is null then
+    raise exception 'funding snapshot is incomplete';
+  end if;
+  if jsonb_typeof(v_rate.sources) <> 'array'
+     or jsonb_array_length(v_rate.sources) < 2 then
+    raise exception 'funding snapshot has insufficient source samples';
+  end if;
+  if exists (
+    select 1 from jsonb_array_elements(v_rate.sources) s
+     where coalesce(s->>'source','') not in ('binance','okx','coingecko')
+  ) or (
+    select count(distinct s->>'source')
+      from jsonb_array_elements(v_rate.sources) s
+  ) < 2 then
+    raise exception 'funding snapshot sources are invalid or duplicated';
   end if;
 
   for v_pos in
