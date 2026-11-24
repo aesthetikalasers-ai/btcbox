@@ -196,7 +196,7 @@ async function fetchProviderPriceMaps(markets) {
     for (const row of results[1].value.data) {
       const symbol = String(row && row.instId || '').replace(/-/g, '').toUpperCase();
       if (!symbols.includes(symbol)) continue;
-      const price = Number(row.last), ts = Number(row.ts);
+      const price = Number(row.last), ts = Number(row && row.ts);
       if (Number.isFinite(price) && price > 0 && Number.isFinite(ts) && ts > 0) maps.okx.set(symbol, { source: 'okx', price, ts });
     }
   } else console.warn('[perp-mark] OKX batch ticker request failed:', results[1].status === 'rejected' ? results[1].reason.message : 'invalid payload');
