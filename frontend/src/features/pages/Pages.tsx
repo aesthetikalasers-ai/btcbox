@@ -424,23 +424,31 @@ export function SpotTradingPage(){
    refreshing=true;
    const controller=new AbortController();
    pending=controller;
-   getSpotMarketPairs(controller.signal).then(pairs=>{
+   Promise.allSettled([getSpotMarketPairs(controller.signal),getMarkets(controller.signal)]).then(([pairResult,marketResult])=>{
     if(cancelled||controller.signal.aborted)return;
-    const enabled=pairs.filter(pair=>pair.enabled===true&&pair.quote_asset==="USDT");
+    if(pairResult.status!=="fulfilled"){
+     setPairSymbols([]);setSpotPairRules(null);setSpotPairEnabled(false);setMarketList([]);
+     setTicker(null);setBook(null);setCandles([]);setMarketUpdatedAt(null);setPrice("");
+     setMarketFeedWarning(t("Spot market configuration is temporarily unavailable."));
+     return;
+    }
+    const enabled=pairResult.value.filter(pair=>pair.enabled===true&&pair.quote_asset==="USDT");
     const selected=enabled.find(pair=>pair.base_asset===base&&pair.quote_asset==="USDT")||null;
     setPairSymbols(enabled.map(pair=>pair.base_asset+pair.quote_asset));
     setSpotPairRules(selected);
     setSpotPairEnabled(!!selected);
-    setMarketList(current=>current.filter(item=>enabled.some(pair=>pair.base_asset===baseAssetCode(item.sym))));
+    if(marketResult.status==="fulfilled"){
+     const selectable=marketResult.value.filter(item=>enabled.some(pair=>pair.base_asset===baseAssetCode(item.sym)));
+     setMarketList(selectable);
+     const latest=selectable.find(item=>baseAssetCode(item.sym)===base)||null;
+     if(latest){setTicker(latest);setMarketUpdatedAt(latest.providerTs?latest.providerTs*1000:null);}
+    }else{
+     setMarketList(current=>current.filter(item=>enabled.some(pair=>pair.base_asset===baseAssetCode(item.sym))));
+    }
     if(!selected){
      setTicker(null);setBook(null);setCandles([]);setMarketUpdatedAt(null);setPrice("");
      setMarketFeedWarning(t("This spot market is no longer enabled."));
     }
-   }).catch(()=>{
-    if(cancelled||controller.signal.aborted)return;
-    setPairSymbols([]);setSpotPairRules(null);setSpotPairEnabled(false);setMarketList([]);
-    setTicker(null);setBook(null);setCandles([]);setMarketUpdatedAt(null);setPrice("");
-    setMarketFeedWarning(t("Spot market configuration is temporarily unavailable."));
    }).finally(()=>{refreshing=false;});
   };
   refreshPairs();
