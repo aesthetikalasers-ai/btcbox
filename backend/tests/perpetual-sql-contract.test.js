@@ -344,7 +344,6 @@ test('fixed funding formula is versioned, database-calculated, bounded and audit
   assert.ok(fundingRateSql.includes('impact_bid_price'));
   assert.ok(fundingRateSql.includes('impact_ask_price'));
   assert.ok(fundingRateSql.includes('calculated_at'));
-  assert.ok(fundingRateSql.includes("status <> 'ok'") === false); // positive status check is explicit below
   assert.ok(fundingRateSql.includes("v_feed.status <> 'ok'"));
   assert.ok(fundingRateSql.includes('v_feed.created_at < now()'));
   assert.ok(fundingRateSql.includes('on conflict (symbol,funding_at) do update'));
