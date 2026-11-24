@@ -166,6 +166,6 @@ test('perpetual admin frontend reads the live asset catalogue and exposes only p
   assert.ok(adminPage.includes('assetCatalog.filter(asset => !["USDT", "USDC"].includes(asset.code))'));
   assert.ok(adminPage.includes('enabled: false, status: "paused"'));
   assert.ok(adminPage.includes('setPerpMarkets(refreshed.markets || [])'));
-  assert.ok(adminPage.includes(String.raw`const decimal = /^(?:0|[1-9]\\d{0,19})(?:\\.\\d{1,18})?$/;`));
-  assert.ok(adminPage.includes(String.raw`/[\\u0000-\\u001f\\u007f]/`));
+  assert.ok(adminPage.includes("const decimal = /^(?:0|[1-9]\\d{0,19})(?:\\.\\d{1,18})?$/;"));
+  assert.ok(adminPage.includes("/[\\u0000-\\u001f\\u007f]/"));
 });
