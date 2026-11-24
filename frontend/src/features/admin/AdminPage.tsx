@@ -1423,10 +1423,10 @@ export function AdminPage() {
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant={entry.enabled ? "success" : "outline"}>{entry.enabled ? adminText("Published") : adminText("Hidden")}</Badge>
               <span className="type-meta text-brand-text-muted">{adminText("Order")} {entry.order}</span>
-              <span className="ml-auto font-mono text-[11px] text-brand-text-muted">{entry.id}</span>
+              <span className="ml-auto max-w-full break-all font-mono text-[11px] text-brand-text-muted">{entry.id}</span>
             </div>
-            <p className="mt-2 text-sm font-semibold text-brand-text">{entry.question}</p>
-            <p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-brand-text-secondary">{entry.answer}</p>
+            <p className="mt-2 break-words text-sm font-semibold text-brand-text">{entry.question}</p>
+            <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-5 text-brand-text-secondary">{entry.answer}</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Button size="sm" variant="outline" disabled={supportFaqBusy || !hasPermission("support.manage")} onClick={()=>startEditSupportFaq(entry)}>{adminText("Edit")}</Button>
               <Button size="sm" variant="outline" className="border-brand-danger/30 text-brand-danger hover:bg-brand-danger/5 hover:text-brand-danger" disabled={supportFaqBusy || !hasPermission("support.manage")} onClick={()=>void removeSupportFaqEntry(entry.id)}>{adminText("Delete")}</Button>
