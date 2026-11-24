@@ -582,7 +582,7 @@ BEGIN
   END IF;
   SELECT available,frozen INTO v_balance,v_frozen FROM public.financial_accounts WHERE user_id='perp-liq-ci' AND asset='USDT';
   IF v_balance<>91.2 OR v_frozen<>0 THEN RAISE EXCEPTION 'funding was not credited before liquidation: %, %',v_balance,v_frozen; END IF;
-  IF NOT EXISTS (SELECT 1 FROM public.perpetual_funding_history WHERE symbol='ETHUSDT' AND user_id='perp-liq-ci' AND payment_delta=1) THEN
+  IF NOT EXISTS (SELECT 1 FROM public.perpetual_funding_history WHERE symbol='ETHUSDT' AND user_id='perp-liq-ci' AND payment_delta=1.2) THEN
     RAISE EXCEPTION 'liquidation path omitted funding settlement';
   END IF;
   SELECT bad_debt,insurance_cover INTO v_bad_debt,v_insurance FROM public.perpetual_liquidation_events WHERE user_id='perp-liq-ci' AND symbol='ETHUSDT';
