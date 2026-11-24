@@ -127,3 +127,43 @@ test('customer payout-address endpoints use dedicated sensitive permissions, sep
   assert.ok(tab, 'global deposit configuration tab must be present');
   assert.equal(tab[1], 'system_config.read');
 });
+
+
+test('perpetual admin routes are permission-mapped and configuration saves stay paused', () => {
+  const permStart = api.indexOf('const requiredPermission = (function(route, verb)');
+  const permEnd = api.indexOf(')(sub, method);', permStart);
+  const permissionMap = api.slice(permStart, permEnd);
+  assert.ok(permissionMap.includes("route === 'perpetual/markets' && verb === 'GET'"));
+  assert.ok(permissionMap.includes("route === 'perpetual/market' && verb === 'POST'"));
+  assert.ok(permissionMap.includes("route === 'perpetual/liquidations' && verb === 'GET'"));
+  assert.ok(permissionMap.includes("route === 'perpetual/insurance' && verb === 'GET'"));
+
+  const routeStart = api.indexOf("if (perpSub === 'markets' && method === 'GET')");
+  const routeEnd = api.indexOf("if (perpSub === 'liquidations' && method === 'GET')", routeStart);
+  assert.ok(routeStart >= 0 && routeEnd > routeStart, 'perpetual admin market routes must exist');
+  const routes = api.slice(routeStart, routeEnd);
+  assert.ok(routes.includes("hasAdminPermission(adminMembership, 'system_config.read')"));
+  assert.ok(routes.includes("hasAdminPermission(adminMembership, 'system_config.write')"));
+  assert.match(routes, /enabled: false, status: 'paused'/);
+  assert.ok(routes.includes('mark_price_stale_sec: staleSec'));
+  assert.ok(routes.includes('circuit_breaker_deviation_pct: breaker'));
+  assert.ok(routes.includes("await auditAdmin('perpetual_market_upsert'"));
+  assert.ok(routes.indexOf("if (!response.ok)") < routes.indexOf("await auditAdmin('perpetual_market_upsert'"));
+  assert.ok(!routes.includes('enabled: enabled'));
+  assert.ok(!routes.includes('status: status'));
+  // This branch uses the existing 0041 schema; PR #116's min-notional columns
+  // require a separate migration and must not be sent to this table prematurely.
+  assert.ok(!routes.includes('market_quantity_step'));
+  assert.ok(!routes.includes('market_min_quantity'));
+});
+
+test('perpetual admin frontend reads the live asset catalogue and exposes only paused configuration writes', () => {
+  assert.ok(client.includes('export interface AdminPerpMarket'));
+  assert.ok(client.includes('"admin/perpetual/markets"'));
+  assert.ok(client.includes('"admin/perpetual/market"'));
+  assert.ok(adminPage.includes('getAdminPerpMarkets(token)'));
+  assert.ok(adminPage.includes('getAdminAssets(token)'));
+  assert.ok(adminPage.includes('assetCatalog.filter(asset => !["USDT", "USDC"].includes(asset.code))'));
+  assert.ok(adminPage.includes('enabled: false, status: "paused"'));
+  assert.ok(adminPage.includes('setPerpMarkets(refreshed.markets || [])'));
+});
