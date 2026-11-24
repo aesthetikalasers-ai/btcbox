@@ -27,9 +27,15 @@ test('public spot-market catalogue is sourced from operator configuration', () =
   const marketRoute = backend.indexOf("if (path === 'market' && method === 'GET')");
   assert.ok(route >= 0 && marketRoute > route, 'catalogue route must precede ticker route');
   const routeBlock = backend.slice(route, marketRoute);
-  assert.ok(routeBlock.includes('readSpotMarketCatalog()'));
+  assert.ok(routeBlock.includes('readPublicSpotMarketCatalog()'));
   assert.ok(!routeBlock.includes('if (!user)'), 'public catalogue must not require a user session');
-  assert.ok(routeBlock.includes('markets.filter(market => market.enabled)'));
+  assert.ok(routeBlock.includes('catalog_source'));
+  assert.ok(backend.includes('async function readPublicSpotMarketCatalog()'));
+  assert.ok(backend.includes("const source = useCached ? 'stale-cache' : 'static-fallback'"));
+  assert.ok(backend.includes('PUBLIC_SPOT_CATALOG_CACHE_MAX_AGE_MS'));
+  assert.ok(backend.includes('DEFAULT_SYMBOLS.map'));
+  assert.ok(backend.includes('trading_enabled: false'), 'degraded catalogue pairs must be display-only');
+  assert.ok(routeBlock.includes('markets: catalog.markets'));
   assert.ok(backend.includes("market.quote_asset !== 'USDT'"));
   assert.ok(backend.includes("quoteAsset !== 'USDT'"));
   assert.ok(!backend.includes("DEFAULT_SPOT_CATALOG"), "catalogue read failures must not activate a seeded market list");
@@ -44,9 +50,11 @@ test('market ticker, candles and depth are gated by enabled spot pairs', () => {
   const klineStart = backend.indexOf("if (path === 'kline' && method === 'GET')");
   const depthStart = backend.indexOf("if (path === 'depth' && method === 'GET')");
   assert.ok(marketStart >= 0 && klineStart >= 0 && depthStart >= 0);
-  assert.ok(backend.slice(marketStart, marketStart + 9000).includes('readSpotMarketCatalog()'));
+  assert.ok(backend.slice(marketStart, marketStart + 9000).includes('readPublicSpotMarketCatalog()'));
   assert.ok(backend.slice(marketStart, marketStart + 9000).includes('configured_empty'));
+  assert.ok(backend.slice(klineStart, klineStart + 5000).includes('readPublicSpotMarketCatalog()'));
   assert.ok(backend.slice(klineStart, klineStart + 5000).includes('SPOT_MARKET_DISABLED'));
+  assert.ok(backend.slice(depthStart, depthStart + 3000).includes('readPublicSpotMarketCatalog()'));
   assert.ok(backend.slice(depthStart, depthStart + 3000).includes('SPOT_MARKET_DISABLED'));
 });
 
@@ -56,6 +64,10 @@ test('user Trade Hub links only to configured pairs and Spot order submission ch
   assert.ok(pages.includes('getSpotMarketPairs(controller.signal)'));
   assert.ok(pages.includes('pair.base_asset+pair.quote_asset'));
   assert.ok(pages.includes('pair.base_asset===base&&pair.quote_asset==="USDT"'));
+  assert.ok(api.includes('trading_enabled?: boolean'));
+  assert.ok(pages.includes('pair.trading_enabled!==false'));
+  assert.ok(pages.includes('spotCatalogDegraded'));
+  assert.ok(pages.includes('if(spotCatalogDegraded&&!pendingIntent)'));
   assert.ok(pages.includes('if(!spotPairEnabled&&!pendingIntent)'));
   assert.ok(pages.includes('(!spotPairEnabled&&!pendingIntent)'));
   assert.ok(pages.includes('setSpotPairEnabled(false);setSpotPairRules(null);setTradingStatus(null)'));
