@@ -99,6 +99,7 @@ FILES=(
   0047_perpetual_liquidation_accounting_closure_v1.sql
   0048_perpetual_funding_rate_producer_v1.sql
   0049_btcbox_complete_26_asset_registry_v1.sql
+  0050_perpetual_bootstrap_mark_price_v1.sql
 )
 
 echo "[info] Bootstrapping a fresh BTCBOX schema with ${#FILES[@]} canonical SQL files."
