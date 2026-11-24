@@ -18,7 +18,9 @@ the exact target project:
 
 1. `public.financial_accounts`, `public.financial_operations`, and
    `public.financial_ledger` already exist.
-2. `financial_ledger.operation_id` references `financial_operations.id`, and
+2. `public.btcbox_assets` already exists with `asset_code` as its primary key;
+   perpetual markets and category assignments reference this canonical registry.
+3. `financial_ledger.operation_id` references `financial_operations.id`, and
    its unique key is `(operation_id, user_id, asset)`.
 3. Existing `financial_operations_operation_type_check` values are captured
    and compared with the replacement list in 0041. Never replace this constraint
