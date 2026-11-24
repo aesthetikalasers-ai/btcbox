@@ -4379,6 +4379,24 @@ async function handleRequest(event, context) {
       const auditFlush = await flushAdminAuditOutbox();
       return json({ok:true,audit_sync_pending:auditFlush.pending,msg:'Submitted successfully.'});
     }
+    function resolveAuditIdentity(uidValue, actorValue) {
+      const subjectUid = String(uidValue || '').slice(0, 100);
+      const actorId = String(actorValue || '').slice(0, 80);
+      const subject = subjectUid && db.users && db.users[subjectUid] ? db.users[subjectUid] : null;
+      const actorMatches = isSupabaseUserId(actorId) ? Object.values(db.users || {}).filter(function (candidate) {
+        return getUserLinkedIdentityIds(candidate).some(function (identityId) {
+          return isSupabaseUserId(identityId) && identityId.toLowerCase() === actorId.toLowerCase();
+        });
+      }) : [];
+      const uniqueActorUids = Array.from(new Set(actorMatches.map(function (candidate) { return String(candidate.uid || ''); }).filter(Boolean)));
+      return {
+        operator_uid: uniqueActorUids.length === 1 ? uniqueActorUids[0] : '',
+        operator_email: uniqueActorUids.length === 1 ? String(actorMatches[0].email || '').slice(0, 254) : '',
+        operator_identity_status: !isSupabaseUserId(actorId) ? 'non_uuid_actor' : uniqueActorUids.length === 1 ? 'linked' : uniqueActorUids.length > 1 ? 'ambiguous' : 'unmatched',
+        subject_email: subject ? String(subject.email || '').slice(0, 254) : ''
+      };
+    }
+
     if (sub === 'audit-logs' && method === 'GET') {
       const params = event.queryStringParameters || {};
       const limitValue = Number(params.limit || 100);
@@ -4401,13 +4419,8 @@ async function handleRequest(event, context) {
       if (postgresAuditReadsRequired) {
         try {
           const result = await readAdminAuditLogPage({ limit, action: actionFilter, uid: uidFilter, before });
-          return json({
-            ok: true,
-            source: 'postgres_financial_audit_log',
-            completeness: 'postgres_canonical',
-            logs: result.logs,
-            next_before: result.next_before
-          });
+          const logs = result.logs.map(function (entry) { return Object.assign(entry, resolveAuditIdentity(entry.uid, entry.by)); });
+          return json({ ok: true, source: 'postgres_financial_audit_log', completeness: 'postgres_canonical', logs: logs, next_before: result.next_before });
         } catch (e) {
           return json({ ok: false, code: 'ADMIN_AUDIT_READ_UNAVAILABLE', msg: 'Canonical administrator audit history is temporarily unavailable. No incomplete fallback was shown.' }, 503);
         }
@@ -4431,7 +4444,8 @@ async function handleRequest(event, context) {
           by: String(entry.by || 'admin').slice(0, 80),
           time: String(entry.time || '').slice(0, 40),
           detail: safeDetail,
-          postgres_sync_status: ['synced', 'pending', 'local_only'].includes(entry.postgres_sync_status) ? entry.postgres_sync_status : 'unknown'
+          postgres_sync_status: ['synced', 'pending', 'local_only'].includes(entry.postgres_sync_status) ? entry.postgres_sync_status : 'unknown',
+          ...resolveAuditIdentity(entry.uid, entry.by)
         };
       });
       return json({
