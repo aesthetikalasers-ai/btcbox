@@ -4,6 +4,15 @@
 -- Assets may belong to multiple categories. Contract/network identity is optional so
 -- ERC-404 and inscription assets can be distinguished when trusted metadata is available.
 -- No asset is auto-classified by this migration; assignments are intentionally empty.
+-- Category assignments reference the existing canonical public.btcbox_assets registry.
+
+do $$
+begin
+  if to_regclass('public.btcbox_assets') is null then
+    raise exception 'btcbox_assets asset registry is required before market taxonomy migration';
+  end if;
+end;
+$$;
 
 create table if not exists public.btcbox_market_categories (
   category_key text primary key
@@ -20,7 +29,7 @@ create table if not exists public.btcbox_market_categories (
 
 create table if not exists public.btcbox_asset_category_assignments (
   id bigint generated always as identity primary key,
-  asset_code text not null check (asset_code ~ '^[A-Z0-9]{2,16}$'),
+  asset_code text not null references public.btcbox_assets(asset_code) on update cascade on delete cascade,
   category_key text not null references public.btcbox_market_categories(category_key) on update cascade on delete restrict,
   network text,
   contract_address text,
