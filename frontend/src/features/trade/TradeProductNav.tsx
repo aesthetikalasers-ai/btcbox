@@ -45,19 +45,39 @@ export function TradeProductNav({ leftIndent = "px-3.5 sm:px-4 md:px-6 lg:px-8" 
   const [firstSpotPair, setFirstSpotPair] = useState("");
 
   useEffect(() => {
-    const controller = new AbortController();
-    getPublicAssetCatalog(controller.signal)
-      .then((assets) => { if (!controller.signal.aborted) setAssetCatalog(assets); })
-      .catch(() => { if (!controller.signal.aborted) setAssetCatalog([]); });
-    getSpotMarketPairs(controller.signal)
-      .then((pairs) => {
-        if (!controller.signal.aborted) {
-          const firstEnabled = pairs.find((pair) => pair.enabled && pair.quote_asset === "USDT");
+    let cancelled = false;
+    let refreshing = false;
+    let pending: AbortController | null = null;
+    const refresh = () => {
+      if (cancelled || refreshing || document.visibilityState !== "visible") return;
+      refreshing = true;
+      const controller = new AbortController();
+      pending = controller;
+      Promise.allSettled([
+        getPublicAssetCatalog(controller.signal),
+        getSpotMarketPairs(controller.signal),
+      ]).then(([assetResult, pairResult]) => {
+        if (cancelled || controller.signal.aborted) return;
+        setAssetCatalog(assetResult.status === "fulfilled" ? assetResult.value : []);
+        if (pairResult.status === "fulfilled") {
+          const firstEnabled = pairResult.value.find((pair) => pair.enabled && pair.quote_asset === "USDT");
           setFirstSpotPair(firstEnabled ? firstEnabled.base_asset + firstEnabled.quote_asset : "");
+        } else {
+          setFirstSpotPair("");
         }
-      })
-      .catch(() => { if (!controller.signal.aborted) setFirstSpotPair(""); });
-    return () => controller.abort();
+      }).finally(() => { refreshing = false; });
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 30000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      pending?.abort();
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, []);
 
   const availableProducts = assetCatalog
