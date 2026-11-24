@@ -35,6 +35,7 @@ DECLARE
   v_market_categories regclass := to_regclass('public.btcbox_market_categories');
   v_asset_categories regclass := to_regclass('public.btcbox_asset_category_assignments');
   v_funding_clearing regclass := to_regclass('public.perpetual_funding_clearing_ledger');
+  v_liquidation_journal regclass := to_regclass('public.perpetual_liquidation_journal');
   v_assets regclass := to_regclass('public.btcbox_assets');
   v_proc regprocedure;
   v_signature text;
@@ -88,6 +89,24 @@ BEGIN
      OR NOT has_table_privilege('service_role','public.perpetual_funding_clearing_ledger','INSERT') THEN
     RAISE EXCEPTION 'perpetual funding clearing ledger grants are not service-role-only';
   END IF;
+  IF v_liquidation_journal IS NULL THEN
+    RAISE EXCEPTION 'perpetual liquidation journal was not installed';
+  END IF;
+  IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid=v_liquidation_journal) THEN
+    RAISE EXCEPTION 'perpetual liquidation journal must have RLS enabled';
+  END IF;
+  IF has_table_privilege('anon','public.perpetual_liquidation_journal','SELECT')
+     OR has_table_privilege('authenticated','public.perpetual_liquidation_journal','SELECT')
+     OR NOT has_table_privilege('service_role','public.perpetual_liquidation_journal','INSERT') THEN
+    RAISE EXCEPTION 'perpetual liquidation journal grants are not service-role-only';
+  END IF;
+  v_proc := to_regprocedure('public.perp_liquidate_position(text,text)');
+  IF v_proc IS NULL OR NOT has_function_privilege('service_role',v_proc,'EXECUTE')
+     OR has_function_privilege('anon',v_proc,'EXECUTE')
+     OR has_function_privilege('authenticated',v_proc,'EXECUTE') THEN
+    RAISE EXCEPTION 'perpetual liquidation RPC grants are not service-role-only';
+  END IF;
+
   v_proc := to_regprocedure('public.perp_settle_funding_market(text,timestamptz)');
   IF v_proc IS NULL OR NOT has_function_privilege('service_role',v_proc,'EXECUTE')
      OR has_function_privilege('anon',v_proc,'EXECUTE')
