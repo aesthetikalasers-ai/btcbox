@@ -363,3 +363,4 @@ begin
     'avg_fill_price', case when v_filled_qty>0 then v_filled_quote/v_filled_qty else null end);
 end;
 $$;
+notify pgrst, 'reload schema';
