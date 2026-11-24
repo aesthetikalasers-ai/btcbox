@@ -246,3 +246,37 @@ test('public asset catalog refreshes while dashboard, markets and wallet pages r
   assert.ok(assetsPage.includes('getSpotMarketPairs(controller.signal)'), 'wallet asset page must refresh the enabled spot pair list with the asset catalogue');
   assert.ok(assetsPage.includes('Promise.allSettled(['), 'wallet asset and pair refreshes must fail independently');
 });
+
+
+test('open trading and Earn pages revalidate enabled catalogues without retaining disabled selections', () => {
+  for (const [name, source, timerName] of [
+    ['spot terminal', spotPage, 'refreshPairs'],
+    ['perpetual terminal', contractPage, 'refresh'],
+    ['seconds terminal', secondsPage, 'refreshPolicy'],
+    ['product navigation', tradeNav, 'refresh'],
+    ['Earn catalogue', spotPage, 'refreshCatalog'],
+  ]) {
+    assert.ok(source.includes(`window.setInterval(${timerName}, 30000)`), name + ' must periodically revalidate server configuration');
+    assert.ok(source.includes('window.addEventListener("focus", ' + timerName + ')'), name + ' must refresh on focus');
+    assert.ok(source.includes('document.addEventListener("visibilitychange", ' + timerName + ')'), name + ' must refresh when visible');
+    assert.ok(source.includes('window.clearInterval(timer)'), name + ' must clean up its polling timer');
+  }
+  assert.ok(spotPage.includes('setSpotPairEnabled(!!selected)'), 'spot order entry must follow the refreshed selected pair');
+  assert.ok(spotPage.includes('setSpotPairRules(selected)'), 'spot rules must be refreshed with the pair catalogue');
+  assert.ok(spotPage.includes('setTicker(null);setBook(null);setCandles([])'), 'a disabled spot pair must clear its stale market snapshot');
+  assert.ok(contractPage.includes('getPerpMarkets(controller.signal)'), 'perpetual markets must be fetched from the authoritative backend');
+  assert.ok(contractPage.includes('setMarkets([])') && contractPage.includes('setSymbol("")'), 'disabled or unavailable perpetual markets must clear stale selection');
+  assert.ok(secondsPage.includes('getSecondsPolicy(controller.signal)'), 'seconds policy must be revalidated from the backend');
+  assert.ok(secondsPage.includes('setPolicy(null)'), 'unavailable seconds policy must fail closed');
+  assert.ok(spotPage.includes('getEarnCatalog(controller.signal)'), 'Earn products must be reloaded from the backend');
+  assert.ok(spotPage.includes('setProducts([]);setActionsEnabled(false);setSelectedProduct("")'), 'Earn must clear stale products and disable actions on catalogue failure');
+});
+
+test('favorite symbols remain stored but hidden when their public spot market is disabled', () => {
+  const visibleStart = marketsPage.indexOf('const visibleMarkets = useMemo');
+  const visibleEnd = marketsPage.indexOf('if (assetCatalog === null)', visibleStart);
+  const visibleBlock = marketsPage.slice(visibleStart, visibleEnd);
+  assert.ok(visibleBlock.includes('filterPublicSpotMarkets(markets, assetCatalog).filter'), 'favorites must be intersected with enabled public spot markets');
+  assert.ok(visibleBlock.includes('if (filter === "favorites") return favorites.includes(market.sym)'), 'favorites filter must only run on already eligible markets');
+  assert.ok(marketsPage.includes('window.localStorage.setItem(FAVORITES_KEY, JSON.stringify(next))'), 'user favorites remain persisted independently of temporary market visibility');
+});
