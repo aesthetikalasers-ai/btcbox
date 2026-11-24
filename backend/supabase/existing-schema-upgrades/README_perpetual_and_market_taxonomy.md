@@ -14,6 +14,7 @@ the fresh-database bootstrap.
 - Liquidation accounting closure: `backend/supabase/sql/0047_perpetual_liquidation_accounting_closure_v1.sql`
 - Fixed funding-rate formula and snapshot producer: `backend/supabase/sql/0048_perpetual_funding_rate_producer_v1.sql`
 - Complete 26-asset registry: `backend/supabase/sql/0049_btcbox_complete_26_asset_registry_v1.sql`
+- Guarded perpetual bootstrap mark: `backend/supabase/sql/0050_perpetual_bootstrap_mark_price_v1.sql`
 
 The numbered SQL files are the canonical source. Do not hand-maintain a second
 copy of any migration in this directory.
