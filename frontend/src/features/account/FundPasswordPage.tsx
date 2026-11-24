@@ -85,7 +85,6 @@ export function FundPasswordPage() {
                 {requiresCurrentPassword && <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Current login password")}</span>
                   <Input type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} autoComplete="current-password" placeholder={t("Enter current login password")} required />
                 </label>}
-                {!requiresCurrentPassword && <p className="text-sm text-brand-text-muted">{t("For accounts without a BTCBOX login password, sign in again before changing your fund password. Two-factor authentication is optional.")}</p>}
                 {error && <p className="text-sm text-brand-danger" role="alert">{t(error)}</p>}
                 {success && <p className="text-sm text-brand-success" role="status">{t(success)}</p>}
                 <Button type="submit" className="w-full" disabled={busy || loading}>{busy ? t("Saving…") : t("Save fund password")}</Button>
