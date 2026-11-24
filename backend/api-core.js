@@ -4769,7 +4769,7 @@ async function handleRequest(event, context) {
             || !priceTick || compareMoney(priceTick,'0')<=0 || !quantityStep || compareMoney(quantityStep,'0')<=0
             || !minQuantity || compareMoney(minQuantity,'0')<=0 || !minNotional || compareMoney(minNotional,'0')<=0
             || !marketQuantityStep || compareMoney(marketQuantityStep,'0')<=0 || !marketMinQuantity || compareMoney(marketMinQuantity,'0')<=0
-            || (marketMaxQuantity && compareMoney(marketMaxQuantity,marketMinQuantity)<0) || !maxPositionNotional || compareMoney(maxPositionNotional,'0')<=0 || !Number.isInteger(maxLeverage) || maxLeverage < 1 || maxLeverage > 100
+            || (marketMaxQuantity && compareMoney(marketMaxQuantity,marketMinQuantity)<0) || !maxPositionNotional || compareMoney(maxPositionNotional,'0')<=0 || compareMoney(maxPositionNotional,minNotional)<0 || !Number.isInteger(maxLeverage) || maxLeverage < 1 || maxLeverage > 100
             || !['trading','paused','open_only','liquidation_only'].includes(status)
             || mmr === null || mmr < 0 || mmr > 0.5 || makerFee < 0 || takerFee < 0 || fundingInterval !== 28800 || fundingCap <= 0 || fundingCap > 0.0075
             || invalidOptionalLimits || invalidMarketMax || !Number.isFinite(makerFee) || makerFee < 0 || makerFee > 0.1 || !Number.isFinite(takerFee) || takerFee < 0 || takerFee > 0.1
