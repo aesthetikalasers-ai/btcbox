@@ -239,7 +239,7 @@ export function AdminPage() {
   const [spotMarketRequestId, setSpotMarketRequestId] = useState("");
   const [perpMarkets, setPerpMarkets] = useState<AdminPerpMarket[]>([]);
   const [perpMarketDraft, setPerpMarketDraft] = useState({
-    base_asset: "", price_tick: "", quantity_step: "", min_quantity: "", min_notional: "5",
+    base_asset: "", feed_enabled: false, price_tick: "", quantity_step: "", min_quantity: "", min_notional: "5",
     market_quantity_step: "", market_min_quantity: "", market_max_quantity: "", max_quantity: "", max_position_notional: "", max_leverage: "1", maintenance_margin_rate: "0.05",
     maker_fee_rate: "0", taker_fee_rate: "0", funding_interval_sec: "28800", funding_rate_cap: "0.0075",
     mark_price_stale_sec: "60", circuit_breaker_deviation_pct: "5", reason: "",
@@ -1410,7 +1410,7 @@ export function AdminPage() {
     setBusy(true); setError(""); setNotice("");
     try {
       await saveAdminPerpMarket(token, {
-        base_asset: draft.base_asset, quote_asset: "USDT", enabled: false, status: "paused",
+        base_asset: draft.base_asset, quote_asset: "USDT", enabled: draft.feed_enabled, status: "paused",
         price_tick: draft.price_tick.trim(), quantity_step: draft.quantity_step.trim(),
         min_quantity: draft.min_quantity.trim(), min_notional: draft.min_notional.trim(),
         market_quantity_step: draft.market_quantity_step.trim(), market_min_quantity: draft.market_min_quantity.trim(), market_max_quantity: draft.market_max_quantity.trim() || null,
@@ -1420,7 +1420,7 @@ export function AdminPage() {
         funding_interval_sec: fundingInterval, funding_rate_cap: draft.funding_rate_cap.trim(),
         mark_price_stale_sec: staleSec, circuit_breaker_deviation_pct: draft.circuit_breaker_deviation_pct.trim(), reason,
       });
-      setNotice("Perpetual market configuration saved. The market remains paused and disabled.");
+      setNotice("Perpetual market configuration saved. Trading remains paused; the market-data feed follows the selected setting.");
       setPerpMarketDraft(current => ({ ...current, reason: "" }));
       try {
         const refreshed = await getAdminPerpMarkets(token);
@@ -1729,14 +1729,14 @@ export function AdminPage() {
                 </tr></thead>
                 <tbody>{perpMarkets.map(market=><tr key={market.symbol} className="border-b border-brand-border-subtle">
                   <td className="px-3 py-2 font-semibold">{market.symbol}</td>
-                  <td className="px-3 py-2"><Badge variant={market.enabled ? "warning" : "outline"}>{market.enabled ? adminText("Enabled") : adminText("Disabled")}/{adminText(market.status)}</Badge></td>
+                  <td className="px-3 py-2"><Badge variant={market.enabled ? "warning" : "outline"}>{market.enabled ? adminText("Feed enabled") : adminText("Feed disabled")}/{adminText(market.status)}</Badge></td>
                   <td className="px-3 py-2 text-right tabular-nums">{market.max_leverage}×</td>
                   <td className="px-3 py-2 text-right tabular-nums">{asText(market.max_position_notional)} USDT</td>
                   <td className="px-3 py-2 text-right font-mono text-xs">{asText(market.price_tick)} / {asText(market.quantity_step)}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{asText(market.min_notional)} USDT</td>
                   <td className="px-3 py-2 text-right tabular-nums">{(Number(market.maintenance_margin_rate)*100).toFixed(3)}%</td>
                   <td className="px-3 py-2 text-right"><Button size="sm" variant="outline" disabled={busy||!hasPermission("system_config.write")} onClick={()=>setPerpMarketDraft({
-                    base_asset:market.base_asset,price_tick:String(market.price_tick),quantity_step:String(market.quantity_step),min_quantity:String(market.min_quantity),min_notional:String(market.min_notional),market_quantity_step:String(market.market_quantity_step),market_min_quantity:String(market.market_min_quantity),market_max_quantity:market.market_max_quantity==null?"":String(market.market_max_quantity),
+                    base_asset:market.base_asset,feed_enabled:market.enabled,price_tick:String(market.price_tick),quantity_step:String(market.quantity_step),min_quantity:String(market.min_quantity),min_notional:String(market.min_notional),market_quantity_step:String(market.market_quantity_step),market_min_quantity:String(market.market_min_quantity),market_max_quantity:market.market_max_quantity==null?"":String(market.market_max_quantity),
                     max_quantity:market.max_quantity==null?"":String(market.max_quantity),max_position_notional:market.max_position_notional==null?"":String(market.max_position_notional),
                     max_leverage:String(market.max_leverage),maintenance_margin_rate:String(market.maintenance_margin_rate),maker_fee_rate:String(market.maker_fee_rate),taker_fee_rate:String(market.taker_fee_rate),
                     funding_interval_sec:String(market.funding_interval_sec),funding_rate_cap:String(market.funding_rate_cap),mark_price_stale_sec:String(market.mark_price_stale_sec),circuit_breaker_deviation_pct:String(market.circuit_breaker_deviation_pct),reason:""
@@ -1744,6 +1744,7 @@ export function AdminPage() {
                 </tr>)}</tbody>
               </table>
             </div> : <p className="rounded-lg border border-dashed border-brand-border p-5 text-center text-sm text-brand-text-muted">{adminText("No perpetual markets are configured. No contract can be traded.")}</p>}
+            <label className="flex items-center gap-2 rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm"><input type="checkbox" checked={perpMarketDraft.feed_enabled} disabled={busy||!hasPermission("system_config.write")} onChange={event=>setPerpMarketDraft(current=>({...current,feed_enabled:event.target.checked}))}/><span>{adminText("Enable market-data feed (trading remains paused)")}</span></label>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <label className="space-y-1 text-sm"><span>{adminText("Base asset")}</span><select value={perpMarketDraft.base_asset} disabled={busy||!hasPermission("system_config.write")} onChange={event=>setPerpMarketDraft(current=>({...current,base_asset:event.target.value}))} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"><option value="">{adminText("Select asset")}</option>{spotAssets.filter(asset=>asset!=="USDT"&&asset!=="USDC").map(asset=><option key={asset} value={asset}>{asset}/USDT</option>)}</select></label>
               <label className="space-y-1 text-sm"><span>{adminText("Quote asset")}</span><input value="USDT" readOnly className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label>
