@@ -101,7 +101,8 @@ async function recordMark(symbol, indexPrice, markPrice, sources, maxAgeSec) {
     const symbol = String(market.symbol || '').toUpperCase();
     const maxAgeSec = Number(market.mark_price_stale_sec) || 60;
     const breakerPct = Number(market.circuit_breaker_deviation_pct) || CIRCUIT_BREAKER_PCT;
-    if (!/^[A-Z0-9]{3,20}$/.test(symbol) || market.quote_asset !== 'USDT') {
+    if (!/^[A-Z0-9]{3,20}$/.test(symbol) || market.quote_asset !== 'USDT'
+        || symbol !== String(market.base_asset || '').toUpperCase() + String(market.quote_asset || '').toUpperCase()) {
       console.error('[perp-mark] invalid enabled market configuration; skipping', symbol);
       hadFailure = true;
       continue;
