@@ -880,7 +880,7 @@ export function AdminPage() {
     setBusy(true); setError(""); setNotice("");
     try {
       const result = await markAdminSupportRead(token, uid);
-      const snapshot = await getAdminSupportMessages(token);
+      const snapshot = await getAdminSupportMessages(token, supportSearchApplied);
       setSupport((snapshot.messages || []) as unknown as Array<Record<string, unknown>>);
       setNotice(result.audit_sync_pending ? "Conversation marked read; audit delivery is pending." : "Conversation marked as read.");
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Conversation read state could not be saved."); }
@@ -1005,7 +1005,7 @@ export function AdminPage() {
       const queueRequestId = ++supportQueueRequestRef.current;
       setSupport([]);
       try {
-        const snapshot = await getAdminSupportMessages(token);
+        const snapshot = await getAdminSupportMessages(token, supportSearchApplied);
         if (queueRequestId !== supportQueueRequestRef.current) return;
         setSupport((snapshot.messages || []) as unknown as Array<Record<string, unknown>>);
         setNotice(successMessage);
