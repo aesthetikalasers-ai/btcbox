@@ -594,7 +594,7 @@ async function readAdminAccountBalances(userIds) {
       // rejecting those valid rows made the entire admin user list fail with 503.
       if (!SUPPORTED_LEDGER_ASSETS.has(asset)) throw new Error('Admin account balance response invalid');
       const b = assets[asset];
-      if (!b || !Number.isFinite(b.free) || !Number.isFinite(b.frozen) || b.free < 0 || b.frozen < 0) throw new Error('Admin account balance response invalid');
+      if (!b || !Number.isFinite(b.free) || !Number.isFinite(b.frozen) || b.frozen < 0) throw new Error('Admin account balance response invalid');
     }
   }
   // A user with no normalized account rows is a valid zero-balance account, not
