@@ -8,7 +8,7 @@ const assert = require('node:assert/strict');
 const root = path.resolve(__dirname, '..');
 const migration = fs.readFileSync(path.join(root, 'supabase/sql/0008_financial_matching_engine_v1.sql'), 'utf8');
 const api = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
-const pages = fs.readFileSync(path.resolve(root, '../../frontend/src/features/pages/Pages.tsx'), 'utf8');
+const pages = fs.readFileSync(path.resolve(root, '../frontend/src/features/pages/Pages.tsx'), 'utf8');
 
 test('degraded public catalogue never grants order eligibility in the matching database', () => {
   const start = migration.indexOf('create or replace function public.submit_limit_order_matching_v1');
