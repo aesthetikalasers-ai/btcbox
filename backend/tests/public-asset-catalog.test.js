@@ -20,6 +20,7 @@ const secondsPage = fs.readFileSync(path.resolve(root, '../../frontend/src/featu
 const dashboardPage = fs.readFileSync(path.resolve(root, '../../frontend/src/features/dashboard/Dashboard.tsx'), 'utf8');
 const publicMarketFilter = fs.readFileSync(path.resolve(root, '../../frontend/src/lib/publicAssetMarkets.ts'), 'utf8');
 const tokenIcon = fs.readFileSync(path.resolve(root, '../../frontend/src/components/ui/TokenIcon.tsx'), 'utf8');
+const localTokenIconFiles = fs.readdirSync(path.resolve(root, '../../frontend/public/token-icons')).filter((file) => file.endsWith('.svg'));
 const marketData = fs.readFileSync(path.resolve(root, '../../frontend/src/lib/marketData.ts'), 'utf8');
 const frontendPackage = JSON.parse(fs.readFileSync(path.resolve(root, '../../frontend/package.json'), 'utf8'));
 
@@ -190,6 +191,10 @@ test('homepage product shortcuts and banners follow public module availability',
 test('token icon rendering uses packaged crypto SVGs with a non-fabricated fallback', () => {
   assert.ok(frontendPackage.dependencies['cryptocurrency-icons']);
   assert.ok(tokenIcon.includes('cryptocurrency-icons/svg/color/*.svg'));
+  assert.ok(tokenIcon.includes('LOCAL_TOKEN_ICON_SYMBOLS.has(normalized)'));
+  assert.ok(tokenIcon.includes('`/token-icons/${normalized}.svg`'));
+  assert.ok(localTokenIconFiles.includes('near.svg'));
+  assert.ok(localTokenIconFiles.includes('sui.svg'));
   assert.ok(tokenIcon.includes('onError={() => setHasError(true)}'));
   assert.ok(tokenIcon.includes('normalizeSymbol(symbol).substring(0, 3)'));
 });
