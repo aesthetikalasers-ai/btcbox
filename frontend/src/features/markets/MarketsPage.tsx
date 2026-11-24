@@ -4,6 +4,7 @@ import { Search, Star } from "lucide-react";
 import { TokenIcon } from "../../components/ui/TokenIcon";
 import { getMarkets, getPublicAssetCatalog, type MarketTicker, type PublicAssetConfig } from "../../lib/api";
 import { getAssetName } from "../../lib/marketData";
+import { filterPublicSpotMarkets } from "../../lib/publicAssetMarkets";
 import { useI18n, localeTags } from "../../lib/i18n";
 
 type SortKey = "volume" | "change" | "price";
@@ -265,7 +266,8 @@ export function MarketsPage() {
   const urlQuery = searchParams.get("q") || "";
 
   const [markets, setMarkets] = useState<MarketTicker[]>([]);
-  const [assetCatalog, setAssetCatalog] = useState<PublicAssetConfig[]>([]);
+  const [assetCatalog, setAssetCatalog] = useState<PublicAssetConfig[] | null>(null);
+  const [assetCatalogError, setAssetCatalogError] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [query, setQuery] = useState(urlQuery);
@@ -284,8 +286,16 @@ export function MarketsPage() {
 
   useEffect(() => {
     const controller = new AbortController();
-    getPublicAssetCatalog(controller.signal).then(setAssetCatalog).catch(() => {
-      if (!controller.signal.aborted) setAssetCatalog([]);
+    getPublicAssetCatalog(controller.signal).then((assets) => {
+      if (!controller.signal.aborted) {
+        setAssetCatalog(assets);
+        setAssetCatalogError("");
+      }
+    }).catch(() => {
+      if (!controller.signal.aborted) {
+        setAssetCatalog(null);
+        setAssetCatalogError("Asset configuration is temporarily unavailable.");
+      }
     });
     return () => controller.abort();
   }, []);
@@ -345,14 +355,11 @@ export function MarketsPage() {
     ["favorites", "Favorites"],
   ];
 
-  const assetNames = useMemo(() => Object.fromEntries(assetCatalog.map(asset => [asset.code, asset.display_name || asset.name])), [assetCatalog]);
+  const assetNames = useMemo(() => Object.fromEntries((assetCatalog ?? []).map(asset => [asset.code, asset.display_name || asset.name])), [assetCatalog]);
 
   const visibleMarkets = useMemo(() => {
     const needle = query.trim().toUpperCase();
-    const rows = markets.filter((market) => {
-      const baseAsset = assetCodeFromMarketSymbol(market.sym);
-      const assetConfig = assetCatalog.find((asset) => asset.code === baseAsset);
-      if (assetCatalog.length > 0 && (!assetConfig || !assetConfig.enabled || !assetConfig.visible || !assetConfig.spot_enabled)) return false;
+    const rows = filterPublicSpotMarkets(markets, assetCatalog).filter((market) => {
       const configuredName = assetNames[assetCodeFromMarketSymbol(market.sym)] || getAssetName(market.sym);
       if (needle && !market.sym.toUpperCase().includes(needle) && !configuredName.toUpperCase().includes(needle)) return false;
       if (filter === "favorites") return favorites.includes(market.sym);
@@ -367,6 +374,15 @@ export function MarketsPage() {
     });
   }, [markets, assetCatalog, query, filter, favorites, sort, assetNames]);
 
+
+  if (assetCatalog === null) {
+    return (
+      <div role="status" className="rounded-xl border border-brand-border bg-brand-surface px-4 py-10 text-center text-[13px] text-brand-text-muted">
+        {assetCatalogError ? t("Market feed unavailable") : t("Loading market data")}
+        {assetCatalogError ? <p className="mt-2 text-xs">{t(assetCatalogError)}</p> : null}
+      </div>
+    );
+  }
 
   return (
     <div data-testid="public-market-page" className="tone-markets relative mx-auto flex w-full min-w-0 flex-col gap-3 p-4 sm:p-5">
