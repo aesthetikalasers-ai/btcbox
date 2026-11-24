@@ -135,6 +135,10 @@ declare
   v_symbol text;
   v_funding_at timestamptz;
   v_rate public.perpetual_funding_rates%rowtype;
+  v_market public.perpetual_markets%rowtype;
+  v_expected_premium numeric(12,10);
+  v_expected_rate numeric(12,10);
+  v_cap numeric(12,10);
 begin
   if new.operation_type <> 'perp_funding' then return new; end if;
   v_symbol := new.metadata->>'symbol';
@@ -145,14 +149,29 @@ begin
   end;
   select * into v_rate from public.perpetual_funding_rates
    where symbol=v_symbol and funding_at=v_funding_at;
+  select * into v_market from public.perpetual_markets where symbol=v_symbol;
   if not found
      or v_rate.formula_version is distinct from 'btcbox-funding-v1'
      or v_rate.interest_rate is distinct from 0.0001::numeric
      or v_rate.impact_bid_price is null or v_rate.impact_bid_price <= 0
      or v_rate.impact_ask_price is null or v_rate.impact_ask_price < v_rate.impact_bid_price
+     or v_rate.index_price is null or v_rate.index_price <= 0
+     or v_rate.premium_index is null
      or v_rate.calculated_at is null
      or v_rate.calculated_at < now() - interval '2 minutes' then
     raise exception 'funding operation requires a fresh btcbox-funding-v1 snapshot';
+  end if;
+  v_expected_premium := (((v_rate.impact_bid_price + v_rate.impact_ask_price) / 2)
+                         / v_rate.index_price - 1)::numeric(12,10);
+  v_expected_rate := least(0.0075::numeric,
+                      greatest(-0.0075::numeric,
+                        v_expected_premium + least(0.0005::numeric,
+                          greatest(-0.0005::numeric,0.0001::numeric-v_expected_premium))));
+  v_cap := least(0.0075::numeric,v_market.funding_rate_cap);
+  v_expected_rate := least(v_cap,greatest(-v_cap,v_expected_rate));
+  if v_rate.premium_index is distinct from v_expected_premium
+     or v_rate.rate is distinct from v_expected_rate then
+    raise exception 'funding snapshot does not match the approved btcbox-funding-v1 formula';
   end if;
   return new;
 end;
