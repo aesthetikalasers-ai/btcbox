@@ -10,6 +10,7 @@ type SortKey = "volume" | "change" | "price";
 type MarketFilter = "all" | "hot" | "favorites" | "gainers" | "losers";
 
 const tradeSymbol = (symbol: string) => (symbol.endsWith("USDT") ? symbol : `${symbol}USDT`);
+const assetCodeFromMarketSymbol = (symbol: string) => symbol.endsWith("USDT") ? symbol.slice(0, -4) : symbol;
 
 // Human-readable full asset names, shown under the ticker symbol so users see
 // e.g. "Bitcoin" under BTC rather than the raw 24h volume.
@@ -128,7 +129,7 @@ function MarketTable({ markets, assetNames, locale, loading, error, favorites, o
                       <span className="block truncate text-[14.5px] font-bold leading-tight text-brand-text">{market.sym}</span>
                       <span className="text-[11px] font-medium text-brand-text-muted shrink-0">/USDT</span>
                     </span>
-                    <span className="mt-0.5 block truncate text-[11px] leading-tight text-brand-text-muted">{t(assetNames[market.sym] || getAssetName(market.sym))}</span>
+                    <span className="mt-0.5 block truncate text-[11px] leading-tight text-brand-text-muted">{t(assetNames[assetCodeFromMarketSymbol(market.sym)] || getAssetName(market.sym))}</span>
                   </span>
                 </Link>
                 <button
@@ -191,7 +192,7 @@ function MarketTable({ markets, assetNames, locale, loading, error, favorites, o
                         <span className="block truncate text-[13px] font-bold leading-tight text-brand-text">{market.sym}</span>
                         <span className="text-[10px] font-medium text-brand-text-muted shrink-0">/USDT</span>
                       </div>
-                      <span className="block truncate text-[10px] leading-tight text-brand-text-muted">{t(assetNames[market.sym] || getAssetName(market.sym))}</span>
+                      <span className="block truncate text-[10px] leading-tight text-brand-text-muted">{t(assetNames[assetCodeFromMarketSymbol(market.sym)] || getAssetName(market.sym))}</span>
                     </Link>
                     <button
                       type="button"
@@ -349,10 +350,10 @@ export function MarketsPage() {
   const visibleMarkets = useMemo(() => {
     const needle = query.trim().toUpperCase();
     const rows = markets.filter((market) => {
-      const baseAsset = market.sym.endsWith("USDT") ? market.sym.slice(0, -4) : market.sym;
+      const baseAsset = assetCodeFromMarketSymbol(market.sym);
       const assetConfig = assetCatalog.find((asset) => asset.code === baseAsset);
       if (assetCatalog.length > 0 && (!assetConfig || !assetConfig.enabled || !assetConfig.visible || !assetConfig.spot_enabled)) return false;
-      const configuredName = assetNames[market.sym] || getAssetName(market.sym);
+      const configuredName = assetNames[assetCodeFromMarketSymbol(market.sym)] || getAssetName(market.sym);
       if (needle && !market.sym.toUpperCase().includes(needle) && !configuredName.toUpperCase().includes(needle)) return false;
       if (filter === "favorites") return favorites.includes(market.sym);
       if (filter === "gainers") return market.chg > 0;
