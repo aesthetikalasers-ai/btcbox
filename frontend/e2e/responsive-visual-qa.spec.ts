@@ -420,9 +420,43 @@ async function assertPageAtWidth(
       await chartTrigger.click();
       const chartDialog = page.locator(".spot-chart-drawer");
       await expect(chartDialog, "Compact desktop chart trigger must open the chart panel.").toBeVisible();
-      await expect(chartDialog.locator(".trade-candles")).toBeVisible();
+      const chartSurface = chartDialog.locator(".trade-candles");
+      await expect(chartSurface).toBeVisible();
+      await expect.poll(async () => {
+        const box = await chartSurface.boundingBox();
+        return box ? box.width * box.height : 0;
+      }, { message: "The opened chart surface must have non-zero width and height." }).toBeGreaterThan(0);
+      await expect.poll(
+        () => chartSurface.locator("canvas").count(),
+        { message: "lightweight-charts must mount its canvas inside the visible chart surface." },
+      ).toBeGreaterThan(0);
+      const chartCanvas = chartSurface.locator("canvas").first();
+      await expect.poll(async () => {
+        const box = await chartCanvas.boundingBox();
+        return box ? box.width * box.height : 0;
+      }, { message: "The chart canvas must have non-zero rendered dimensions." }).toBeGreaterThan(0);
+      const bodyOverflowBeforeOpen = await page.locator("body").evaluate((node) => (node as HTMLElement).style.overflow);
       await chartDialog.getByRole("button", { name: "Close chart" }).click();
       await expect(chartDialog).toHaveCount(0);
+      await expect(chartTrigger, "Closing the chart must restore focus to its trigger.").toBeFocused();
+      await expect.poll(
+        () => page.locator("body").evaluate((node) => (node as HTMLElement).style.overflow),
+        { message: "Closing the chart must restore the background scroll lock state." },
+      ).toBe(bodyOverflowBeforeOpen);
+      // Reopen, then dismiss through the backdrop to cover both close paths.
+      await chartTrigger.click();
+      await expect(chartDialog).toBeVisible();
+      await expect.poll(async () => {
+        const box = await chartDialog.locator(".trade-candles").boundingBox();
+        return box ? box.width * box.height : 0;
+      }).toBeGreaterThan(0);
+      await chartDialog.locator(".trade-candles").waitFor({ state: "visible" });
+      await page.locator(".spot-chart-overlay").click({ position: { x: 8, y: 8 } });
+      await expect(chartDialog).toHaveCount(0);
+      await expect(chartTrigger, "Backdrop dismissal must restore focus to the chart trigger.").toBeFocused();
+      await expect.poll(
+        () => page.locator("body").evaluate((node) => (node as HTMLElement).style.overflow),
+      ).toBe(bodyOverflowBeforeOpen);
     }
   }
 
@@ -528,10 +562,33 @@ async function assertPageAtWidth(
       async () => (await drawerPanel.boundingBox())?.height ?? 0,
       { message: "The K-line drawer must expand after the trigger is pressed.", timeout: 5000 },
     ).toBeGreaterThan(44);
-    await chartRegion.getByRole("button", { name: "Collapse chart" }).first().first().click();
+    const chartViewport = drawerPanel.locator(":scope > .relative").last();
+    await expect.poll(async () => {
+      const box = await chartViewport.boundingBox();
+      return box ? box.width * box.height : 0;
+    }, { message: "The expanded mobile chart container must have non-zero dimensions." }).toBeGreaterThan(0);
+    const drawerCanvas = drawerPanel.locator("canvas").first();
+    await expect.poll(() => drawerPanel.locator("canvas").count(), {
+      message: "lightweight-charts must mount a canvas in the expanded mobile drawer.",
+    }).toBeGreaterThan(0);
+    await expect.poll(async () => {
+      const box = await drawerCanvas.boundingBox();
+      return box ? box.width * box.height : 0;
+    }, { message: "The mobile chart canvas must have non-zero rendered dimensions." }).toBeGreaterThan(0);
+    await chartRegion.getByRole("button", { name: "Collapse chart" }).first().click();
     await expect.poll(
       async () => (await drawerPanel.boundingBox())?.height ?? Number.POSITIVE_INFINITY,
       { message: "The K-line drawer must collapse cleanly.", timeout: 5000 },
+    ).toBeLessThanOrEqual(50);
+    await chartRegion.getByRole("button", { name: "Expand chart" }).click();
+    await expect.poll(
+      async () => (await drawerPanel.boundingBox())?.height ?? 0,
+      { message: "The K-line drawer must reopen without stale state.", timeout: 5000 },
+    ).toBeGreaterThan(44);
+    await expect.poll(() => drawerPanel.locator("canvas").count()).toBeGreaterThan(0);
+    await chartRegion.getByRole("button", { name: "Collapse chart" }).first().click();
+    await expect.poll(
+      async () => (await drawerPanel.boundingBox())?.height ?? Number.POSITIVE_INFINITY,
     ).toBeLessThanOrEqual(50);
   }
 
