@@ -99,6 +99,7 @@ test('admin perpetual market upsert validates max_leverage <= 100 and mmr range,
   assert.ok(route.includes('maxLeverage > 100'));
   assert.ok(route.includes('mmr < 0 || mmr > 0.5'));
   assert.ok(route.includes('INVALID_MARKET_CONFIG'));
+  assert.ok(route.includes("symbol !== baseAsset + 'USDT'"));
   assert.ok(route.includes('perpetual_markets?on_conflict=symbol'));
 });
 
