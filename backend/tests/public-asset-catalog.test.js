@@ -57,6 +57,8 @@ test('wallet asset display follows configured names, precision metadata, visibil
   assert.ok(assetsPage.includes('pair.enabled'));
   assert.ok(marketsPage.includes('getPublicAssetCatalog(controller.signal)'));
   assert.ok(marketsPage.includes('assetNames[market.sym] || getAssetName(market.sym)'));
+  assert.ok(marketsPage.includes('!configuredName.toUpperCase().includes(needle)'));
+  assert.ok(marketsPage.includes('[markets, query, filter, favorites, sort, assetNames]'));
   assert.ok(marketsPage.includes('assetNames={assetNames}'));
   assert.ok(dashboardMarkets.includes('getPublicAssetCatalog(controller.signal)'));
   assert.ok(dashboardMarkets.includes('assetNames[item.sym] || getAssetName(item.sym)'));
