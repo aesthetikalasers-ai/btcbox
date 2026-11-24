@@ -96,7 +96,7 @@ test('admin user search only returns financial balance aggregates to financial_a
   assert.ok(start >= 0 && end > start);
   const route = api.slice(start, end);
   assert.ok(route.includes("hasAdminPermission(adminMembership, 'financial_audit.read')"));
-  assert.ok(route.includes('if (canReadFinancialAudit && financialPostgresReadsEnabled())'));
+  assert.ok(route.includes('const useCanonicalFinancialReads = financialPostgresReadsEnabled()')); assert.ok(route.includes('if (canReadFinancialAudit && useCanonicalFinancialReads)'));
   assert.ok(route.includes('if (canReadFinancialAudit) {'));
   assert.ok(route.includes('record.total_usdt = totalUsdt(balances, livePriceCache.prices)'));
   assert.ok(!route.includes('return { uid: u.uid, email: u.email || \'\', admin_auth_user_id:'));
