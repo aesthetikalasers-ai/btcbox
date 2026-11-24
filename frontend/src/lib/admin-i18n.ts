@@ -137,6 +137,8 @@ const messages: Record<string, string> = {
   "Customer announcement": "客户公告",
   "Save configuration": "保存配置",
   "Withdrawal queue": "提现队列",
+  "Legacy withdrawal snapshot · partial queue. Do not treat this as the complete canonical queue.": "旧版提现数据快照 · 队列不完整，不能视为完整的正式提现队列。",
+  "Canonical pending queue": "正式待处理提现队列",
   "Approve or reject requests. After staff actually transfer funds, mark paid with the TxID/reference.": "批准或拒绝申请。工作人员实际完成转账后，填写交易哈希或付款凭证并标记已付款。",
   "Refreshing…": "正在刷新…",
   "Refresh queue": "刷新队列",
