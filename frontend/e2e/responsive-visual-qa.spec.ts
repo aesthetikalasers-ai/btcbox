@@ -82,6 +82,44 @@ async function installVisualApiMocks(page: Page) {
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, markets: [{ symbol: "BTCUSDT", base_asset: "BTC", quote_asset: "USDT", status: "trading", max_leverage: 100, price_tick: "0.01", quantity_step: "0.000001", min_quantity: "0.000001", funding_interval_sec: 28800, funding_rate_cap: 0.0075, mark_price: "65000", index_price: "65000" }] }) });
       return;
     }
+    if (pathname === "/api/perpetual/positions") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, positions: [] }),
+      });
+      return;
+    }
+    if (pathname === "/api/perpetual/orders") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, orders: [] }),
+      });
+      return;
+    }
+    if (pathname === "/api/perpetual/funding") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, funding: [] }),
+      });
+      return;
+    }
+    if (pathname === "/api/depth") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          source: "visual-qa",
+          snapshotTs: Math.floor(Date.now() / 1000),
+          bids: [["64999.00", "0.25"], ["64998.00", "0.40"]],
+          asks: [["65001.00", "0.20"], ["65002.00", "0.35"]],
+        }),
+      });
+      return;
+    }
     if (pathname === "/api/market" || pathname === "/api/market/pairs") {
       await route.fulfill({
         status: 200,
@@ -288,6 +326,8 @@ async function assertPageAtWidth(
     const entryShare = entryBox!.width / (entryBox!.width + bookBox!.width);
     expect(Math.abs(entryShare - 0.5), "Perpetual phone columns must be balanced at approximately 50:50.").toBeLessThanOrEqual(0.015);
     await expect(workspace.getByTestId("perp-leverage-pills")).toBeVisible();
+    await expect(page.getByRole("alert")).toHaveCount(0);
+    await expect(page.getByText("Order book is temporarily unavailable.", { exact: true })).toHaveCount(0);
     await expect(page.getByText(/^(Latest trades|Recent trades)$/i)).toHaveCount(0);
   }
 
