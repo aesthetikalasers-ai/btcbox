@@ -151,7 +151,7 @@ function BannerCarousel({ markets, hasEarn, hasTrading }: { markets: MarketTicke
       </div>
       <div className="absolute bottom-2.5 left-1/2 flex -translate-x-1/2 gap-1.5">
         {slides.map((_: BannerSlide, i: number) => (
-          <span key={i} className={`h-1.5 rounded-full transition-all ${i === index ? "w-4 bg-brand-accent" : "w-1.5 bg-brand-text-disabled"}`} />
+          <span key={i} className={`h-1.5 rounded-full transition-all ${i === activeIndex ? "w-4 bg-brand-accent" : "w-1.5 bg-brand-text-disabled"}`} />
         ))}
       </div>
     </section>
@@ -162,14 +162,14 @@ function BannerCarousel({ markets, hasEarn, hasTrading }: { markets: MarketTicke
  * Quick feature entry: a modern 8-icon dual-row grid with subtle gradient icon
  * tiles and crisp iconography.
  */
-function QuickActions() {
+function QuickActions({ hasSpot, hasPerpetual, hasSeconds, hasEarn }: { hasSpot: boolean; hasPerpetual: boolean; hasSeconds: boolean; hasEarn: boolean }) {
   const { t } = useI18n();
   // `badge` is optional: it is reserved for campaigns that are genuinely live.
   const entries: Array<{ to: string; label: string; icon: typeof ArrowLeftRight; badge?: string }> = [
-    { to: "/trade", label: t("Spot"), icon: ArrowLeftRight },
-    { to: "/contract", label: t("Contract"), icon: TrendingUp },
-    { to: "/seconds", label: t("Seconds"), icon: ChartNoAxesCombined },
-    { to: "/earn", label: t("Earn"), icon: Sprout },
+    ...(hasSpot ? [{ to: "/trade/BTCUSDT", label: t("Spot"), icon: ArrowLeftRight }] : []),
+    ...(hasPerpetual ? [{ to: "/contract", label: t("Contract"), icon: TrendingUp }] : []),
+    ...(hasSeconds ? [{ to: "/seconds", label: t("Seconds"), icon: ChartNoAxesCombined }] : []),
+    ...(hasEarn ? [{ to: "/earn", label: t("Earn"), icon: Sprout }] : []),
     { to: "/deposit", label: t("Deposit"), icon: ArrowDownToLine },
     { to: "/rewards", label: t("Rewards"), icon: Gift },
     { to: "/orders", label: t("Orders"), icon: ClipboardList },
@@ -426,7 +426,7 @@ export function Dashboard() {
       <h1 className="sr-only">{t("Digital asset exchange")}</h1>
       <BannerCarousel markets={publicMarkets} hasEarn={hasEarn} hasTrading={hasTrading} />
       <TickerMarquee markets={publicMarkets} locale={locale} />
-      <QuickActions />
+      <QuickActions hasSpot={publicMarkets.length > 0} hasPerpetual={hasPerpetual} hasSeconds={hasSeconds} hasEarn={hasEarn} />
       <MarketTable markets={publicMarkets} locale={locale} onViewAll={() => navigate("/markets")} loading={loading || assetCatalog === null} error={marketDisplayError} />
     </div>
   );
