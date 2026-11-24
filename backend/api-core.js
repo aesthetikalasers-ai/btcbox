@@ -14,6 +14,8 @@ const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const LIVE_PRICE_CACHE_MS = 15000;
 let livePriceCache = { expiresAt: 0, prices: {} };
 let lastKnownSpotMarketCatalog = null;
+let spotMarketCatalogReadGeneration = 0;
+let lastSuccessfulSpotMarketCatalogReadGeneration = 0;
 const PUBLIC_SPOT_CATALOG_CACHE_MAX_AGE_MS = 15 * 60 * 1000;
 
 // Public, read-only endpoints must not be coupled to the account-state singleton.
@@ -573,12 +575,25 @@ async function readSpotMarketCatalog() {
 }
 
 async function readPublicSpotMarketCatalog() {
+  // Requests can overlap on a warm serverless instance. Only the newest
+  // successful database read may replace the cached authoritative snapshot.
+  // If an older request finishes after a newer success, return the newer
+  // snapshot rather than regressing either the response or the cache.
+  const readGeneration = ++spotMarketCatalogReadGeneration;
   try {
     // The database remains the authoritative source whenever it is reachable.
     // Cache only a fully validated snapshot; a successful empty catalogue is
     // authoritative too and must never be replaced with seeded pairs.
     const markets = await readSpotMarketCatalog();
+    if (readGeneration < lastSuccessfulSpotMarketCatalogReadGeneration && lastKnownSpotMarketCatalog) {
+      return {
+        source: 'database',
+        tradingEnabled: true,
+        markets: lastKnownSpotMarketCatalog.markets.filter(market => market.enabled).map(market => ({ ...market, trading_enabled: true })),
+      };
+    }
     lastKnownSpotMarketCatalog = { fetchedAt: Date.now(), markets };
+    lastSuccessfulSpotMarketCatalogReadGeneration = readGeneration;
     return {
       source: 'database',
       tradingEnabled: true,
