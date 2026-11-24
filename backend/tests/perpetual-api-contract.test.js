@@ -122,7 +122,7 @@ test('workers exist and are idempotent/restart-safe', () => {
     assert.ok(src.includes('perp_record_mark_price') || src.includes('perp_settle_funding_one') || src.includes('perp_settle_funding_market') || src.includes('perp_liquidate_position'), f + ' must call a perp RPC');
   }
   const mark = fs.readFileSync(path.join(root, 'scripts', 'perp-mark-price-worker.js'), 'utf8');
-  assert.ok(mark.includes('sources.length < 2'), 'mark worker requires >=2 sources');
+  assert.ok(mark.includes('freshSources.length < 2'), 'mark worker requires >=2 fresh sources');
   assert.ok(mark.includes('CIRCUIT BREAKER'), 'mark worker reports circuit breaker');
   assert.ok(mark.includes('perpetual_markets?select=symbol,base_asset,quote_asset,mark_price_stale_sec,circuit_breaker_deviation_pct&enabled=eq.true'),
     'mark worker discovers all enabled markets from the database');
