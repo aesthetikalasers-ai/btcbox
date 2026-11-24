@@ -307,6 +307,7 @@ const messages: Record<string, string> = {
   "Processing…": "处理中…",
   "Retry same debit": "使用原请求重试",
   "Confirm debit": "确认扣款",
+  "Seconds contracts": "秒合约管理",
   "Manual credit / debit": "人工加款 / 扣款",
   "Financial adjustments": "人工资金调整",
   "Financial action": "资金操作",
