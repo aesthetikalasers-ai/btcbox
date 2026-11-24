@@ -1015,7 +1015,7 @@ begin
       from public.financial_accounts
      where user_id=p_user_id and asset='USDT';
     if not found then
-      raise exception 'bad debt ledger audit marker account missing';
+      raise exception 'bad-debt ledger audit marker account missing';
     end if;
   end if;
   delete from public.perpetual_positions where id=v_pos.id;
