@@ -1401,6 +1401,27 @@ export interface AdminAssetConfig {
   earn_enabled: boolean;
   sort_order: number;
 }
+export interface AdminPerpMarket {
+  symbol: string;
+  base_asset: string;
+  quote_asset: string;
+  enabled: boolean;
+  status: "trading" | "paused" | "open_only" | "liquidation_only";
+  price_tick: string | number;
+  quantity_step: string | number;
+  min_quantity: string | number;
+  max_quantity?: string | number | null;
+  max_position_notional?: string | number | null;
+  max_leverage: number;
+  maintenance_margin_rate: string | number;
+  maker_fee_rate: string | number;
+  taker_fee_rate: string | number;
+  funding_interval_sec: number;
+  funding_rate_cap: string | number;
+  mark_price_stale_sec: number;
+  circuit_breaker_deviation_pct: string | number;
+  updated_at?: string;
+}
 export interface AdminSpotMarket {
   base_asset: string;
   quote_asset: string;
@@ -1511,6 +1532,19 @@ export async function saveAdminSpotMarket(token: string, input: {
   reason: string; request_id: string;
 }) {
   return adminRequest<{ ok: true; market: AdminSpotMarket; replayed?: boolean }>(token, "admin/spot-markets", { method: "POST", body: input });
+}
+export async function getAdminPerpMarkets(token: string, signal?: AbortSignal) {
+  return adminRequest<{ ok: true; markets: AdminPerpMarket[] }>(token, "admin/perpetual/markets", { signal });
+}
+export async function saveAdminPerpMarket(token: string, input: {
+  base_asset: string; quote_asset: "USDT"; enabled: false; status: "paused";
+  price_tick: string; quantity_step: string; min_quantity: string;
+  max_quantity: string | null; max_position_notional: string | null;
+  max_leverage: number; maintenance_margin_rate: string; maker_fee_rate: string; taker_fee_rate: string;
+  funding_interval_sec: number; funding_rate_cap: string; mark_price_stale_sec: number;
+  circuit_breaker_deviation_pct: string; reason: string;
+}) {
+  return adminRequest<{ ok: true; symbol: string; enabled: false; status: "paused"; audit_sync_pending?: boolean }>(token, "admin/perpetual/market", { method: "POST", body: input });
 }
 export interface AdminSecondsOpenPosition {
   position_id: string;
