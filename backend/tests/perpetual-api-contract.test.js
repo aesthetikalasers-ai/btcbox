@@ -291,6 +291,8 @@ test('perpetual workers validate RPC success payloads before counting settlement
   const liq = fs.readFileSync(path.join(root, 'scripts', 'perp-liquidation-worker.js'), 'utf8');
   assert.ok(fund.includes("result.ok !== true"));
   assert.ok(liq.includes("res.ok !== true"));
+  assert.ok(liq.includes('process.exit(failed > 0 || paused > 0 ? 2 : 0)'),
+    'stale mark-price pauses must produce a non-zero worker exit for monitoring');
 });
 
 test('funding market settlement is atomic, market-locked and advances only after all users succeed', () => {
