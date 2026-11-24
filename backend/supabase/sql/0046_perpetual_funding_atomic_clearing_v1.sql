@@ -158,8 +158,8 @@ begin
   perform pg_advisory_xact_lock(hashtextextended('perp-market:'||p_symbol, 0));
 
   select * into v_market from public.perpetual_markets
-   where symbol=p_symbol and enabled=true for update;
-  if not found then raise exception 'perpetual market disabled or missing'; end if;
+   where symbol=p_symbol for update;
+  if not found then raise exception 'perpetual market configuration missing'; end if;
   if v_market.next_funding_at is null or v_market.next_funding_at <> p_funding_at then
     return jsonb_build_object('ok',true,'stale_boundary',true,'symbol',p_symbol,
       'expected_funding_at',v_market.next_funding_at);
