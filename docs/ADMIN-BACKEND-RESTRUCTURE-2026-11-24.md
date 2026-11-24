@@ -146,3 +146,23 @@ Before any code extraction, inspect the existing test layout and identify tests 
 - Spot market configuration contract
 
 Do not proceed with a code move that lacks a reliable parity test for its affected boundary.
+
+
+## Perpetual contract and PR #113 coordination (2026-11-24)
+
+- The owner has advised that the related perpetual/market-picker work tracked around PR #113 is actively being repaired. This admin workstream will not edit PR #113 or its branch.
+- Treat #113 as an upstream integration dependency to inspect later: compare its eventual API expectations, market selection behavior, and supported contract modes against the backend contracts before connecting the admin UI.
+- The current backend contains public/user perpetual endpoints under `/api/perpetual/*` and separate admin handlers under `/api/admin/perpetual/*`. They are different route surfaces and must not be conflated.
+- The admin handlers currently present are:
+  - `POST /api/admin/perpetual/market` — market configuration mutation; handler checks `system_config.write`.
+  - `GET /api/admin/perpetual/liquidations` — read-only liquidation event query; handler checks `financial_audit.read`.
+  - `GET /api/admin/perpetual/insurance` — read-only insurance account query; handler checks `financial_audit.read`.
+- The shared admin route permission resolver does not currently map these three paths. Consequently the dispatcher returns `ADMIN_ROUTE_NOT_FOUND` before these inner handler checks. This is SOURCE OBSERVED; it has not been reproduced with a live request.
+- They remain deliberately fail-closed. Do not expose them by adding mappings until the owner approves the exact route/permission policy and audit expectations. In particular, do not make the market mutation reachable as a side effect of UI restructuring.
+- A regression test now asserts that these three admin endpoints remain unexposed while their handler code and inner permission checks remain present. This is a guardrail, not a claim that the endpoints are operational.
+
+## CI execution boundary
+
+- The existing backend CI did not include this isolated admin branch in its push trigger, so branch commits would not automatically run the backend build/test/preflight workflow.
+- The workflow's push trigger has now been extended on this branch only to include `work/admin-backend-restructure-20261124`. No other branch trigger, PR #113 trigger, or production deployment configuration was changed.
+- Verify the workflow run for the latest branch commit before claiming any tests passed.
