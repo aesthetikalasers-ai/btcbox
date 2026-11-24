@@ -13,6 +13,7 @@ the fresh-database bootstrap.
 - Atomic funding settlement and clearing: `backend/supabase/sql/0046_perpetual_funding_atomic_clearing_v1.sql`
 - Liquidation accounting closure: `backend/supabase/sql/0047_perpetual_liquidation_accounting_closure_v1.sql`
 - Fixed funding-rate formula and snapshot producer: `backend/supabase/sql/0048_perpetual_funding_rate_producer_v1.sql`
+- Complete 26-asset registry: `backend/supabase/sql/0049_btcbox_complete_26_asset_registry_v1.sql`
 
 The numbered SQL files are the canonical source. Do not hand-maintain a second
 copy of any migration in this directory.
@@ -71,6 +72,12 @@ Apply each file as its own tracked Supabase migration, in this exact order:
    funding-rate calculation RPC, and a guard that rejects any `perp_funding`
    financial operation unless it references a fresh `btcbox-funding-v1` snapshot.
    It does not settle positions or move funds.
+9. **0049** — adds the 17 missing active assets to the canonical 26-asset registry.
+   On populated projects the existing asset trigger creates one zero-balance
+   wallet row per existing user profile for each new asset. It does not change
+   any pre-existing wallet balance, user profile, financial account, operation
+   or ledger row. NEAR uses the maximum 18 internal decimal places supported by
+   the current BTCBOX numeric(38,18) accounting model.
 
 For every file, let the Supabase migration mechanism record its real migration
 version/name. Do not manually invent timestamps or insert migration-ledger rows.
@@ -79,8 +86,12 @@ Do not combine the files into an untracked SQL editor batch.
 ## Post-migration invariants
 
 - No pre-existing customer balance or ledger row changes as a side effect of
-  schema installation. The only expected new account row from 0041 is the
+  schema installation. The only new financial account from 0041 is the
   zero-balance platform insurance account `__perp_insurance__/USDT`.
+- Migration 0049 adds the 17 missing assets; on a populated project with N user
+  profiles and the canonical asset trigger, exactly 17 × N new wallet rows are
+  expected. Every new row must have zero available and frozen balances; all
+  existing wallet rows must remain unchanged.
 - The customer account remains non-negative. Liquidation consumes at most the
   position's isolated collateral; unused collateral and that symbol's open-order
   reserves are released.
@@ -151,7 +162,9 @@ fresh-schema initializers and deliberately refuse existing BTCBOX tables.
 Do not enable `FINANCIAL_PERPETUAL_ENGINE_ENABLED` as part of schema migration.
 Do not deploy or enable markets as a side effect of applying these migrations.
 
-## Current authorization state
+## Migration state source of truth
 
-This document records the safe procedure only. It does not authorize or claim
-that either migration has been applied to production.
+This document defines the migration procedure. The target project's Supabase
+migration ledger and post-migration invariant checks are the source of truth for
+whether a migration has actually been applied; never infer production state from
+this document alone.
