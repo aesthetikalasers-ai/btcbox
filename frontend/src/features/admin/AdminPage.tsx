@@ -1291,7 +1291,7 @@ export function AdminPage() {
       <aside className="border-b border-brand-border bg-brand-surface-2/70 px-4 py-4 sm:px-5 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto lg:border-b-0 lg:border-r lg:px-4 lg:py-6">
         <div className="flex items-center justify-between gap-3">
           <BrandLogo compact />
-          <Badge variant={session.is_super_admin ? "default" : "info"}>{session.is_super_admin ? adminText("SUPER ADMIN") : adminText("ACTIVE ADMIN")}</Badge>
+          <Badge className="max-w-full whitespace-normal break-words text-right" variant={session.is_super_admin ? "default" : "info"}>{session.is_super_admin ? adminText("SUPER ADMIN") : adminText("ACTIVE ADMIN")}</Badge>
         </div>
         <div className="mt-5 border-b border-brand-border pb-4 lg:mt-7">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-accent">{adminText("BTCBOX / CONTROL CENTER")}</p>
@@ -1303,7 +1303,7 @@ export function AdminPage() {
             const visibleItems = allowedTabs.filter(item => group.tabs.includes(item.id));
             if (!visibleItems.length) return null;
             return <section key={group.id} aria-label={adminText(group.label)} className="min-w-0">
-              <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-text-muted">{adminText(group.label)}</p>
+              <p className="mb-2 break-words text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-text-muted">{adminText(group.label)}</p>
               <div className="grid grid-cols-1 gap-1">
                 {visibleItems.map(item => <Button key={item.id} className="min-h-10 w-full justify-start whitespace-normal px-2.5 text-left text-xs sm:text-sm lg:px-3" size="sm" variant={tab === item.id ? "secondary" : "ghost"} onClick={() => { setTab(item.id); setError(""); setNotice(""); }}>{adminText(item.label)}</Button>)}
               </div>
@@ -1328,7 +1328,7 @@ export function AdminPage() {
         </header>
         {!session.is_super_admin ? <div className="mb-4 flex flex-wrap items-center gap-1.5 rounded-lg border border-brand-border bg-brand-surface px-3 py-2">
           <span className="mr-1 text-[10px] font-semibold uppercase tracking-wide text-brand-text-muted">{adminText("Current permissions")}</span>
-          {session.permissions.length ? session.permissions.map(key => <Badge key={key} variant="outline" className="text-[10px]">{permissionLabel(key)}</Badge>) : <span className="text-xs text-brand-text-muted">{adminText("No separately assigned permissions")}</span>}
+          {session.permissions.length ? session.permissions.map(key => <Badge key={key} variant="outline" className="max-w-full whitespace-normal break-words text-[10px]">{permissionLabel(key)}</Badge>) : <span className="text-xs text-brand-text-muted">{adminText("No separately assigned permissions")}</span>}
         </div> : null}
         {error ? <div role="alert" className="mb-4 rounded-lg border border-brand-danger/30 bg-brand-danger/10 p-3 text-sm text-brand-danger">{adminText(error)}</div> : null}
         {notice ? <div role="status" className="mb-4 rounded-lg border border-brand-success/30 bg-brand-success/10 p-3 text-sm text-brand-success">{adminText(notice)}</div> : null}
