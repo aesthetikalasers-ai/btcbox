@@ -13,6 +13,7 @@ const marketsPage = fs.readFileSync(path.resolve(root, '../../frontend/src/featu
 const dashboardMarkets = fs.readFileSync(path.resolve(root, '../../frontend/src/features/dashboard/components/LiveMarketsTable.tsx'), 'utf8');
 const admin = fs.readFileSync(path.resolve(root, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
 const tradeNav = fs.readFileSync(path.resolve(root, '../../frontend/src/features/trade/TradeProductNav.tsx'), 'utf8');
+const tradeHub = fs.readFileSync(path.resolve(root, '../../frontend/src/features/pages/TradeHubPage.tsx'), 'utf8');
 
 test('public asset catalogue exposes only display metadata and never wallet or account data', () => {
   const start = api.indexOf("if (path === 'assets' && method === 'GET')");
@@ -115,4 +116,16 @@ test('trade product navigation follows public asset visibility and module switch
   assert.ok(tradeNav.includes('PRODUCTS.filter'));
   assert.ok(tradeNav.includes('availableProducts.map'));
   assert.ok(tradeNav.includes('if (availableProducts.length === 0) return null'));
+});
+
+
+test('trade hub only renders product cards with eligible configured assets', () => {
+  assert.ok(tradeHub.includes('getPublicAssetCatalog(controller.signal)'));
+  assert.ok(tradeHub.includes('const showSpot = !pairsLoading && !pairsError && spotPairs.length > 0'));
+  assert.ok(tradeHub.includes('const showPerpetual = hasVisibleAssetModule("perpetual_enabled")'));
+  assert.ok(tradeHub.includes('const showSeconds = hasVisibleAssetModule("seconds_enabled", ["BTC", "ETH", "SOL", "BNB"])'));
+  assert.ok(tradeHub.includes('const showEarn = hasVisibleAssetModule("earn_enabled")'));
+  for (const condition of ['{showSpot ? (','{showPerpetual ? (','{showSeconds ? (','{showEarn ? (']) {
+    assert.ok(tradeHub.includes(condition), 'missing conditional product card ' + condition);
+  }
 });
