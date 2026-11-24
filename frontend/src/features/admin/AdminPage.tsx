@@ -1501,7 +1501,7 @@ export function AdminPage() {
                   <th className="px-3 py-2 text-right">{adminText("Action")}</th>
                 </tr></thead>
                 <tbody>{perpMarkets.map(market => <tr key={market.symbol} className="border-b border-brand-border-subtle">
-                  <td className="px-3 py-2.5 font-semibold">{market.base_asset}/{market.quote_asset}</td>
+                  <td className="break-all px-3 py-2.5 font-semibold">{market.base_asset}/{market.quote_asset}</td>
                   <td className="px-3 py-2.5"><Badge className="max-w-[220px] whitespace-normal break-words" variant={market.enabled ? "destructive" : "warning"}>{market.enabled ? adminText("Enabled") : adminText("Disabled")} · {adminText(market.status)}</Badge></td>
                   <td className="px-3 py-2.5 text-right tabular-nums">{market.max_leverage}x</td>
                   <td className="px-3 py-2.5 text-right text-xs tabular-nums">{asText(market.price_tick)} / {asText(market.quantity_step)}</td>
