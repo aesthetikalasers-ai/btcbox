@@ -1,5 +1,0 @@
-backend/** text=auto
-frontend/** text=auto
-migrations/** text=auto
-package-lock.json text=auto
-LICENSE text=auto
