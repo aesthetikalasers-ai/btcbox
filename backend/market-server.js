@@ -186,7 +186,10 @@ const server = http.createServer(async (req, res) => {
         if (deadline) clearTimeout(deadline);
         try { res.end(); } catch { /* already closed */ }
       };
-      req.on('close', cleanup);
+      // Track the response lifecycle, not request-body completion. The
+      // IncomingMessage close event may fire while the SSE response is healthy.
+      req.on('error', cleanup);
+      res.on('close', cleanup);
       res.on('error', cleanup);
 
       writeComment(res, 'stream open');
