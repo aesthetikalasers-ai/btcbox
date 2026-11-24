@@ -87,8 +87,10 @@ begin
      or v_rate.premium_index is null then
     raise exception 'funding requires a validated premium/index/mark snapshot';
   end if;
-  if jsonb_typeof(v_rate.sources) <> 'array'
-     or jsonb_array_length(v_rate.sources) < 2 then
+  if jsonb_typeof(v_rate.sources) is distinct from 'array' then
+    raise exception 'funding source samples must be a JSON array';
+  end if;
+  if jsonb_array_length(v_rate.sources) < 2 then
     raise exception 'funding requires at least two recorded source samples';
   end if;
   if exists (
@@ -222,8 +224,10 @@ begin
      or v_rate.premium_index is null then
     raise exception 'funding snapshot is incomplete';
   end if;
-  if jsonb_typeof(v_rate.sources) <> 'array'
-     or jsonb_array_length(v_rate.sources) < 2 then
+  if jsonb_typeof(v_rate.sources) is distinct from 'array' then
+    raise exception 'funding snapshot sources must be a JSON array';
+  end if;
+  if jsonb_array_length(v_rate.sources) < 2 then
     raise exception 'funding snapshot has insufficient source samples';
   end if;
   if exists (
