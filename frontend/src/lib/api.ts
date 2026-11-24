@@ -1348,6 +1348,9 @@ export interface AdminUserRecord {
   uid: string;
   email: string;
   /** Supabase Auth UUID, populated only for Super Admin user-list responses. */
+  /** Local mapping status only; this does not assert live Supabase Auth account status. */
+  auth_identity_link_status?: "linked" | "missing" | "duplicate_mapping";
+  auth_identity_count?: number;
   admin_auth_user_id?: string;
   kyc_status?: string;
   kyc?: { status?: string };
