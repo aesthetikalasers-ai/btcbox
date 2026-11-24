@@ -19,6 +19,9 @@ test('manual credit and manual debit are separate finance-centre actions, not us
   const userBlock = page.slice(userStart, financeStart);
   const financeBlock = page.slice(financeStart, financeEnd);
   assert.ok(userBlock.includes('setTab("financial-adjustments")'));
+  assert.ok(page.includes('const selectUser = async (uid: string): Promise<boolean>'));
+  assert.ok(page.includes('then(loaded=>{if(loaded)setTab("financial-adjustments");})'));
+
   assert.ok(!userBlock.includes('ManualDebitPanel'));
   assert.ok(!userBlock.includes('manualCredit(event,coin)'));
   assert.ok(financeBlock.includes('financialAction === "credit"'));
