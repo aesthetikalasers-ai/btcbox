@@ -1709,7 +1709,7 @@
   "Price must follow the market tick; quantity must follow the step and minimum order rules.": "Der Preis muss dem Tick des Marktes entsprechen; die Menge muss Schrittweite und Mindestorder erfüllen.",
   "Spot reference": "Spot-Referenz",
   "Bootstrap reference": "Bootstrap-Referenzpreis",
-  "Bootstrap": "Bootstrap"
+  "Bootstrap": "Bootstrap",
   "Underlying spot order book": "Spot-Orderbuch des Basiswerts",
   "Spot reference only — not the perpetual execution book.": "Nur Spot-Referenz — nicht das Ausführungsorderbuch der Perpetuals.",
   "Spot reference depth": "Spot-Referenztiefe",
