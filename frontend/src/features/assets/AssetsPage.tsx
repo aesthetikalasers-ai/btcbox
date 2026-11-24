@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowDownToLine, ArrowUpFromLine, ArrowUpRight, ChevronDown, Eye, EyeOff, LockKeyhole, Sprout, Wallet } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
-import { ApiError, getAccount, type AccountBalance, type AccountSnapshot } from "../../lib/api";
+import { ApiError, getAccount, getPublicAssetCatalog, getSpotMarketPairs, type AccountBalance, type AccountSnapshot, type PublicAssetConfig, type SpotMarketPair } from "../../lib/api";
 import { formatDecimalAmount, localeTags, useI18n } from "../../lib/i18n";
 import { TokenIcon } from "../../components/ui/TokenIcon";
 import { useAuth } from "../../lib/auth";
@@ -44,6 +44,8 @@ export function AssetsPage() {
   const authenticated = status === "authenticated";
   const numberLocale = localeTags[language];
   const [account, setAccount] = useState<AccountSnapshot | null>(null);
+  const [assetCatalog, setAssetCatalog] = useState<PublicAssetConfig[]>([]);
+  const [enabledSpotPairs, setEnabledSpotPairs] = useState<SpotMarketPair[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [signedOut, setSignedOut] = useState(false);
@@ -83,6 +85,17 @@ export function AssetsPage() {
   }
 
   useEffect(() => {
+    const controller = new AbortController();
+    getPublicAssetCatalog(controller.signal).then(setAssetCatalog).catch(() => {
+      if (!controller.signal.aborted) setAssetCatalog([]);
+    });
+    getSpotMarketPairs(controller.signal).then(setEnabledSpotPairs).catch(() => {
+      if (!controller.signal.aborted) setEnabledSpotPairs([]);
+    });
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
     void load();
     const refreshWhenVisible = () => {
       if (document.visibilityState === "visible") void load();
@@ -99,12 +112,24 @@ export function AssetsPage() {
 
   const balances = useMemo(() => {
     const entries = Object.entries(account?.balances ?? {}) as Array<[string, AccountBalance]>;
-    const pinned = PINNED_COINS.map((coin) => entries.find(([c]) => c.toUpperCase() === coin)).filter((x): x is [string, AccountBalance] => Boolean(x));
-    const rest = entries
-      .filter(([coin]) => !PINNED_COINS.includes(coin.toUpperCase()))
-      .sort((a, b) => Number(b[1].free || 0) + Number(b[1].frozen || 0) - (Number(a[1].free || 0) + Number(a[1].frozen || 0)));
-    return [...pinned, ...rest];
-  }, [account]);
+    const configured = new Map(assetCatalog.map(asset => [asset.code, asset]));
+    // Keep every non-zero balance visible even when an asset is disabled or hidden;
+    // those switches control the public catalogue, never access to existing funds.
+    const visibleEntries = entries.filter(([rawCode, balance]) => {
+      const code = rawCode.toUpperCase();
+      const config = configured.get(code);
+      const hasFunds = Number(balance.free || 0) > 0 || Number(balance.frozen || 0) > 0;
+      return hasFunds || !config || (config.enabled && config.visible);
+    });
+    return visibleEntries.sort((a, b) => {
+      const left = configured.get(a[0].toUpperCase());
+      const right = configured.get(b[0].toUpperCase());
+      if (left && right) return left.sort_order - right.sort_order || a[0].localeCompare(b[0]);
+      if (left) return -1;
+      if (right) return 1;
+      return (Number(b[1].free || 0) + Number(b[1].frozen || 0)) - (Number(a[1].free || 0) + Number(a[1].frozen || 0));
+    });
+  }, [account, assetCatalog]);
 
   return (
     <div aria-busy={loading} className="tone-assets relative mx-auto flex w-full max-w-[1200px] min-w-0 flex-col gap-5 p-3 sm:p-4 md:p-6 lg:p-8">
@@ -181,7 +206,9 @@ export function AssetsPage() {
       : balances.length ? <Card className="overflow-hidden border border-white/[0.06] bg-white/[0.02] shadow-lg backdrop-blur-sm">
         <div className="divide-y divide-white/[0.04]">
           {balances.map(([coin, balance]) => {
-            const coinName = COIN_NAMES[coin] ?? coin;
+            const assetConfig = assetCatalog.find(asset => asset.code === coin.toUpperCase());
+            const coinName = assetConfig?.display_name || assetConfig?.name || COIN_NAMES[coin] || coin;
+            const hasEnabledSpotPair = enabledSpotPairs.some(pair => pair.base_asset === coin.toUpperCase() && pair.quote_asset === "USDT" && pair.enabled);
             return (
               <div key={coin} className="px-4 py-3.5 transition-colors hover:bg-white/[0.02]">
                 <div className="flex items-start gap-3">
@@ -200,9 +227,9 @@ export function AssetsPage() {
                   <Link to="/earn" className="inline-flex items-center rounded-md bg-brand-surface-2 px-3 py-1.5 text-xs font-semibold text-brand-text-secondary transition-colors hover:bg-brand-surface-hover">
                     {t("Earn")}
                   </Link>
-                  <Link to={`/trade/${coin}USDT`} className="inline-flex items-center rounded-md bg-brand-surface-2 px-3 py-1.5 text-xs font-semibold text-brand-text-secondary transition-colors hover:bg-brand-surface-hover">
+                  {hasEnabledSpotPair ? <Link to={`/trade/${coin}USDT`} className="inline-flex items-center rounded-md bg-brand-surface-2 px-3 py-1.5 text-xs font-semibold text-brand-text-secondary transition-colors hover:bg-brand-surface-hover">
                     {t("Trade")}
-                  </Link>
+                  </Link> : null}
                 </div>
               </div>
             );
