@@ -94,6 +94,7 @@ FILES=(
   0042_support_read_state_v1.sql
   0043_support_read_cursor_v1.sql
   0044_withdrawal_operation_type_compatibility_v1.sql
+  0045_market_asset_categories_v1.sql
 )
 
 echo "[info] Bootstrapping a fresh BTCBOX schema with ${#FILES[@]} canonical SQL files."
