@@ -28,6 +28,16 @@ test('rejects a one-level book instead of trusting a single displayed quote', ()
   );
 });
 
+test('requires distinct price levels rather than multiple orders at one quote', () => {
+  assert.throws(
+    () => calculateBookDepthMidPrice(
+      [{ price: '100', remaining_quantity: '1' }, { price: '100', remaining_quantity: '2' }],
+      [{ price: '101', remaining_quantity: '1' }, { price: '101', remaining_quantity: '2' }]
+    ),
+    /insufficient two-level/
+  );
+});
+
 test('rejects crossed books and zero remaining quantity', () => {
   assert.throws(
     () => calculateBookDepthMidPrice(
