@@ -144,6 +144,18 @@ test('admin user directory reports local Supabase identity-link mapping anomalie
   assert.ok(!route.includes('auth.users'));
 });
 
+test('admin audit log resolves operator and subject links without hiding unmatched actors', () => {
+  assert.ok(api.includes('function resolveAuditIdentity(uidValue, actorValue)'));
+  assert.ok(api.includes("operator_identity_status: !isSupabaseUserId(actorId) ? 'non_uuid_actor'"));
+  assert.ok(api.includes("uniqueActorUids.length > 1 ? 'ambiguous'"));
+  assert.ok(api.includes('Object.assign(entry, resolveAuditIdentity(entry.uid, entry.by))'));
+  assert.ok(api.includes('...resolveAuditIdentity(entry.uid, entry.by)'));
+  assert.ok(client.includes('operator_identity_status?'));
+  assert.ok(adminPage.includes('Ambiguous account mapping'));
+  assert.ok(adminPage.includes('No BTCBOX account match'));
+  assert.ok(adminPage.includes('System or legacy actor'));
+});
+
 test('withdrawal rejection API requires a bounded, non-control-character audit reason', () => {
   const start = api.indexOf("if (sub === 'withdraw/reject' && method === 'POST')");
   const end = api.indexOf("// POST /api/admin/withdraw/mark-paid", start);
