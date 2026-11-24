@@ -31,6 +31,15 @@ test('perpetual engine feature switch defaults OFF and gates every write', () =>
   assert.ok(api.includes("error.code = 'PERPETUAL_ENGINE_UNAVAILABLE'"));
 });
 
+test('public perpetual catalogue returns the configured minimum notional and frontend checks it before opening', () => {
+  const route = routeSlice("path === 'perpetual/markets' && method === 'GET'", "path === 'perpetual/order' && method === 'POST'");
+  assert.ok(route.includes('min_quantity,min_notional'));
+  const page = fs.readFileSync(path.join(root, '../frontend/src/features/pages/ContractPage.tsx'), 'utf8');
+  assert.ok(page.includes('selectedMarket.min_notional'));
+  assert.ok(page.includes('Order notional is below the market minimum.'));
+  assert.ok(page.includes('if (!reduceOnly'));
+});
+
 test('perpetual public markets fail visibly when disabled or database reads fail', () => {
   const route = routeSlice("path === 'perpetual/markets' && method === 'GET'", "path === 'perpetual/order' && method === 'POST'");
   assert.ok(route.includes('perpetual_enabled: false'));
