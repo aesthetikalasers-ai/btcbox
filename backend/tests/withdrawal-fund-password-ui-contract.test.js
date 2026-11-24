@@ -7,6 +7,7 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const api = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
+const appCore = fs.readFileSync(path.join(root, 'assets/js/app-core.js'), 'utf8');
 const withdrawalView = fs.readFileSync(path.join(root, 'assets/js/views-assets.js'), 'utf8');
 const accountView = fs.readFileSync(path.join(root, 'assets/js/views-account.js'), 'utf8');
 
@@ -30,7 +31,22 @@ test('fund-password setup and withdrawal UIs accept the exact backend policy', (
   assert.ok(!accountView.includes("if(!/^\\d{6}$/.test($('#fp-new').value)"));
 });
 
-test('withdrawal intent keeps its original request ID and never persists security credentials', () => {
+test('ambiguous withdrawal results are checked against owner-scoped PostgreSQL history before retry', () => {
+  assert.ok(api.includes("if (path === 'withdrawal/status' && method === 'GET')"));
+  assert.ok(api.includes("user_id: 'eq.' + String(user.uid)"));
+  assert.ok(api.includes("request_id: 'eq.' + requestId"));
+  assert.ok(api.includes("select: 'id,request_id,asset,amount,fee,network,status,created_at'"));
+  assert.ok(appCore.includes("apiFetch('/withdrawal/status?request_id='+encodeURIComponent(requestId))"));
+  assert.ok(withdrawalView.includes('await apiAdapter.withdrawalStatus(intent.request_id)'));
+  assert.ok(withdrawalView.includes('if(result.found===true&&result.withdrawal)'));
+  assert.ok(withdrawalView.includes('if(result.found!==false) throw new Error'));
+  assert.ok(withdrawalView.includes('const withdrawalIntent=retryIntent||{version:1,request_id:uid()'));
+  assert.ok(withdrawalView.includes('request_id:withdrawalIntent.request_id'));
+  assert.ok(withdrawalView.includes('coin!==retryIntent.coin||amtRaw!==retryIntent.amount||addr!==retryIntent.address||$(\\'#wd-network\\').value!==retryIntent.network'));
+  assert.ok(withdrawalView.includes('No matching withdrawal record was found.'));
+});
+
+test('withdrawal intent persists the original request ID and never persists security credentials', () => {
   assert.ok(withdrawalView.includes('request_id:uid(),coin,amount:amtRaw,address:addr,network:'));
   assert.ok(withdrawalView.includes('request_id:withdrawalIntent.request_id'));
   assert.ok(withdrawalView.includes('Persist the exact idempotency key + immutable intent before network I/O'));
