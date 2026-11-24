@@ -15,7 +15,7 @@ the fresh-database bootstrap.
 - Fixed funding-rate formula and snapshot producer: `backend/supabase/sql/0048_perpetual_funding_rate_producer_v1.sql`
 - Complete 26-asset registry: `backend/supabase/sql/0049_btcbox_complete_26_asset_registry_v1.sql`
 - Guarded perpetual bootstrap mark: `backend/supabase/sql/0050_perpetual_bootstrap_mark_price_v1.sql`
-- Per-market minimum order notional and atomic order validation: `backend/supabase/sql/0051_perpetual_market_min_notional_v1.sql`
+- Per-market minimum order notional, separate `MARKET_LOT_SIZE` rules, and atomic market-order validation: `backend/supabase/sql/0051_perpetual_market_min_notional_v1.sql`
 
 The numbered SQL files are the canonical source. Do not hand-maintain a second
 copy of any migration in this directory.
