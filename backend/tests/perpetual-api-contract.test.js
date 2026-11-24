@@ -224,7 +224,10 @@ test('perpetual read API response fields match the frontend adapters', () => {
 test('perpetual market reads expose only fresh mark/index feed values', () => {
   const route = routeSlice("path === 'perpetual/markets' && method === 'GET'", "path === 'perpetual/order' && method === 'POST'");
   assert.ok(route.includes("perp_latest_mark_price"));
-  assert.ok(route.includes("['ok', 'degraded'].includes(row.status)"));
+  assert.ok(route.includes("['ok', 'degraded', 'bootstrap'].includes(row.status)"));
+  const page = fs.readFileSync(path.join(root, '../frontend/src/features/pages/ContractPage.tsx'), 'utf8');
+  assert.ok(page.includes('Bootstrap reference'));
+  assert.ok(page.includes('mark_price_status === "bootstrap"'));
   assert.ok(route.includes("mark_price: fresh ? String(row.mark_price) : null"));
   assert.ok(route.includes("index_price: fresh ? String(row.index_price) : null"));
   assert.ok(route.includes("mark_price_status: fresh ? row.status : 'stale'"));
