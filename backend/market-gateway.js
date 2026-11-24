@@ -167,7 +167,7 @@ async function binanceMarket(provider, bases, timeoutMs) {
     // Reject incomplete rows instead of letting NaN reach the UI.
     if (!(price > 0) || !(high > 0) || !(low > 0) || chg === null || vol === null) continue;
     const closeTime = num(row.closeTime);
-    const providerTs = closeTime ? Math.floor(closeTime / 1000) : now;
+    const providerTs = closeTime && closeTime > 0 ? Math.floor(closeTime / 1000) : null;
     markets.push({ sym: base, price, chg, high, low, vol: String(vol), source });
     data[base] = { price, chg, high, low, vol, ts: now, providerTs, source };
   }
@@ -206,7 +206,8 @@ async function coinbaseMarket(provider, bases, timeoutMs) {
         if (!(price > 0) || !(open > 0) || !(high > 0) || !(low > 0) || baseVol === null) return;
         const chg = ((price - open) / open) * 100;
         const vol = baseVol * price;
-        const providerTs = typeof ticker.time === 'string' ? Math.floor(Date.parse(ticker.time) / 1000) : now;
+        const providerTimeMs = typeof ticker.time === 'string' ? Date.parse(ticker.time) : NaN;
+        const providerTs = Number.isFinite(providerTimeMs) && providerTimeMs > 0 ? Math.floor(providerTimeMs / 1000) : null;
         markets.push({ sym: base, price, chg, high, low, vol: String(vol), source: 'coinbase' });
         data[base] = { price, chg, high, low, vol, ts: now, providerTs, source: 'coinbase' };
       } catch {
