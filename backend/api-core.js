@@ -4784,41 +4784,92 @@ async function handleRequest(event, context) {
     // ---------- Admin: Perpetual markets / liquidations / insurance fund ----------
     if (sub.startsWith('perpetual/')) {
       const perpSub = sub.slice('perpetual/'.length);
+      if (perpSub === 'markets' && method === 'GET') {
+        if (!hasAdminPermission(adminMembership, 'system_config.read')) return json({ ok: false, code: 'ADMIN_PERMISSION_DENIED', permission: 'system_config.read' }, 403);
+        if (!supabaseStorageConfigured()) return json({ ok: false, code: 'PERPETUAL_RPC_NOT_CONFIGURED' }, 503);
+        try {
+          const markets = await perpRestGet('perpetual_markets?select=symbol,base_asset,quote_asset,enabled,status,price_tick,quantity_step,min_quantity,max_quantity,max_position_notional,max_leverage,maintenance_margin_rate,maker_fee_rate,taker_fee_rate,funding_interval_sec,funding_rate_cap,mark_price_stale_sec,circuit_breaker_deviation_pct,updated_at&order=symbol.asc');
+          return json({ ok: true, markets: markets });
+        } catch (_) { return json({ ok: false, code: 'PERPETUAL_READ_UNAVAILABLE' }, 503); }
+      }
       if (perpSub === 'market' && method === 'POST') {
         if (!hasAdminPermission(adminMembership, 'system_config.write')) return json({ ok: false, code: 'ADMIN_PERMISSION_DENIED', permission: 'system_config.write' }, 403);
         if (!supabaseStorageConfigured()) return json({ ok: false, code: 'PERPETUAL_RPC_NOT_CONFIGURED' }, 503);
+
         const symbol = String(body.symbol || '').trim().toUpperCase();
-        const baseAsset = String(body.base_asset || symbol.replace('USDT','')).trim().toUpperCase();
+        const baseAsset = String(body.base_asset || '').trim().toUpperCase();
         const priceTick = parseMoneyInput(body.price_tick);
         const quantityStep = parseMoneyInput(body.quantity_step);
         const minQuantity = parseMoneyInput(body.min_quantity);
-        const maxQuantity = body.max_quantity ? parseMoneyInput(body.max_quantity) : null;
-        const maxPositionNotional = body.max_position_notional ? parseMoneyInput(body.max_position_notional) : null;
+        const maxQuantity = body.max_quantity === null || body.max_quantity === undefined || body.max_quantity === '' ? null : parseMoneyInput(body.max_quantity);
+        const maxPositionNotional = body.max_position_notional === null || body.max_position_notional === undefined || body.max_position_notional === '' ? null : parseMoneyInput(body.max_position_notional);
         const maxLeverage = Number(body.max_leverage);
-        const mmr = body.maintenance_margin_rate === undefined ? null : Number(body.maintenance_margin_rate);
-        const makerFee = body.maker_fee_rate === undefined ? 0 : Number(body.maker_fee_rate);
-        const takerFee = body.taker_fee_rate === undefined ? 0 : Number(body.taker_fee_rate);
-        const fundingInterval = Number(body.funding_interval_sec || 28800);
-        const fundingCap = body.funding_rate_cap === undefined ? 0.0075 : Number(body.funding_rate_cap);
-        const status = String(body.status || 'paused').toLowerCase();
-        const enabled = body.enabled === true;
-        if (!/^[A-Z0-9]{3,20}$/.test(symbol) || !priceTick || compareMoney(priceTick,'0')<=0 || !quantityStep || compareMoney(quantityStep,'0')<=0
-            || !minQuantity || compareMoney(minQuantity,'0')<=0 || !Number.isInteger(maxLeverage) || maxLeverage < 1 || maxLeverage > 100
-            || !['trading','paused','open_only','liquidation_only'].includes(status)
-            || mmr === null || mmr < 0 || mmr > 0.5 || makerFee < 0 || takerFee < 0 || fundingInterval <= 0 || fundingCap <= 0) {
-          return json({ ok: false, code: 'INVALID_MARKET_CONFIG', msg: 'Invalid perpetual market configuration (max_leverage must be 1-100, mmr 0-0.5).' }, 400);
+        const mmr = Number(body.maintenance_margin_rate);
+        const makerFee = Number(body.maker_fee_rate);
+        const takerFee = Number(body.taker_fee_rate);
+        const fundingInterval = Number(body.funding_interval_sec);
+        const fundingCap = Number(body.funding_rate_cap);
+        const staleSec = Number(body.mark_price_stale_sec);
+        const breaker = Number(body.circuit_breaker_deviation_pct);
+        const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
+        const supportedBaseAsset = ASSET_CATALOG_DEFAULTS.some(asset => asset.code === baseAsset) && !['USDT', 'USDC'].includes(baseAsset);
+        const invalidOptionalLimits =
+          (body.max_quantity !== null && body.max_quantity !== undefined && body.max_quantity !== '' && !maxQuantity) ||
+          (body.max_position_notional !== null && body.max_position_notional !== undefined && body.max_position_notional !== '' && !maxPositionNotional);
+
+        if (!/^[A-Z0-9]{3,20}$/.test(symbol) || !supportedBaseAsset || symbol !== baseAsset + 'USDT' ||
+            !priceTick || compareMoney(priceTick, '0') <= 0 ||
+            !quantityStep || compareMoney(quantityStep, '0') <= 0 ||
+            !minQuantity || compareMoney(minQuantity, '0') <= 0 ||
+            (maxQuantity !== null && (compareMoney(maxQuantity, '0') <= 0 || compareMoney(maxQuantity, minQuantity) < 0)) ||
+            (maxPositionNotional !== null && compareMoney(maxPositionNotional, '0') <= 0) ||
+            invalidOptionalLimits ||
+            !Number.isInteger(maxLeverage) || maxLeverage < 1 || maxLeverage > 100 ||
+            !Number.isFinite(mmr) || mmr < 0 || mmr > 0.5 ||
+            !Number.isFinite(makerFee) || makerFee < 0 || makerFee > 0.1 ||
+            !Number.isFinite(takerFee) || takerFee < 0 || takerFee > 0.1 ||
+            !Number.isInteger(fundingInterval) || fundingInterval !== 28800 ||
+            !Number.isFinite(fundingCap) || fundingCap <= 0 || fundingCap > 0.0075 ||
+            !Number.isInteger(staleSec) || staleSec < 15 || staleSec > 300 ||
+            !Number.isFinite(breaker) || breaker <= 0 || breaker > 20 ||
+            reason.length < 5 || reason.length > 500 || /[\u0000-\u001f\u007f]/.test(reason)) {
+          return json({ ok: false, code: 'INVALID_MARKET_CONFIG', msg: 'Invalid perpetual market configuration. Check asset, precision, risk limits and required reason.' }, 400);
         }
+
+        // Configuration writes never activate trading. Activation requires a separate release gate.
+        const payload = {
+          symbol: symbol, base_asset: baseAsset, quote_asset: 'USDT',
+          enabled: false, status: 'paused',
+          price_tick: priceTick, quantity_step: quantityStep, min_quantity: minQuantity,
+          max_quantity: maxQuantity, max_position_notional: maxPositionNotional,
+          max_leverage: maxLeverage, maintenance_margin_rate: mmr,
+          maker_fee_rate: makerFee, taker_fee_rate: takerFee,
+          funding_interval_sec: fundingInterval, funding_rate_cap: fundingCap,
+          mark_price_stale_sec: staleSec, circuit_breaker_deviation_pct: breaker,
+          updated_at: new Date().toISOString()
+        };
         try {
-          const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
-          const payload = { symbol: symbol, base_asset: baseAsset, quote_asset: 'USDT', enabled: enabled, status: status,
-            price_tick: priceTick, quantity_step: quantityStep, min_quantity: minQuantity, max_quantity: maxQuantity,
-            max_position_notional: maxPositionNotional, max_leverage: maxLeverage, maintenance_margin_rate: mmr,
-            maker_fee_rate: makerFee, taker_fee_rate: takerFee, funding_interval_sec: fundingInterval, funding_rate_cap: fundingCap,
-            updated_at: new Date().toISOString() };
-          const resp = await fetch(base + '/rest/v1/perpetual_markets?on_conflict=symbol', { method: 'POST', headers: { ...supabaseHeaders(), 'Prefer': 'resolution=merge-duplicates' }, body: JSON.stringify(payload) });
-          if (!resp.ok) { const err = await resp.text().catch(()=>''); return json({ ok: false, code: 'PERPETUAL_MARKET_UPSERT_FAILED', detail: String(resp.status) }, 503); }
-          return json({ ok: true, symbol: symbol, enabled: enabled, status: status });
-        } catch (e) { return json({ ok: false, code: 'PERPETUAL_RPC_UNAVAILABLE' }, 503); }
+          const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+          const beforeRows = await perpRestGet('perpetual_markets?select=symbol,base_asset,quote_asset,enabled,status,price_tick,quantity_step,min_quantity,max_quantity,max_position_notional,max_leverage,maintenance_margin_rate,maker_fee_rate,taker_fee_rate,funding_interval_sec,funding_rate_cap,mark_price_stale_sec,circuit_breaker_deviation_pct,updated_at&symbol=eq.' + encodeURIComponent(symbol) + '&limit=1');
+          const response = await fetch(base + '/rest/v1/perpetual_markets?on_conflict=symbol', {
+            method: 'POST',
+            headers: { ...supabaseHeaders(), 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+            body: JSON.stringify(payload),
+            signal: AbortSignal.timeout(5000)
+          });
+          if (!response.ok) return json({ ok: false, code: 'PERPETUAL_MARKET_UPSERT_FAILED' }, 503);
+
+          await auditAdmin('perpetual_market_upsert', symbol, JSON.stringify({
+            before: Array.isArray(beforeRows) ? (beforeRows[0] || null) : null,
+            after: payload,
+            reason: reason
+          }), adminUserId);
+          await saveDB(db);
+          const auditFlush = await flushAdminAuditOutbox();
+          return json({ ok: true, symbol: symbol, enabled: false, status: 'paused', audit_sync_pending: auditFlush.pending });
+        } catch (e) {
+          return json({ ok: false, code: e && e.code === 'ADMIN_AUDIT_OUTBOX_FULL' ? 'AUDIT_OUTBOX_FULL' : 'PERPETUAL_RPC_UNAVAILABLE' }, 503);
+        }
       }
       if (perpSub === 'liquidations' && method === 'GET') {
         if (!hasAdminPermission(adminMembership, 'financial_audit.read')) return json({ ok: false, code: 'ADMIN_PERMISSION_DENIED', permission: 'financial_audit.read' }, 403);
