@@ -100,7 +100,7 @@ test('asset module flags independently gate new product entry while preserving e
   assert.ok(client.includes('typeof asset.seconds_enabled === "boolean"'));
   assert.ok(client.includes('typeof asset.earn_enabled === "boolean"'));
   assert.ok(assetsPage.includes('assetConfig.earn_enabled'));
-  assert.ok(assetsPage.includes('assetCatalog.some(asset => asset.enabled && asset.earn_enabled)'));
+  assert.ok(assetsPage.includes('assetCatalog.some(asset => asset.enabled && asset.visible && asset.earn_enabled)'));
 });
 
 test('trade product navigation follows public asset visibility and module switches', () => {
