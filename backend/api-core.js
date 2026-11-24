@@ -543,7 +543,7 @@ async function readSpotMarketCatalog(state) {
   if (!response.ok || !result || result.ok !== true || !Array.isArray(result.markets)) {
     throw new Error('Spot market catalogue read failed');
   }
-  const enabledAssets = new Set(normalizeAdminAssetCatalog(state && state.asset_catalog).filter(function (asset) { return asset.enabled && asset.spot_enabled; }).map(function (asset) { return asset.code; }));
+  const enabledAssets = new Set(normalizeAdminAssetCatalog(state && state.asset_catalog).filter(function (asset) { return asset.enabled && asset.visible && asset.spot_enabled; }).map(function (asset) { return asset.code; }));
   return result.markets.map(market => {
     if (!market || typeof market.base_asset !== 'string' || typeof market.quote_asset !== 'string' ||
         typeof market.enabled !== 'boolean' || !SUPPORTED_LEDGER_ASSETS.has(market.base_asset) ||
