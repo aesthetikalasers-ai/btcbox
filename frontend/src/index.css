@@ -1880,6 +1880,131 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
     background: color-mix(in srgb, var(--color-brand-accent) 10%, transparent);
   }
   .term-pair-dialog__empty { grid-column: 1 / -1; padding: 16px 8px; text-align: center; font-size: 12px; color: var(--color-brand-text-muted); }
+
+  /* Responsive market picker: desktop market table, compact touch-first mobile list.
+     This dialog is independent from the K-line ChartDrawer and must never become a bottom sheet. */
+  .term-pair-dialog {
+    top: 64px;
+    width: min(760px, calc(100vw - 48px));
+    max-height: min(78vh, 720px);
+    border-radius: 14px;
+  }
+  .term-pair-dialog__head { padding: 14px 18px; }
+  .term-pair-dialog__title { font-size: 15px; }
+  .term-pair-dialog__search { padding: 12px 16px 0; }
+  .term-pair-dialog__search input { height: 40px; font-size: 13px; }
+  .term-pair-dialog__columns,
+  .term-pair-option {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(112px, 1fr) minmax(92px, .72fr);
+    align-items: center;
+    column-gap: 16px;
+  }
+  .term-pair-dialog__columns {
+    padding: 12px 18px 8px;
+    color: var(--color-brand-text-muted);
+    font-size: 11px;
+    text-align: right;
+  }
+  .term-pair-dialog__columns span:first-child { text-align: left; }
+  .term-pair-dialog__list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 0 8px 8px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .term-pair-option {
+    width: 100%;
+    min-height: 52px;
+    height: auto;
+    padding: 8px 10px;
+    border: 0;
+    border-bottom: 1px solid var(--color-brand-border);
+    border-radius: 0;
+    background: transparent;
+    font-size: 13px;
+    text-align: right;
+  }
+  .term-pair-option__label { text-align: left; font-size: 14px; }
+  .term-pair-option__price { font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
+  .term-pair-option__chg {
+    justify-self: end;
+    min-width: 76px;
+    padding: 6px 8px;
+    border-radius: 5px;
+    font-size: 12px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+  .term-pair-option__chg.is-up { color: var(--color-profit); background: color-mix(in srgb, var(--color-profit) 13%, transparent); }
+  .term-pair-option__chg.is-down { color: var(--color-loss); background: color-mix(in srgb, var(--color-loss) 13%, transparent); }
+  .term-pair-option.is-active { background: color-mix(in srgb, var(--color-brand-accent) 7%, transparent); }
+  .term-pair-dialog__empty { padding: 28px 12px; }
+
+  @media (max-width: 767px) {
+    .term-pair-dialog {
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: calc(100vw - 24px);
+      max-width: 560px;
+      max-height: min(82dvh, 680px);
+      border-radius: 12px;
+    }
+    .term-pair-dialog__head { padding: 12px 14px; }
+    .term-pair-dialog__search { padding: 10px 12px 0; }
+    .term-pair-dialog__search input { height: 42px; font-size: 14px; }
+    .term-pair-dialog__columns {
+      grid-template-columns: minmax(0, 1fr) minmax(88px, .8fr);
+      padding: 10px 12px 6px;
+      font-size: 10px;
+    }
+    .term-pair-dialog__columns span:nth-child(2) { display: none; }
+    .term-pair-dialog__columns span:last-child { text-align: right; }
+    .term-pair-dialog__list { padding: 0 8px 8px; }
+    .term-pair-option {
+      grid-template-columns: minmax(0, 1fr) minmax(88px, .8fr);
+      column-gap: 8px;
+      min-height: 58px;
+      padding: 9px 8px;
+    }
+    .term-pair-option__label { min-width: 0; font-size: 13px; }
+    .term-pair-option__price {
+      grid-column: 2;
+      grid-row: 1;
+      font-size: 12px;
+      text-align: right;
+    }
+    .term-pair-option__chg {
+      grid-column: 2;
+      grid-row: 2;
+      justify-self: end;
+      min-width: 0;
+      padding: 0;
+      background: transparent;
+      font-size: 11px;
+      text-align: right;
+    }
+    .term-pair-option__chg.is-up,
+    .term-pair-option__chg.is-down { background: transparent; }
+    .term-pair-option.is-active { border-radius: 7px; }
+  }
+
+  @media (max-width: 380px) {
+    .term-pair-dialog { width: calc(100vw - 16px); max-height: 86dvh; }
+    .term-pair-dialog__head { padding-inline: 10px; }
+    .term-pair-dialog__search { padding-inline: 8px; }
+    .term-pair-option { grid-template-columns: minmax(0, 1fr) minmax(78px, .72fr); }
+    .term-pair-option__label { font-size: 12px; }
+    .term-pair-option__price { font-size: 11px; }
+  }
+
+  @media (min-width: 768px) and (max-width: 1023px) {
+    .term-pair-dialog { width: min(680px, calc(100vw - 40px)); }
+  }
+
   .term-top-price {
     /* Spec §1.2: the last price is the dominant figure — 24px/700. */
     font-size: 24px;

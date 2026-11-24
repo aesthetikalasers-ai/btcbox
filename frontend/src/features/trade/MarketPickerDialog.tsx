@@ -71,6 +71,11 @@ export function MarketPickerDialog({ open, onOpenChange, items, activeId, onSele
               aria-label={t("Search BTCBOX")}
             />
           </div>
+          <div className="term-pair-dialog__columns" aria-hidden="true">
+            <span>{t("Trading pair")}</span>
+            <span>{t("Last price")}</span>
+            <span>{t("24h change")}</span>
+          </div>
           <div className="term-pair-dialog__list">
             {filtered.length
               ? filtered.map((item) => {
@@ -84,11 +89,9 @@ export function MarketPickerDialog({ open, onOpenChange, items, activeId, onSele
                       onClick={() => { onSelect(item.id); onOpenChange(false); }}
                     >
                       <span className="term-pair-option__label">{item.label}</span>
-                      <span className="term-pair-option__values">
-                        <span className="term-pair-option__price">{item.price ?? "—"}</span>
-                        <span className={"term-pair-option__chg" + (item.changePct != null ? (item.changePct >= 0 ? " is-up" : " is-down") : "")}>
-                          {item.changePct != null ? `${item.changePct >= 0 ? "+" : ""}${item.changePct.toFixed(2)}%` : "—"}
-                        </span>
+                      <span className="term-pair-option__price">{item.price ?? "—"}</span>
+                      <span className={"term-pair-option__chg" + (item.changePct != null ? (item.changePct >= 0 ? " is-up" : " is-down") : "")}>
+                        {item.changePct != null ? `${item.changePct >= 0 ? "+" : ""}${item.changePct.toFixed(2)}%` : "—"}
                       </span>
                     </button>
                   );
