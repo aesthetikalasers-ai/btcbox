@@ -72,6 +72,10 @@ test('0051 adds a positive per-market minimum notional and enforces it inside th
   assert.ok(migration.includes('if p_close_position then'));
   assert.ok(migration.includes('Full-position closes use the exact locked position quantity'));
   assert.ok(migration.includes("v_market.max_position_notional is null or v_market.max_position_notional <= 0"));
+  assert.ok(migration.includes("if p_leverage > v_market.max_leverage then raise exception 'leverage exceeds market maximum'; end if;"));
+  assert.ok(migration.includes("where symbol=p_symbol and (enabled=true or coalesce(p_reduce_only,false))"));
+  assert.ok(migration.includes("v_market.status not in ('trading','open_only') and not coalesce(p_reduce_only,false)"));
+  assert.ok(migration.includes("set enabled = false, status = 'paused'"));
   assert.ok(migration.includes('market risk exposure cap unavailable'));
   assert.ok(migration.includes("notify pgrst, 'reload schema'"));
   assert.ok(migration.includes('never be blocked by opening-order lot/minimum filters'));
