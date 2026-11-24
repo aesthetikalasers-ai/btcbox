@@ -2050,7 +2050,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
       grid-template-columns: minmax(0, 1fr) minmax(88px, .8fr);
       column-gap: 8px;
     }
-    .term-pair-option__label .token-icon { width: 24px; height: 24px; }
+    .term-pair-option__label > div { width: 24px; height: 24px; }
     .term-pair-option__symbol { font-size: 13px; }
     .term-pair-option__volume { font-size: 9px; }
     .term-pair-option__price {
