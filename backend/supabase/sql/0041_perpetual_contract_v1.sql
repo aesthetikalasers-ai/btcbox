@@ -638,6 +638,7 @@ begin
     raise exception 'invalid cancel request';
   end if;
   perform pg_advisory_xact_lock(hashtextextended('perp-cancel:'||p_user_id||':'||p_client_cancel_id, 0));
+  perform pg_advisory_xact_lock(hashtextextended('perp-market:'|| (select symbol from public.perpetual_orders where id=p_order_id and user_id=p_user_id), 0));
   select * into v_req from public.perpetual_cancel_requests where user_id=p_user_id and client_cancel_id=p_client_cancel_id;
   if found then
     if v_req.order_id <> p_order_id then raise exception 'cancel idempotency key payload mismatch'; end if;
@@ -870,13 +871,11 @@ begin
     encode(extensions.digest(v_idem,'sha256'),'hex'),
     jsonb_build_object('symbol',p_symbol,'mark_price',v_mark.mark_price,'liq_price',v_liq_price))
   returning id into v_op;
-  -- release frozen margin: isolated position margin PLUS reserved margin on still-open orders (else funds stuck frozen).
+  -- Release the position margin plus remaining open-order reserves; return only unused position collateral.
   select coalesce(sum(reserved_margin),0) into v_orders_reserved
     from public.perpetual_orders where user_id=p_user_id and symbol=p_symbol and status in ('open','partially_filled');
   v_total_frozen_release := v_pos.isolated_margin + v_orders_reserved;
-  -- loss is absorbed by frozen margin (no credit back); open-order reserved margin is simply released back to frozen->available? No:
-  -- reserved margin was frozen for orders; on liquidation those orders cancel, so reserved margin returns to available (it was never lost).
-  -- Accounting: isolated_margin is consumed (frozen down, no available up); orders' reserved margin returns to available.
+  -- User loses min(actual adverse PnL, isolated margin); unused isolated collateral and order reserves return to available.
   update public.financial_accounts set frozen=frozen-v_total_frozen_release,
     available=available + v_orders_reserved + v_margin_return, version=version+1, updated_at=now()
    where user_id=p_user_id and asset='USDT' and frozen >= v_total_frozen_release;
@@ -900,7 +899,7 @@ begin
    where user_id=p_user_id and symbol=p_symbol and status in ('open','partially_filled');
 
   return jsonb_build_object('ok',true,'liquidated',true,'liq_price',v_liq_price,'mark_price',v_mark.mark_price,
-    'margin_lost',v_pos.isolated_margin,'insurance_cover',v_insurance_cover,'bad_debt',v_bad_debt);
+    'margin_lost',least(v_loss,v_pos.isolated_margin),'insurance_cover',v_insurance_cover,'bad_debt',v_bad_debt);
 end;
 $$;
 
