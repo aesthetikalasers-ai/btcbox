@@ -192,8 +192,8 @@ Do not proceed with a code move that lacks a reliable parity test for its affect
 
 ### SOURCE OBSERVED — asset catalogue vs market configuration
 
-- The current Spot markets tab manages spot-pair trading rules. Deposit-address keys and the set of balance assets are separately hardcoded in the AdminPage.
-- No independent admin API for coin metadata/catalogue and chain/network enablement was found in the inspected route map. Do not treat spot-pair configuration or deposit-address configuration as a complete coin/network management system.
+- The Asset configuration tab and `GET/POST /api/admin/assets` manage the canonical 26-asset catalogue, including display metadata, visibility, and independent Spot, Perpetual, Seconds, and Earn availability. This is separate from spot-pair trading rules.
+- Deposit-address keys and chain/network availability remain a separate configuration concern; the asset catalogue does not by itself provide per-network deposit/withdrawal enablement, address validation, or network-specific fee/limit management. Do not treat asset metadata or spot-pair configuration as a complete coin/network management system.
 
 ### CI regression correction
 
