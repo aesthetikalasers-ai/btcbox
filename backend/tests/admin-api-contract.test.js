@@ -73,6 +73,20 @@ test('admin deposit workbench reads only canonical PostgreSQL records and is per
   assert.ok(adminPage.includes('latest 200'));
 });
 
+test('withdrawal queue API labels canonical and legacy sources with completeness boundaries', () => {
+  const start = api.indexOf("if (sub === 'withdrawals' && method === 'GET')");
+  const end = api.indexOf("// GET /api/admin/orders", start);
+  assert.ok(start >= 0 && end > start, 'withdrawal read route must exist');
+  const route = api.slice(start, end);
+  assert.ok(route.includes("source: 'postgres_financial_ledger', completeness: 'pending_queue'"));
+  assert.ok(route.includes("source: 'legacy_state_snapshot', completeness: 'partial'"));
+  assert.ok(client.includes("AdminWithdrawalSource"));
+  assert.ok(client.includes("AdminWithdrawalCompleteness"));
+  assert.ok(adminPage.includes('withdrawalQueueSource === "legacy_state_snapshot"'));
+  assert.ok(adminPage.includes('partial queue'));
+  assert.ok(adminPage.includes('Canonical pending queue'));
+});
+
 test('withdrawal rejection API requires a bounded, non-control-character audit reason', () => {
   const start = api.indexOf("if (sub === 'withdraw/reject' && method === 'POST')");
   const end = api.indexOf("// POST /api/admin/withdraw/mark-paid", start);
