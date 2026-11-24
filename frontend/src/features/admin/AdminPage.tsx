@@ -1143,7 +1143,7 @@ export function AdminPage() {
     const supportedBaseAsset = assetCatalog.some(asset => asset.code === draft.base_asset && !["USDT", "USDC"].includes(asset.code));
     if (!supportedBaseAsset ||
         !positive(draft.price_tick) || !positive(draft.quantity_step) || !positive(draft.min_quantity) ||
-        !optionalPositive(draft.max_quantity) || !optionalPositive(draft.max_position_notional) ||
+        !optionalPositive(draft.max_quantity) || !positive(draft.max_position_notional) ||
         (draft.max_quantity.trim() && Number(draft.max_quantity) < Number(draft.min_quantity)) ||
         !Number.isInteger(maxLeverage) || maxLeverage < 1 || maxLeverage > 100 ||
         !Number.isFinite(mmr) || mmr < 0 || mmr > 0.5 ||
@@ -1153,7 +1153,7 @@ export function AdminPage() {
         !Number.isInteger(staleSec) || staleSec < 15 || staleSec > 300 ||
         !Number.isFinite(breaker) || breaker <= 0 || breaker > 20 ||
         reason.length < 5 || reason.length > 500 || /[\u0000-\u001f\u007f]/.test(reason)) {
-      setError("Check the asset and perpetual risk parameters. Markets are always saved disabled and paused; funding interval is fixed at 8 hours.");
+      setError("Check the asset and perpetual risk parameters, including a positive maximum exposure cap. Markets are always saved disabled and paused; funding interval is fixed at 8 hours.");
       return;
     }
     setBusy(true); setError(""); setNotice("");
@@ -1450,7 +1450,7 @@ export function AdminPage() {
                 {assetCatalog.filter(asset => !["USDT", "USDC"].includes(asset.code)).map(asset => <option key={asset.code} value={asset.code}>{asset.code}/USDT{asset.enabled && asset.visible && asset.perpetual_enabled ? "" : " · " + adminText("asset module off")}</option>)}
               </select></label>
               <label className="space-y-1 text-sm"><span>{adminText("Quote asset")}</span><input value="USDT" readOnly className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label>
-              {([[ "price_tick", "Price tick" ], [ "quantity_step", "Quantity step" ], [ "min_quantity", "Minimum quantity" ], [ "max_quantity", "Maximum quantity (optional)" ], [ "max_position_notional", "Maximum position notional (optional)" ], [ "max_leverage", "Maximum leverage (1–100)" ], [ "maintenance_margin_rate", "Maintenance margin rate (0–0.5)" ], [ "maker_fee_rate", "Maker fee rate (0–0.1)" ], [ "taker_fee_rate", "Taker fee rate (0–0.1)" ], [ "funding_rate_cap", "Funding rate cap (max 0.0075)" ], [ "mark_price_stale_sec", "Mark-price stale seconds (15–300)" ], [ "circuit_breaker_deviation_pct", "Circuit breaker deviation % (max 20)" ]] as const).map(([key, label]) => <label key={key} className="space-y-1 text-sm"><span>{adminText(label)}</span><input value={perpMarketDraft[key]} disabled={busy || !hasPermission("system_config.write")} onChange={event => setPerpMarketDraft(current => ({ ...current, [key]: event.target.value }))} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label>)}
+              {([[ "price_tick", "Price tick" ], [ "quantity_step", "Quantity step" ], [ "min_quantity", "Minimum quantity" ], [ "max_quantity", "Maximum quantity (optional)" ], [ "max_position_notional", "Maximum position notional (required)" ], [ "max_leverage", "Maximum leverage (1–100)" ], [ "maintenance_margin_rate", "Maintenance margin rate (0–0.5)" ], [ "maker_fee_rate", "Maker fee rate (0–0.1)" ], [ "taker_fee_rate", "Taker fee rate (0–0.1)" ], [ "funding_rate_cap", "Funding rate cap (max 0.0075)" ], [ "mark_price_stale_sec", "Mark-price stale seconds (15–300)" ], [ "circuit_breaker_deviation_pct", "Circuit breaker deviation % (max 20)" ]] as const).map(([key, label]) => <label key={key} className="space-y-1 text-sm"><span>{adminText(label)}</span><input value={perpMarketDraft[key]} disabled={busy || !hasPermission("system_config.write")} onChange={event => setPerpMarketDraft(current => ({ ...current, [key]: event.target.value }))} inputMode="decimal" className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label>)}
               <label className="space-y-1 text-sm"><span>{adminText("Funding interval")}</span><input value="8 hours (28,800 seconds)" readOnly className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-brand-text"/></label>
             </div>
             <label className="block space-y-1 text-sm"><span>{adminText("Reason for configuration change (required)")}</span><textarea value={perpMarketDraft.reason} disabled={busy || !hasPermission("system_config.write")} onChange={event => setPerpMarketDraft(current => ({ ...current, reason: event.target.value }))} rows={2} maxLength={500} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-brand-text"/></label>
