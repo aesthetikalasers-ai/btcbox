@@ -198,6 +198,8 @@ test('reduce-only and market IOC responses return the persisted final remainder 
   assert.ok(response > finalized, 'response must use the re-read persisted quantity');
 });
 
-test('perpetual market symbols are constrained to their registered base and USDT quote assets', () => {
+test('perpetual markets reference the canonical asset registry and match the base/USDT symbol', () => {
+  assert.ok(sql.includes('base_asset text not null references public.btcbox_assets(asset_code)'));
+  assert.ok(sql.includes("quote_asset text not null default 'USDT' references public.btcbox_assets(asset_code)"));
   assert.ok(sql.includes('check (symbol = base_asset || quote_asset)'));
 });
