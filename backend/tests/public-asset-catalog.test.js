@@ -14,6 +14,9 @@ const dashboardMarkets = fs.readFileSync(path.resolve(root, '../../frontend/src/
 const admin = fs.readFileSync(path.resolve(root, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
 const tradeNav = fs.readFileSync(path.resolve(root, '../../frontend/src/features/trade/TradeProductNav.tsx'), 'utf8');
 const tradeHub = fs.readFileSync(path.resolve(root, '../../frontend/src/features/pages/TradeHubPage.tsx'), 'utf8');
+const spotPage = fs.readFileSync(path.resolve(root, '../../frontend/src/features/pages/Pages.tsx'), 'utf8');
+const contractPage = fs.readFileSync(path.resolve(root, '../../frontend/src/features/pages/ContractPage.tsx'), 'utf8');
+const secondsPage = fs.readFileSync(path.resolve(root, '../../frontend/src/features/pages/SecondsPage.tsx'), 'utf8');
 
 test('public asset catalogue exposes only display metadata and never wallet or account data', () => {
   const start = api.indexOf("if (path === 'assets' && method === 'GET')");
@@ -131,4 +134,25 @@ test('trade hub only renders product cards with eligible configured assets', () 
   for (const condition of ['{showSpot ? (','{showPerpetual ? (','{showSeconds ? (','{showEarn ? (']) {
     assert.ok(tradeHub.includes(condition), 'missing conditional product card ' + condition);
   }
+});
+
+
+test('direct trading routes fail closed when their configured asset markets are unavailable', () => {
+  assert.ok(spotPage.includes('getSpotMarketPairs(controller.signal)'));
+  assert.ok(spotPage.includes('setPairSymbols(pairResult.value.filter(pair=>pair.quote_asset==="USDT").map(pair=>pair.base_asset+pair.quote_asset))'));
+  assert.ok(spotPage.includes('if(!spotPairEnabled&&!pendingIntent)'));
+  assert.ok(spotPage.includes('disabled={pairSymbols.length===0}'));
+  assert.ok(spotPage.includes('pairSymbols.map(pair=>'));
+  assert.ok(contractPage.includes('getPerpMarkets(controller.signal)'));
+  assert.ok(contractPage.includes('!marketsLoading && !marketsError && markets.length === 0'));
+  assert.ok(contractPage.includes('markets.length > 0 ? ('));
+  assert.ok(secondsPage.includes('SECONDS_ASSETS_DISABLED'));
+  assert.ok(secondsPage.includes('Seconds contracts are unavailable because no supported assets are enabled.'));
+  assert.ok(secondsPage.includes('policyUnavailableMessage ?'));
+});
+
+test('trade product navigation requires an actual enabled spot pair', () => {
+  assert.ok(tradeNav.includes('getSpotMarketPairs(controller.signal)'));
+  assert.ok(tradeNav.includes('setHasSpotPairs(pairs.length > 0)'));
+  assert.ok(tradeNav.includes('if (key === "spot" && !hasSpotPairs) return false'));
 });
