@@ -188,6 +188,7 @@ test('bad debt is platform-owned and is not represented as a fake zero-delta cus
   assert.ok(!liquidationAccountingSql.includes('bad-debt ledger audit marker'));
   assert.ok(!liquidationAccountingSql.includes('select v_bad_debt_op,p_user_id'));
   assert.ok(liquidationAccountingSql.includes('platform_risk_absorption'));
+  assert.ok(liquidationAccountingSql.includes("'affected_user_id',p_user_id"));
   assert.ok(liquidationAccountingSql.includes('perpetual_liquidation_journal'));
 });
 
