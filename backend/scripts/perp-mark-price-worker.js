@@ -91,10 +91,30 @@ async function coingeckoPrice(symbol) {
   if (!Number.isFinite(p) || p <= 0 || !Number.isFinite(ts) || ts <= 0) throw new Error('coingecko bad price/timestamp');
   return { source: 'coingecko', price: p, ts };
 }
+async function perpetualBookMidPrice(symbol, maxAgeSec) {
+  const cutoff = new Date(Date.now() - maxAgeSec * 1000).toISOString();
+  const base = 'perpetual_orders?select=price,updated_at&symbol=eq.' + encodeURIComponent(symbol)
+    + '&status=in.(open,partially_filled)&type=eq.limit&updated_at=gte.' + encodeURIComponent(cutoff);
+  const [bids, asks] = await Promise.all([
+    restGetAll(base + '&side=eq.buy&order=price.desc&limit=1'),
+    restGetAll(base + '&side=eq.sell&order=price.asc&limit=1')
+  ]);
+  const bid = Number(bids[0] && bids[0].price);
+  const ask = Number(asks[0] && asks[0].price);
+  if (!Number.isFinite(bid) || bid <= 0 || !Number.isFinite(ask) || ask <= 0 || ask < bid) {
+    throw new Error('fresh two-sided perpetual order book unavailable');
+  }
+  const mid = (bid + ask) / 2;
+  const spreadPct = ((ask - bid) / mid) * 100;
+  if (!Number.isFinite(mid) || mid <= 0 || spreadPct > 2) {
+    throw new Error('perpetual order-book spread is too wide for mark-price sampling');
+  }
+  return mid;
+}
 async function recordMark(symbol, indexPrice, markPrice, freshSources, maxAgeSec) {
   const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/perp_record_mark_price', {
     method: 'POST', headers: headers(),
-    body: JSON.stringify({ p_symbol: symbol, p_index_price: String(indexPrice), p_mark_price: String(markPrice), p_sources: sources, p_max_age_sec: maxAgeSec })
+    body: JSON.stringify({ p_symbol: symbol, p_index_price: String(indexPrice), p_mark_price: String(markPrice), p_sources: freshSources, p_max_age_sec: maxAgeSec })
   });
   const j = await r.json().catch(() => null);
   if (!r.ok || !j || j.ok !== true) throw new Error('perp_record_mark_price failed: ' + r.status + ' ' + JSON.stringify(j));
@@ -134,9 +154,13 @@ async function recordMark(symbol, indexPrice, markPrice, freshSources, maxAgeSec
     const prices = freshSources.map(s => s.price);
     const mean = prices.reduce((a, b) => a + b, 0) / prices.length;
     const maxDevPct = Math.max(...prices.map(p => Math.abs((p - mean) / mean) * 100));
-    const indexPrice = mean; // v1 index = mean of sources; mark = index (no premium index yet)
-    const markPrice = mean;
+    const indexPrice = mean; // independent multi-source spot index
+    let markPrice;
     try {
+      // Mark is derived from the fresh BTCBOX perpetual best-bid/best-ask midpoint,
+      // not copied from the external spot index. If the book is empty/stale/wide,
+      // do not manufacture a zero-premium mark row.
+      markPrice = await perpetualBookMidPrice(symbol, maxAgeSec);
       const res = await recordMark(symbol, indexPrice, markPrice, freshSources, maxAgeSec);
       console.log('[perp-mark]', symbol, 'index=' + indexPrice, 'mark=' + markPrice, 'sources=' + freshSources.length,
         'deviation_pct=' + maxDevPct.toFixed(3), 'db_status=' + res.status, 'ts=' + new Date().toISOString());
