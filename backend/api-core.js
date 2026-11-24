@@ -598,6 +598,11 @@ function normalizeAdminAssetCatalog(value) {
 }
 
 
+function isAssetVisible(state, code) {
+  const asset = normalizeAdminAssetCatalog(state && state.asset_catalog).find(function (item) { return item.code === code; });
+  return !!(asset && asset.visible);
+}
+
 function isAssetModuleEnabled(state, code, moduleKey) {
   const asset = normalizeAdminAssetCatalog(state && state.asset_catalog).find(function (item) { return item.code === code; });
   return !!(asset && asset.enabled && asset[moduleKey] === true);
@@ -2629,7 +2634,7 @@ async function handleRequest(event, context) {
   if (path === 'market/pairs' && method === 'GET') {
     try {
       const markets = await readSpotMarketCatalog(db);
-      return json({ ok: true, markets: markets.filter(market => market.enabled) });
+      return json({ ok: true, markets: markets.filter(market => market.enabled && isAssetVisible(db, market.base_asset) && isAssetVisible(db, market.quote_asset)) });
     } catch (_) {
       return json({ ok: false, code: 'MARKET_CATALOG_UNAVAILABLE', msg: 'Spot market catalogue is temporarily unavailable.', markets: [] }, 503);
     }
@@ -2653,7 +2658,7 @@ async function handleRequest(event, context) {
     let bases;
     try {
       const catalog = await readSpotMarketCatalog(db);
-      bases = [...new Set(catalog.filter(market => market.enabled && market.quote_asset === 'USDT').map(market => market.base_asset))];
+      bases = [...new Set(catalog.filter(market => market.enabled && isAssetVisible(db, market.base_asset) && isAssetVisible(db, market.quote_asset) && market.quote_asset === 'USDT').map(market => market.base_asset))];
     } catch (_) {
       return json({ ok: false, code: 'MARKET_CATALOG_UNAVAILABLE', msg: 'Spot market catalogue is temporarily unavailable.', markets: [], data: {} }, 503);
     }
