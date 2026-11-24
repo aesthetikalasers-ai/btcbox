@@ -212,3 +212,18 @@ test('fallback display names cover all 26 configured assets', () => {
     assert.match(walletNames, new RegExp('\\b' + code + ':'));
   }
 });
+
+
+test('public kline and depth endpoints reject hidden spot assets before provider requests', () => {
+  const klineStart = api.indexOf("if (path === 'kline' && method === 'GET')");
+  const depthStart = api.indexOf("if (path === 'depth' && method === 'GET')");
+  const authStart = api.indexOf('// ---------- 以下接口需要登录 ----------', depthStart);
+  assert.ok(klineStart > 0 && depthStart > klineStart && authStart > depthStart);
+  const kline = api.slice(klineStart, depthStart);
+  const depth = api.slice(depthStart, authStart);
+  const visibilityGate = "isAssetVisible(db, market.base_asset) && isAssetVisible(db, market.quote_asset)";
+  assert.ok(kline.includes(visibilityGate), 'kline must reject hidden base or quote assets');
+  assert.ok(depth.includes(visibilityGate), 'depth must reject hidden base or quote assets');
+  assert.ok(kline.indexOf(visibilityGate) < kline.indexOf('timeoutFetchJson('), 'kline must gate before external provider requests');
+  assert.ok(depth.indexOf(visibilityGate) < depth.indexOf('timeoutFetchJson('), 'depth must gate before external provider requests');
+});
