@@ -45,14 +45,16 @@ begin
     raise exception 'target asset exists with an unexpected active state or precision; reconcile before seeding';
   end if;
 
-  if to_regclass('public.btcbox_wallet_accounts') is not null and exists (
-    select 1 from public.btcbox_wallet_accounts
-     where asset_code in (
-       'USDC','LINK','DOT','TRX','LTC','BCH','NEAR','UNI','ATOM',
-       'ETC','APT','ARB','OP','SUI','INJ','TIA','FIL'
-     )
-  ) then
-    raise exception 'wallet rows already exist for a target asset; reconcile before seeding';
+  if to_regclass('public.btcbox_wallet_accounts') is not null then
+    if exists (
+      select 1 from public.btcbox_wallet_accounts
+       where asset_code in (
+         'USDC','LINK','DOT','TRX','LTC','BCH','NEAR','UNI','ATOM',
+         'ETC','APT','ARB','OP','SUI','INJ','TIA','FIL'
+       )
+    ) then
+      raise exception 'wallet rows already exist for a target asset; reconcile before seeding';
+    end if;
   end if;
 end
 $preflight$;
