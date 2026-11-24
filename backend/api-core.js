@@ -3546,6 +3546,7 @@ async function handleRequest(event, context) {
       if ((route === 'user/reset-pwd' || route === 'user/reset-email') && verb === 'POST') return 'users.manage';
       if (route === 'kyc' && verb === 'GET') return 'kyc.read';
       if ((route === 'kyc/approve' || route === 'kyc/reject') && verb === 'POST') return 'kyc.review';
+      if (route === 'deposits' && verb === 'GET') return 'deposits.read';
       if (route === 'deposit/confirm' && verb === 'POST') return 'deposits.review';
       if (route === 'addresses' && verb === 'GET') return 'payout_addresses.read_sensitive';
       if (route === 'address/manage' && verb === 'POST') return 'payout_addresses.manage';
@@ -4485,6 +4486,53 @@ async function handleRequest(event, context) {
       return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'Configuration updated.', deposit_addresses: safeDepositAddresses(db.deposit_addresses), withdrawal_fees: safeWithdrawalFees(db.withdrawal_fees), announcement: db.announcement });
     }
 
+
+    // GET /api/admin/deposits — read-only, latest 200 canonical PostgreSQL deposit records.
+    // Do not fall back to legacy JSON: the workbench must never imply completeness from stale state.
+    if (sub === 'deposits' && method === 'GET') {
+      if (!financialPostgresReadsEnabled()) {
+        return json({ ok: false, code: 'FINANCIAL_READ_UNAVAILABLE', msg: 'Canonical deposit records are unavailable until PostgreSQL financial reads are enabled.' }, 503);
+      }
+      try {
+        const base = String(process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
+        if (!base || !supabaseStorageConfigured()) throw new Error('PostgreSQL financial store unavailable');
+        const query = new URLSearchParams({
+          select: 'id,user_id,asset,network,amount,txid,status,created_at',
+          order: 'created_at.desc',
+          limit: '200'
+        });
+        const response = await fetch(base + '/rest/v1/deposit_records?' + query.toString(), {
+          method: 'GET',
+          headers: supabaseHeaders(),
+          signal: AbortSignal.timeout(5000)
+        });
+        const rows = await response.json().catch(() => null);
+        if (!response.ok || !Array.isArray(rows)) {
+          return json({ ok: false, code: 'DEPOSIT_READ_UNAVAILABLE', msg: 'Deposit records are temporarily unavailable. Please try again later.' }, 503);
+        }
+        const usersById = db.users || {};
+        const deposits = rows.map(function (record) {
+          const uid = String(record.user_id || '');
+          const user = usersById[uid] || Object.values(usersById).find(function (candidate) {
+            return String(candidate.uid || '') === uid;
+          });
+          return {
+            id: String(record.id || ''),
+            uid: uid,
+            email: user ? String(user.email || '') : '',
+            coin: String(record.asset || ''),
+            network: String(record.network || ''),
+            amount: String(record.amount ?? ''),
+            txid: String(record.txid || ''),
+            status: String(record.status || ''),
+            time: record.created_at || null
+          };
+        });
+        return json({ ok: true, deposits: deposits, source: 'postgres_financial_ledger', completeness: 'latest_200' });
+      } catch (_) {
+        return json({ ok: false, code: 'DEPOSIT_READ_UNAVAILABLE', msg: 'Deposit records are temporarily unavailable. Please try again later.' }, 503);
+      }
+    }
 
     // GET /api/admin/withdrawals 待审核提现列表
     if (sub === 'withdrawals' && method === 'GET') {
