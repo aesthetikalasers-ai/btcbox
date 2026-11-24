@@ -123,6 +123,8 @@ test('admin perpetual market upsert validates max_leverage <= 100 and mmr range,
   assert.ok(route.includes('INVALID_MARKET_CONFIG'));
   assert.ok(route.includes("symbol !== baseAsset + 'USDT'"));
   assert.ok(route.includes('perpetual_markets?on_conflict=symbol'));
+  assert.ok(route.includes("const status = 'paused'"));
+  assert.ok(!route.includes("String(body.status || 'paused')"));
 });
 
 test('admin perpetual market routes are reachable only through explicit system-config permissions', () => {
