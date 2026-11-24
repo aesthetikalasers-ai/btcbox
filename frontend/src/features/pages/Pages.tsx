@@ -5,6 +5,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldAlert, ArrowLeft, ChevronRight, ChevronDown, ChevronsLeft, ChevronsRight, KeyRound, Copy, Check, Plus, Minus, History, WifiOff, Search } from "lucide-react";
 import { ApiError, getAccount, getOrders, getMarkets, getSpotMarketPairs, getKlines, getOrderBook, getUsdtUsdRate, getTradingStatus, submitSpotOrder, cancelSpotOrder, getDepositAddress, getSavedCryptoAddresses, getSelectedCryptoAddress, getWithdrawalConfig, submitWithdrawal, getEarnCatalog, submitEarnAction, getSupportUnread, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type DepositRecord, type OrderRecord, type MarketTicker, type SpotMarketPair, type MarketCandle, type OrderBookSnapshot, type TradingStatus, type SelectedCryptoAddress, type WithdrawalConfig, type WithdrawalRecord, submitKyc } from "../../lib/api";
+import { baseAssetCode } from "../../lib/publicAssetMarkets";
 import { useAuth } from "../../lib/auth";
 import { DEV_ACCOUNT_PLACEHOLDER, DEV_OPEN_ACCOUNT_PAGES } from "../../lib/devAccess";
 import { useAuthDialog } from "../../lib/auth-dialog";
@@ -363,8 +364,11 @@ export function SpotTradingPage(){
   Promise.allSettled([getSpotMarketPairs(controller.signal),getMarkets(controller.signal),getOrderBook(symbol,controller.signal),getTradingStatus(controller.signal),getOrders(controller.signal),getAccount(controller.signal)]).then(results=>{
    if(controller.signal.aborted)return;
    const [pairResult,marketResult,bookResult,statusResult,ordersResult,accountResult]=results;
+   const enabledSpotPairs = pairResult.status === "fulfilled"
+    ? pairResult.value.filter(pair => pair.enabled === true && pair.quote_asset === "USDT")
+    : [];
    if(pairResult.status==="fulfilled"){
-    setPairSymbols(pairResult.value.filter(pair=>pair.quote_asset==="USDT").map(pair=>pair.base_asset+pair.quote_asset));
+    setPairSymbols(enabledSpotPairs.map(pair=>pair.base_asset+pair.quote_asset));
     const selectedPair=pairResult.value.find(pair=>pair.base_asset===base&&pair.quote_asset==="USDT"&&pair.enabled===true)||null;
     setSpotPairRules(selectedPair);
     const enabled=!!selectedPair;
@@ -380,9 +384,13 @@ export function SpotTradingPage(){
    // keep it out of the prominent market-status banner to preserve the trading viewport.
    if(marketResult.status==="fulfilled"){
     const marketBase=symbol.endsWith("USDT")?symbol.slice(0,-4):symbol;
-    // Keep the whole snapshot so the rail can list every tradable pair.
-    setMarketList(marketResult.value);
-    const selected=marketResult.value.find(item=>{
+    // The picker and market rail must be intersected with the authoritative
+    // enabled-pair response; a stale ticker alone never creates a selectable pair.
+    const selectableMarkets = marketResult.value.filter(item =>
+     enabledSpotPairs.some(pair => pair.base_asset === baseAssetCode(item.sym))
+    );
+    setMarketList(selectableMarkets);
+    const selected=selectableMarkets.find(item=>{
      const marketSymbol=item.sym.toUpperCase();
      return marketSymbol===marketBase||marketSymbol===symbol;
     })||null;
