@@ -199,3 +199,83 @@ begin
   end if;
 end;
 $$;
+
+
+-- Settlement itself must validate the versioned snapshot, even when the market
+-- has zero open positions (in which case no perp_funding financial operation
+-- exists to invoke the operation trigger above). This trigger runs before the
+-- market boundary can advance because the batch RPC marks the snapshot settled
+-- in the same transaction.
+create or replace function public.perp_guard_funding_snapshot_settlement_v1()
+returns trigger
+language plpgsql security invoker set search_path = '' as $$
+declare
+  v_market public.perpetual_markets%rowtype;
+  v_expected_premium numeric(12,10);
+  v_expected_rate numeric(12,10);
+  v_cap numeric(12,10);
+begin
+  if old.settled is true or new.settled is not true then return new; end if;
+
+  select * into v_market from public.perpetual_markets
+   where symbol=new.symbol for update;
+  if not found
+     or v_market.next_funding_at is distinct from new.funding_at
+     or v_market.funding_interval_sec <> 28800
+     or new.formula_version is distinct from 'btcbox-funding-v1'
+     or new.interest_rate is distinct from 0.0001::numeric
+     or new.impact_bid_price is null or new.impact_bid_price <= 0
+     or new.impact_ask_price is null or new.impact_ask_price < new.impact_bid_price
+     or new.mark_price is null or new.mark_price <= 0
+     or new.index_price is null or new.index_price <= 0
+     or new.premium_index is null
+     or new.calculated_at is null
+     or new.calculated_at < now() - interval '2 minutes'
+     or new.calculated_at > now() + interval '30 seconds'
+     or abs(new.rate) > v_market.funding_rate_cap then
+    raise exception 'funding settlement requires a fresh btcbox-funding-v1 snapshot';
+  end if;
+
+  if jsonb_typeof(new.sources) is distinct from 'array'
+     or jsonb_array_length(new.sources) < 2 then
+    raise exception 'funding settlement snapshot has insufficient source samples';
+  end if;
+  if exists (
+    select 1 from jsonb_array_elements(new.sources) s
+     where coalesce(s->>'source','') not in ('binance','okx','coingecko')
+        or not pg_input_is_valid(s->>'price','numeric')
+        or not pg_input_is_valid(s->>'ts','numeric')
+        or (s->>'price')::numeric <= 0
+        or abs(extract(epoch from clock_timestamp())*1000 - (s->>'ts')::numeric)
+             > v_market.mark_price_stale_sec*1000
+  ) or (
+    select count(distinct s->>'source')
+      from jsonb_array_elements(new.sources) s
+  ) < 2 then
+    raise exception 'funding settlement snapshot sources are invalid, stale or duplicated';
+  end if;
+
+  v_expected_premium := (((new.impact_bid_price + new.impact_ask_price) / 2)
+                         / new.index_price - 1)::numeric(12,10);
+  v_expected_rate := least(0.0075::numeric,
+                      greatest(-0.0075::numeric,
+                        v_expected_premium + least(0.0005::numeric,
+                          greatest(-0.0005::numeric,0.0001::numeric-v_expected_premium))));
+  v_cap := least(0.0075::numeric,v_market.funding_rate_cap);
+  v_expected_rate := least(v_cap,greatest(-v_cap,v_expected_rate));
+  if new.premium_index is distinct from v_expected_premium
+     or new.rate is distinct from v_expected_rate then
+    raise exception 'funding settlement snapshot does not match btcbox-funding-v1 formula';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists perpetual_funding_snapshot_settlement_guard_v1 on public.perpetual_funding_rates;
+create trigger perpetual_funding_snapshot_settlement_guard_v1
+before update of settled on public.perpetual_funding_rates
+for each row
+when (old.settled is distinct from new.settled and new.settled = true)
+execute function public.perp_guard_funding_snapshot_settlement_v1();
+
+revoke all on function public.perp_guard_funding_snapshot_settlement_v1() from public, anon, authenticated;
