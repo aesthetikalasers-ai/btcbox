@@ -470,6 +470,7 @@ const messages: Record<string, string> = {
   "Minimum notional (USDT)": "最小名义价值（USDT）",
   "Maximum quantity (optional)": "最大数量（可选）",
   "Maximum position notional (USDT)": "最大持仓名义价值（USDT）",
+  "Maximum exposure": "最大风险敞口",
   "Maximum leverage": "最大杠杆",
   "Maintenance margin rate": "维持保证金率",
   "Maker fee rate": "Maker 手续费率",
