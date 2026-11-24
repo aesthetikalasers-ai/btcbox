@@ -14,8 +14,9 @@ import {
 } from "lucide-react";
 import { TokenIcon } from "../../components/ui/TokenIcon";
 import { HotFlameIcon } from "../../components/ui/HotFlameIcon";
-import { getMarkets, type MarketTicker } from "../../lib/api";
+import { getMarkets, getPublicAssetCatalog, type MarketTicker, type PublicAssetConfig } from "../../lib/api";
 import { getAssetName } from "../../lib/marketData";
+import { filterPublicSpotMarkets } from "../../lib/publicAssetMarkets";
 import { useI18n, localeTags } from "../../lib/i18n";
 
 const pairSymbol = (symbol: string) => (symbol.endsWith("USDT") ? symbol : `${symbol}USDT`);
@@ -338,8 +339,28 @@ export function Dashboard() {
   const locale = localeTags[language];
   const navigate = useNavigate();
   const [markets, setMarkets] = useState<MarketTicker[]>([]);
+  const [assetCatalog, setAssetCatalog] = useState<PublicAssetConfig[] | null>(null);
+  const [assetCatalogError, setAssetCatalogError] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const controller = new AbortController();
+    getPublicAssetCatalog(controller.signal)
+      .then((assets) => {
+        if (!controller.signal.aborted) {
+          setAssetCatalog(assets);
+          setAssetCatalogError("");
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setAssetCatalog(null);
+          setAssetCatalogError("Asset configuration is temporarily unavailable.");
+        }
+      });
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -378,6 +399,9 @@ export function Dashboard() {
     return () => { cancelled = true; window.clearInterval(poll); pending?.abort(); };
   }, []);
 
+  const publicMarkets = useMemo(() => filterPublicSpotMarkets(markets, assetCatalog), [markets, assetCatalog]);
+  const marketDisplayError = error || assetCatalogError;
+
   return (
     <div className="tone-home relative mx-auto flex w-full min-w-0 flex-col space-y-2 p-4 sm:space-y-3 sm:p-5">
       {/* Ambient multi-layer glow: soft wide diffusion + tight upper-right core. */}
@@ -386,10 +410,10 @@ export function Dashboard() {
       {/* Page-level heading for accessibility and SEO. Visually hidden so the
           hero carousel remains the primary visual anchor on the home screen. */}
       <h1 className="sr-only">{t("Digital asset exchange")}</h1>
-      <BannerCarousel markets={markets} />
-      <TickerMarquee markets={markets} locale={locale} />
+      <BannerCarousel markets={publicMarkets} />
+      <TickerMarquee markets={publicMarkets} locale={locale} />
       <QuickActions />
-      <MarketTable markets={markets} locale={locale} onViewAll={() => navigate("/markets")} loading={loading} error={error} />
+      <MarketTable markets={publicMarkets} locale={locale} onViewAll={() => navigate("/markets")} loading={loading || assetCatalog === null} error={marketDisplayError} />
     </div>
   );
 }
