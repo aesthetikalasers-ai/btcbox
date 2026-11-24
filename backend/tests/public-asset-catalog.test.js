@@ -11,6 +11,8 @@ const client = fs.readFileSync(path.resolve(root, '../../frontend/src/lib/api.ts
 const assetsPage = fs.readFileSync(path.resolve(root, '../../frontend/src/features/assets/AssetsPage.tsx'), 'utf8');
 const marketsPage = fs.readFileSync(path.resolve(root, '../../frontend/src/features/markets/MarketsPage.tsx'), 'utf8');
 const dashboardMarkets = fs.readFileSync(path.resolve(root, '../../frontend/src/features/dashboard/components/LiveMarketsTable.tsx'), 'utf8');
+const admin = fs.readFileSync(path.resolve(root, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+const tradeNav = fs.readFileSync(path.resolve(root, '../../frontend/src/features/trade/TradeProductNav.tsx'), 'utf8');
 
 test('public asset catalogue exposes only display metadata and never wallet or account data', () => {
   const start = api.indexOf("if (path === 'assets' && method === 'GET')");
@@ -64,6 +66,10 @@ test('wallet asset display follows configured names, precision metadata, visibil
   assert.ok(marketsPage.includes('assetNames={assetNames}'));
   assert.ok(dashboardMarkets.includes('getPublicAssetCatalog(controller.signal)'));
   assert.ok(dashboardMarkets.includes('assetNames[item.sym] || getAssetName(item.sym)'));
+  assert.ok(marketsPage.includes('assetCatalog.length > 0 && (!assetConfig || !assetConfig.enabled || !assetConfig.visible || !assetConfig.spot_enabled)'));
+  assert.ok(marketsPage.includes('[markets, assetCatalog, query, filter, favorites, sort, assetNames]'));
+  assert.ok(dashboardMarkets.includes('assetCatalog.length > 0 && (!assetConfig || !assetConfig.enabled || !assetConfig.visible || !assetConfig.spot_enabled)'));
+  assert.ok(dashboardMarkets.includes('[displayMarkets, assetCatalog, query, favoritesOnly, favorites, sort, assetNames]'));
 });
 
 
@@ -94,4 +100,16 @@ test('asset module flags independently gate new product entry while preserving e
   assert.ok(client.includes('typeof asset.earn_enabled === "boolean"'));
   assert.ok(assetsPage.includes('assetConfig.earn_enabled'));
   assert.ok(assetsPage.includes('assetCatalog.some(asset => asset.enabled && asset.earn_enabled)'));
+});
+
+test('trade product navigation follows public asset visibility and module switches', () => {
+  assert.ok(tradeNav.includes('getPublicAssetCatalog(controller.signal)'));
+  assert.ok(tradeNav.includes('asset.enabled && asset.visible'));
+  assert.ok(tradeNav.includes('asset.spot_enabled'));
+  assert.ok(tradeNav.includes('asset.perpetual_enabled'));
+  assert.ok(tradeNav.includes('asset.seconds_enabled'));
+  assert.ok(tradeNav.includes('asset.earn_enabled'));
+  assert.ok(tradeNav.includes('PRODUCTS.filter'));
+  assert.ok(tradeNav.includes('availableProducts.map'));
+  assert.ok(tradeNav.includes('if (availableProducts.length === 0) return null'));
 });
