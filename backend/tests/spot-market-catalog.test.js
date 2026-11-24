@@ -86,8 +86,9 @@ test('market timestamps distinguish server snapshot time from provider-specific 
   assert.ok(gateway.includes('Date.parse(ticker.time)'), 'Coinbase timestamp is the last-trade timestamp');
   assert.ok(gateway.includes('const providerTimeMs = num(payload.time)'), 'Bybit timestamp is the provider response timestamp');
   assert.ok(gateway.includes('ts: now, providerTs'), 'gateway preserves provider time separately');
-  assert.ok(route.includes('const snapshotTs = Math.floor(Date.now() / 1000)'), 'server snapshot time is generated after provider responses');
-  assert.ok(route.includes('ts: snapshotTs,'), 'API emits server snapshot time per symbol');
+  assert.ok(route.includes('const gatewaySnapshotTs = Number(gatewayRow.ts)'), 'API reads the gateway server snapshot time');
+  assert.ok(route.includes('ts: Number.isFinite(gatewaySnapshotTs) && gatewaySnapshotTs > 0 ? gatewaySnapshotTs : null'), 'API preserves the gateway timestamp instead of refreshing stale data');
+  assert.ok(route.includes('do not refresh an old last-good snapshot'), 'stale fallback age must remain unchanged');
   assert.ok(route.includes('providerTs: Number.isFinite(Number(gatewayRow.providerTs))'), 'API preserves provider timestamp separately');
   assert.ok(api.includes('Server snapshot time (Unix seconds), not an exchange event timestamp.'));
   assert.ok(api.includes('never synthesized by the browser.'));
