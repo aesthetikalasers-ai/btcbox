@@ -1298,14 +1298,14 @@ export function AdminPage() {
           <h1 className="mt-1 text-lg font-semibold tracking-tight text-brand-text">{adminText("Administrator Console")}</h1>
           <p className="mt-1 truncate text-xs text-brand-text-muted" title={session.user_id}>{session.is_super_admin ? adminText("Super Administrator") : adminText("Role-based administrator")} · {session.user_id}</p>
         </div>
-        <nav aria-label={adminText("Management navigation")} className="no-scrollbar mt-4 flex max-w-full gap-5 overflow-x-auto pb-2 lg:mt-5 lg:block lg:space-y-5 lg:overflow-visible lg:pb-0">
+        <nav aria-label={adminText("Management navigation")} className="mt-4 grid grid-cols-2 gap-x-3 gap-y-4 pb-2 sm:gap-x-5 lg:mt-5 lg:grid-cols-1 lg:gap-y-5 lg:pb-0">
           {ADMIN_TAB_GROUPS.map(group => {
             const visibleItems = allowedTabs.filter(item => group.tabs.includes(item.id));
             if (!visibleItems.length) return null;
-            return <section key={group.id} aria-label={adminText(group.label)} className="min-w-max lg:min-w-0">
+            return <section key={group.id} aria-label={adminText(group.label)} className="min-w-0">
               <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-text-muted">{adminText(group.label)}</p>
-              <div className="flex gap-1 lg:grid lg:gap-1">
-                {visibleItems.map(item => <Button key={item.id} className="min-h-9 justify-start whitespace-nowrap px-3 text-left lg:w-full" size="sm" variant={tab === item.id ? "secondary" : "ghost"} onClick={() => { setTab(item.id); setError(""); setNotice(""); }}>{adminText(item.label)}</Button>)}
+              <div className="grid grid-cols-1 gap-1">
+                {visibleItems.map(item => <Button key={item.id} className="min-h-10 w-full justify-start whitespace-normal px-2.5 text-left text-xs sm:text-sm lg:px-3" size="sm" variant={tab === item.id ? "secondary" : "ghost"} onClick={() => { setTab(item.id); setError(""); setNotice(""); }}>{adminText(item.label)}</Button>)}
               </div>
             </section>;
           })}
