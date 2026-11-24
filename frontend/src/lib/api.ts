@@ -1622,6 +1622,9 @@ export async function saveAdminConfig(token: string, config: AdminConfig) {
 export async function adminAdjustUserBalance(token: string, input: { uid: string; coin: string; delta: string; mode: "adjust" | "freeze" | "unfreeze"; request_id: string }) {
   return adminRequest<{ ok: true; operation_id: string; duplicate: boolean; balances: Record<string, { free: string | number; frozen: string | number }> }>(token, "admin/user/balance", { method: "POST", body: input });
 }
+export async function adminSetUserFrozen(token: string, input: { uid: string; frozen: boolean; reason: string }) {
+  return adminRequest<{ ok: true; audit_sync_pending?: boolean; msg: string }>(token, "admin/user/freeze", { method: "POST", body: input });
+}
 export async function adminManualCredit(token: string, input: { uid: string; coin: string; amount: string; reference: string; note?: string; idempotency_key: string }) {
   return adminRequest<{ ok: true; duplicate?: boolean; balance?: AccountBalance; audit_sync_pending?: boolean }>(token, "admin/deposit/confirm", { method: "POST", body: input });
 }
