@@ -16,7 +16,7 @@ test('admin support inbox returns both senders with stable customer ownership', 
   assert.ok(route.includes("m.from !== 'user' && m.from !== 'admin'"));
   assert.ok(route.includes('uid: uid'));
   assert.ok(route.includes("from: m.from"));
-  assert.ok(route.includes("email: String(u.email || '')"));
+  assert.ok(route.includes("const email = String(u.email || '')")); assert.ok(route.includes("email: email"));
   assert.ok(route.includes('conversation.slice(-100).forEach'));
   assert.ok(route.includes('return json({ ok: true, messages: list });'));
   assert.ok(!route.includes('list.slice(-500)'));
