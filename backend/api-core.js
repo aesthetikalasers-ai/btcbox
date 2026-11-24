@@ -4752,8 +4752,8 @@ async function handleRequest(event, context) {
         const marketMinQuantity = parseMoneyInput(body.market_min_quantity);
         const marketMaxQuantity = body.market_max_quantity ? parseMoneyInput(body.market_max_quantity) : null;
         const maxQuantity = body.max_quantity ? parseMoneyInput(body.max_quantity) : null;
-        const maxPositionNotional = body.max_position_notional ? parseMoneyInput(body.max_position_notional) : null;
-        const invalidOptionalLimits = (body.max_quantity && !maxQuantity) || (body.max_position_notional && !maxPositionNotional);
+        const maxPositionNotional = parseMoneyInput(body.max_position_notional);
+        const invalidOptionalLimits = (body.max_quantity && !maxQuantity);
         const invalidMarketMax = body.market_max_quantity && !marketMaxQuantity;
         const maxLeverage = Number(body.max_leverage);
         const mmr = body.maintenance_margin_rate === undefined ? null : Number(body.maintenance_margin_rate);
@@ -4769,7 +4769,7 @@ async function handleRequest(event, context) {
             || !priceTick || compareMoney(priceTick,'0')<=0 || !quantityStep || compareMoney(quantityStep,'0')<=0
             || !minQuantity || compareMoney(minQuantity,'0')<=0 || !minNotional || compareMoney(minNotional,'0')<=0
             || !marketQuantityStep || compareMoney(marketQuantityStep,'0')<=0 || !marketMinQuantity || compareMoney(marketMinQuantity,'0')<=0
-            || (marketMaxQuantity && compareMoney(marketMaxQuantity,marketMinQuantity)<0) || !Number.isInteger(maxLeverage) || maxLeverage < 1 || maxLeverage > 100
+            || (marketMaxQuantity && compareMoney(marketMaxQuantity,marketMinQuantity)<0) || !maxPositionNotional || compareMoney(maxPositionNotional,'0')<=0 || !Number.isInteger(maxLeverage) || maxLeverage < 1 || maxLeverage > 100
             || !['trading','paused','open_only','liquidation_only'].includes(status)
             || mmr === null || mmr < 0 || mmr > 0.5 || makerFee < 0 || takerFee < 0 || fundingInterval !== 28800 || fundingCap <= 0 || fundingCap > 0.0075
             || invalidOptionalLimits || invalidMarketMax || !Number.isFinite(makerFee) || makerFee < 0 || makerFee > 0.1 || !Number.isFinite(takerFee) || takerFee < 0 || takerFee > 0.1
