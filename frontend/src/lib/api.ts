@@ -1520,7 +1520,7 @@ export async function getAdminStats(token: string, signal?: AbortSignal) {
 }
 export async function getAdminUsers(token: string, search = "", signal?: AbortSignal) {
   const query = search.trim() ? `?search=${encodeURIComponent(search.trim())}` : "";
-  return adminRequest<{ ok: true; users: AdminUserRecord[] }>(token, `admin/users${query}`, { signal });
+  return adminRequest<{ ok: true; users: AdminUserRecord[]; source: "btcbox_state_user_directory"; completeness: "snapshot" | "limit_reached"; matched_count: number; returned_count: number }>(token, `admin/users${query}`, { signal });
 }
 export async function getAdminUser(token: string, uid: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; user: AdminUserRecord }>(token, `admin/user?uid=${encodeURIComponent(uid)}`, { signal });
