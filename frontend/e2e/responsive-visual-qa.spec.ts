@@ -336,8 +336,8 @@ async function assertPageAtWidth(
     const chartDrawer = page.locator(".trade-drawer-root");
     await expect(chartDrawer, "Perpetual chart drawer must remain available below 1024px.").toBeVisible();
     await chartDrawer.getByRole("button", { name: "Expand chart" }).click();
-    await expect(chartDrawer.getByRole("button", { name: "Collapse chart" })).toBeVisible();
-    await chartDrawer.getByRole("button", { name: "Collapse chart" }).click();
+    await expect(chartDrawer.getByRole("button", { name: "Collapse chart" }).first()).toBeVisible();
+    await chartDrawer.getByRole("button", { name: "Collapse chart" }).first().click();
     await expect(page.getByRole("alert")).toHaveCount(0);
     await expect(page.getByText("Order book is temporarily unavailable.", { exact: true })).toHaveCount(0);
     await expect(page.getByText(/^(Latest trades|Recent trades)$/i)).toHaveCount(0);
@@ -414,8 +414,8 @@ async function assertPageAtWidth(
       const chartDrawer = page.locator(".trade-drawer-root");
       await expect(chartDrawer, "Spot chart drawer must be visible below 1024px.").toBeVisible();
       await chartDrawer.getByRole("button", { name: "Expand chart" }).click();
-      await expect(chartDrawer.getByRole("button", { name: "Collapse chart" })).toBeVisible();
-      await chartDrawer.getByRole("button", { name: "Collapse chart" }).click();
+      await expect(chartDrawer.getByRole("button", { name: "Collapse chart" }).first()).toBeVisible();
+      await chartDrawer.getByRole("button", { name: "Collapse chart" }).first().click();
     } else {
       await chartTrigger.click();
       const chartDialog = page.locator(".spot-chart-drawer");
@@ -528,7 +528,7 @@ async function assertPageAtWidth(
       async () => (await drawerPanel.boundingBox())?.height ?? 0,
       { message: "The K-line drawer must expand after the trigger is pressed.", timeout: 5000 },
     ).toBeGreaterThan(44);
-    await chartRegion.getByRole("button", { name: "Collapse chart" }).first().click();
+    await chartRegion.getByRole("button", { name: "Collapse chart" }).first().first().click();
     await expect.poll(
       async () => (await drawerPanel.boundingBox())?.height ?? Number.POSITIVE_INFINITY,
       { message: "The K-line drawer must collapse cleanly.", timeout: 5000 },
