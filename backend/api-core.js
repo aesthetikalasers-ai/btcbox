@@ -4623,15 +4623,16 @@ async function handleRequest(event, context) {
         return json({ ok: false, code: 'INVALID_FAQ_ID', msg: 'FAQ identifiers may only contain letters, numbers, hyphens and underscores.' }, 400);
       }
       const entries = normalizeSupportFaq(db);
-      if (entries.length > 200) {
-        return json({ ok: false, code: 'FAQ_LIMIT_REACHED', msg: 'The help centre already contains the maximum number of entries.' }, 409);
-      }
       const enabled = body.enabled === undefined ? true : body.enabled === true || body.enabled === 'true';
       const clash = requestedId ? entries.filter(function (entry) { return entry && entry.id !== requestedId && String(entry.question).trim() === question; }) : entries.filter(function (entry) { return entry && String(entry.question).trim() === question; });
       if (clash.length) {
         return json({ ok: false, code: 'FAQ_DUPLICATE_QUESTION', msg: 'Another help-centre entry already uses this question.' }, 409);
       }
       const existing = requestedId ? entries.find(function (entry) { return entry && entry.id === requestedId; }) : null;
+      // Updates remain allowed at capacity; only a genuinely new entry is blocked.
+      if (!existing && entries.length >= 200) {
+        return json({ ok: false, code: 'FAQ_LIMIT_REACHED', msg: 'The help centre already contains the maximum number of entries.' }, 409);
+      }
       let entry;
       if (existing) {
         existing.question = question;
