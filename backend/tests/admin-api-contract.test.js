@@ -87,6 +87,30 @@ test('withdrawal queue API labels canonical and legacy sources with completeness
   assert.ok(adminPage.includes('Canonical pending queue'));
 });
 
+test('admin user detail keeps basic profile reads independent from financial ledger availability', () => {
+  const start = api.indexOf("if (sub === 'user' && method === 'GET')");
+  const end = api.indexOf("async function auditAdmin", start);
+  assert.ok(start >= 0 && end > start, 'admin user detail route must exist');
+  const route = api.slice(start, end);
+  assert.doesNotMatch(route, /await readFinancialAccountSnapshot\(uid\)/, 'users.read must not be blocked by an unconditional ledger preflight');
+  assert.ok(route.includes("const canReadDeposits = hasAdminPermission(adminMembership, 'deposits.read')"));
+  assert.ok(route.includes('if (financialPostgresReadsEnabled())'));
+  assert.ok(route.includes("safeUser.financial_balance_source = 'postgres_financial_ledger'"));
+  assert.ok(route.includes("safeUser.financial_balance_source = 'legacy_state_retention_limited'"));
+});
+
+test('admin user-list financial totals disclose their actual data source', () => {
+  const start = api.indexOf("if (sub === 'users' && method === 'GET')");
+  const end = api.indexOf("// GET /api/admin/kyc", start);
+  assert.ok(start >= 0 && end > start, 'admin user list route must exist');
+  const route = api.slice(start, end);
+  assert.ok(route.includes("financial_summary_source = useCanonicalFinancialReads ? 'postgres_financial_ledger' : 'legacy_state_retention_limited'"));
+  assert.ok(route.includes("financial_summary_completeness = useCanonicalFinancialReads ? 'canonical_snapshot' : 'retention_limited'"));
+  assert.ok(client.includes('financial_summary_source?'));
+  assert.ok(adminPage.includes('user.financial_summary_source === "legacy_state_retention_limited"'));
+  assert.ok(adminPage.includes('Financial total (USDT)'));
+});
+
 test('withdrawal rejection API requires a bounded, non-control-character audit reason', () => {
   const start = api.indexOf("if (sub === 'withdraw/reject' && method === 'POST')");
   const end = api.indexOf("// POST /api/admin/withdraw/mark-paid", start);
