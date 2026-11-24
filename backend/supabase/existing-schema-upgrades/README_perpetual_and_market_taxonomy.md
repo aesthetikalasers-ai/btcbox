@@ -7,6 +7,7 @@ the fresh-database bootstrap.
 
 - Perpetual contract schema and RPCs: `backend/supabase/sql/0041_perpetual_contract_v1.sql`
 - Market taxonomy foundation: `backend/supabase/sql/0045_market_asset_categories_v1.sql`
+- Atomic funding settlement and clearing subledger: `backend/supabase/sql/0046_perpetual_funding_atomic_clearing_v1.sql`
 
 The numbered SQL files are the canonical source. Do not hand-maintain a second
 copy of either migration in this directory.
