@@ -48,6 +48,9 @@ test('wallet asset display follows configured names, precision metadata, visibil
   assert.ok(assetsPage.includes('hasFunds || !config'));
   assert.ok(assetsPage.includes('left.sort_order - right.sort_order'));
   assert.ok(assetsPage.includes('assetConfig?.display_name || assetConfig?.name'));
+  assert.ok(assetsPage.includes('assetConfig?.display_precision ?? 8'));
+  assert.ok(assetsPage.includes('formatConfiguredAssetAmount(balance.free, numberLocale, displayPrecision)'));
+  assert.ok(assetsPage.includes('formatConfiguredAssetAmount(balance.frozen, numberLocale, displayPrecision)'));
   assert.ok(assetsPage.includes('hasEnabledSpotPair'));
   assert.ok(assetsPage.includes('pair.enabled'));
 });
