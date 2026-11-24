@@ -340,7 +340,7 @@ async function assertPageAtWidth(
       panels.nth(0).boundingBox(),
       panels.nth(1).boundingBox(),
       panels.nth(2).boundingBox(),
-      terminal.evaluate((element) => getComputedStyle(element).gridTemplateColumns.trim().split(/\\s+/).length),
+      terminal.evaluate((element) => getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/).length),
     ]);
     expect(chartBox, "Perpetual chart must have a rendered layout box.").not.toBeNull();
     expect(bookBox, "Perpetual order book must have a rendered layout box.").not.toBeNull();
