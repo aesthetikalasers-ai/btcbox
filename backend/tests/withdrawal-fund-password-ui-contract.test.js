@@ -29,6 +29,8 @@ test('fund-password setup and withdrawal UIs accept the exact backend policy', (
   assert.ok(accountView.includes('newFundPassword.length<8||!/[A-Za-z]/.test(newFundPassword)||!/[0-9]/.test(newFundPassword)||/\\s/.test(newFundPassword)'));
   assert.ok(!accountView.includes('New Fund Password (6 digits)'));
   assert.ok(!accountView.includes("if(!/^\\d{6}$/.test($('#fp-new').value)"));
+  assert.ok(accountView.includes('id="fp-2fa" class="auth-input num"'));
+  assert.ok(accountView.includes("twofa_code:state.settings.twofa?$('#fp-2fa').value:undefined"));
 });
 
 test('ambiguous withdrawal results are checked against owner-scoped PostgreSQL history before retry', () => {
