@@ -272,6 +272,8 @@ test('funding worker delegates each due market boundary to one atomic database R
   assert.ok(fund.includes("rpc('perp_settle_funding_market'"));
   assert.ok(fund.includes('result.ok !== true'));
   assert.ok(fund.includes('result.stale_boundary'));
+  assert.ok(fund.includes('p_funding_at: market.next_funding_at'));
+  assert.ok(!fund.includes('p_funding_at: fundingAt.toISOString()'));
   assert.ok(fund.includes('next_funding_at=not.is.null'));
   assert.ok(!fund.includes("rpc('perp_settle_funding_one'"));
   assert.ok(!fund.includes('funding settled marker'));
