@@ -6,6 +6,8 @@ the fresh-database bootstrap.
 ## Canonical SQL sources
 
 - Perpetual schema and RPCs: `backend/supabase/sql/0041_perpetual_contract_v1.sql`
+- Support read-state foundation: `backend/supabase/sql/0042_support_read_state_v1.sql`
+- Support read cursor: `backend/supabase/sql/0043_support_read_cursor_v1.sql`
 - Withdrawal operation-type compatibility: `backend/supabase/sql/0044_withdrawal_operation_type_compatibility_v1.sql`
 - Market taxonomy: `backend/supabase/sql/0045_market_asset_categories_v1.sql`
 - Atomic funding settlement and clearing: `backend/supabase/sql/0046_perpetual_funding_atomic_clearing_v1.sql`
@@ -46,16 +48,20 @@ Apply each file as its own tracked Supabase migration, in this exact order:
 1. **0041** — installs the additive perpetual schema and service-role RPCs,
    extends the operation-type constraint with the complete legacy + perpetual
    union, and seeds only missing canonical asset rows. Markets remain disabled.
-2. **0044** — reapplies the current withdrawal-compatible operation-type union
+2. **0042** — installs the additive support read-state foundation. Preserve the
+   existing support messages and read markers.
+3. **0043** — adds the support read cursor RPC after 0042; it does not rewrite
+   message history.
+4. **0044** — reapplies the current withdrawal-compatible operation-type union
    and the generic `apply_financial_operation` implementation. Its RPC remains
    deliberately limited to generic single-account movements; perpetual matching,
    funding, liquidation and multi-account settlement stay in their dedicated
    atomic RPCs. Do not broaden this generic RPC to `perp_*` types.
-3. **0045** — adds the four category definitions and an empty asset assignment
+5. **0045** — adds the four category definitions and an empty asset assignment
    table. It depends on the canonical asset registry installed/preserved by 0041.
-4. **0046** — adds funding clearing entries and the market-wide atomic funding
+6. **0046** — adds funding clearing entries and the market-wide atomic funding
    boundary RPC. It requires the perpetual tables/RPCs from 0041.
-5. **0047** — replaces the liquidation RPC, adds a separate insurance-cover
+7. **0047** — replaces the liquidation RPC, adds a separate insurance-cover
    operation and a balanced liquidation risk journal. It requires the
    liquidation tables and operation types from 0041.
 
