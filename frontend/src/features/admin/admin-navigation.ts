@@ -1,0 +1,26 @@
+export type AdminTab = "overview" | "users" | "deposits" | "withdrawals" | "kyc" | "audit" | "orders" | "support" | "support-faq" | "payout-addresses" | "admins" | "seconds" | "markets";
+
+export const ADMIN_TABS: Array<{ id: Tab; label: string; permission: string }> = [
+  { id: "overview", label: "Overview", permission: "dashboard.read" },
+  { id: "users", label: "Users & manual credit", permission: "users.read" },
+  { id: "deposits", label: "Deposit addresses", permission: "system_config.read" },
+  { id: "withdrawals", label: "Withdrawals", permission: "withdrawals.read" },
+  { id: "kyc", label: "KYC", permission: "kyc.read" },
+  { id: "audit", label: "Audit log", permission: "financial_audit.read" },
+  { id: "orders", label: "Orders", permission: "orders.read" },
+  { id: "support", label: "Support", permission: "support.read" },
+  { id: "payout-addresses", label: "Bank payout details", permission: "payout_addresses.read_sensitive" },
+  { id: "support-faq", label: "Help centre", permission: "support.manage" },
+  { id: "seconds", label: "Seconds policy", permission: "seconds_policy.read" },
+  { id: "markets", label: "Spot markets", permission: "system_config.read" },
+];
+
+export const ADMIN_TAB_GROUPS: Array<{ id: string; label: string; tabs: Tab[] }> = [
+  { id: "workspace", label: "Workspace", tabs: ["overview"] },
+  { id: "users", label: "User centre", tabs: ["users", "kyc"] },
+  { id: "finance", label: "Finance centre", tabs: ["deposits", "withdrawals", "payout-addresses"] },
+  { id: "trading", label: "Trading operations", tabs: ["orders", "markets", "seconds"] },
+  { id: "support", label: "Support centre", tabs: ["support", "support-faq"] },
+  { id: "audit", label: "Audit centre", tabs: ["audit"] },
+  { id: "system", label: "System", tabs: ["admins"] },
+];
