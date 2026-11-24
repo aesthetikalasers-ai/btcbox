@@ -514,13 +514,17 @@ BEGIN
    WHERE user_id IN ('perp-long-ci','perp-short-ci') AND asset='USDT';
   INSERT INTO public.perpetual_positions(user_id,symbol,side,quantity,entry_price,isolated_margin)
   VALUES ('perp-long-ci','BTCUSDT','long',1,1000,100),('perp-short-ci','BTCUSDT','short',1,1000,100);
-  INSERT INTO public.perpetual_funding_rates(
-    symbol,funding_at,rate,premium_index,mark_price,index_price,sources,
-    formula_version,interest_rate,impact_bid_price,impact_ask_price,calculated_at
-  ) VALUES ('BTCUSDT',v_at,0.001,0.0015,1000,1000,jsonb_build_array(
+  INSERT INTO public.perpetual_mark_price_feed(
+    symbol,index_price,mark_price,sources,source_count,max_deviation_pct,status
+  ) VALUES ('BTCUSDT',1000,1000,jsonb_build_array(
     jsonb_build_object('source','binance','price','1000','ts',v_ts),
-    jsonb_build_object('source','okx','price','1001','ts',v_ts)),
-    'btcbox-funding-v1',0.0001,1001,1002,clock_timestamp());
+    jsonb_build_object('source','okx','price','1001','ts',v_ts)),2,0.1,'ok');
+  v_result := public.perp_record_funding_rate_snapshot('BTCUSDT',v_at,1001,1002);
+  IF v_result->>'ok'<>'true' OR v_result->>'formula_version'<>'btcbox-funding-v1'
+     OR (v_result->>'rate')::numeric<>0.001
+     OR (v_result->>'premium_index')::numeric<>0.0015 THEN
+    RAISE EXCEPTION 'fixed funding formula producer returned an unexpected snapshot: %',v_result;
+  END IF;
   v_result := public.perp_settle_funding_market('BTCUSDT',v_at);
   IF v_result->>'ok'<>'true' OR (v_result->>'settled')::integer<>2 THEN
     RAISE EXCEPTION 'funding batch failed: %',v_result;
