@@ -744,14 +744,14 @@ begin
   if not found then return jsonb_build_object('ok',true,'no_position',true); end if;
   v_notional := v_pos.quantity * coalesce(v_rate.mark_price, v_pos.entry_price);
   -- long pays when rate>0: long payment = -rate*notional; short receives +rate*notional.
-  v_payment := case when v_pos.side='long' then -p_rate else p_rate end * v_notional;
+  -- The persisted funding-rate row is authoritative; never trust a caller-supplied rate for settlement.\n  v_payment := case when v_pos.side='long' then -v_rate.rate else v_rate.rate end * v_notional;
 
   insert into public.financial_accounts(user_id,asset) values (p_user_id,'USDT') on conflict do nothing;
   perform 1 from public.financial_accounts where user_id=p_user_id and asset='USDT' for update;
   insert into public.financial_operations(idempotency_key,user_id,asset,operation_type,request_hash,metadata)
   values (v_idem,p_user_id,'USDT','perp_funding',
     encode(extensions.digest(v_idem||':'||v_payment::text,'sha256'),'hex'),
-    jsonb_build_object('symbol',p_symbol,'funding_at',p_funding_at,'rate',p_rate))
+    jsonb_build_object('symbol',p_symbol,'funding_at',p_funding_at,'rate',v_rate.rate))
   returning id into v_op;
   select available, frozen into v_avail_before, v_frozen_before from public.financial_accounts where user_id=p_user_id and asset='USDT';
   if v_payment < 0 then
