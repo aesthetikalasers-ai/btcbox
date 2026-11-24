@@ -112,13 +112,17 @@ begin
   if not found then raise exception 'perpetual market disabled or unconfigured'; end if;
   if v_market.status not in ('trading','open_only') then raise exception 'perpetual market not accepting orders'; end if;
   if p_leverage > v_market.max_leverage then raise exception 'leverage exceeds market maximum'; end if;
-  if p_type='market' and not coalesce(p_reduce_only,false) then
+  if p_close_position then
+    -- Full-position closes use the exact locked position quantity and must
+    -- never be blocked by opening-order lot/minimum filters.
+    null;
+  elsif p_type='market' and not coalesce(p_reduce_only,false) then
     if mod(p_quantity, v_market.market_quantity_step) <> 0 then raise exception 'market quantity precision invalid'; end if;
     if p_quantity < v_market.market_min_quantity then raise exception 'market quantity below minimum'; end if;
     if v_market.market_max_quantity is not null and p_quantity > v_market.market_max_quantity then raise exception 'market quantity above maximum'; end if;
   else
-    -- Reduce-only market orders deliberately use the regular lot step so a
-    -- user can always close/reduce a position opened through limit fills.
+    -- Reduce-only partial market orders use the regular lot step so a user
+    -- can reduce positions created through limit fills.
     if mod(p_quantity, v_market.quantity_step) <> 0 then raise exception 'quantity precision invalid'; end if;
     if p_quantity < v_market.min_quantity then raise exception 'quantity below minimum'; end if;
     if v_market.max_quantity is not null and p_quantity > v_market.max_quantity then raise exception 'quantity above maximum'; end if;
