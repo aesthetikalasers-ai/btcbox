@@ -56,7 +56,9 @@ test('admin perpetual market configuration has matching permission-gated backend
   assert.ok(client.includes('export async function saveAdminPerpMarket'));
   assert.ok(client.includes('"admin/perpetual/market"'));
   assert.ok(adminPage.includes('getAdminPerpMarkets(token)'));
-  assert.ok(adminPage.includes('enabled: false, status: "paused"'));
+  assert.ok(adminPage.includes('enabled: draft.feed_enabled, status: "paused"'));
+  assert.ok(adminPage.includes('perpMarketDraft.feed_enabled'));
+  assert.ok(adminPage.includes('Enable market-data feed (trading remains paused)'));
   assert.ok(adminPage.includes('saveAdminPerpMarket(token'));
 });
 
