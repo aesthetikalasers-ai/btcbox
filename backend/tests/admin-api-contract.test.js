@@ -7,6 +7,7 @@ const root = path.resolve(__dirname, '..');
 const api = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
 const client = fs.readFileSync(path.resolve(root, '../frontend/src/lib/api.ts'), 'utf8');
 const adminPage = fs.readFileSync(path.resolve(root, '../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+const adminNavigation = fs.readFileSync(path.resolve(root, '../frontend/src/features/admin/admin-navigation.ts'), 'utf8');
 
 test('every admin route exposed by the backend has a matching permission and the frontend calls only existing routes', () => {
   const permStart = api.indexOf('const requiredPermission = (function(route, verb)');
@@ -147,7 +148,7 @@ test('customer payout-address endpoints use dedicated sensitive permissions, sep
   assert.ok(api.includes("if (!hasAdminPermission(adminMembership, requiredPermission))"));
   assert.ok(adminPage.includes('["payout_addresses.read_sensitive","Read sensitive customer payout addresses"]'));
   assert.ok(adminPage.includes('["payout_addresses.manage","Manage customer payout addresses"]'));
-  const tab = adminPage.match(/\{ id: "deposits", label: "Deposit addresses", permission: "([^"]+)" \}/);
+  const tab = adminNavigation.match(/\{ id: "deposits", label: "Deposit settings", permission: "([^"]+)" \}/);
   assert.ok(tab, 'global deposit configuration tab must be present');
   assert.equal(tab[1], 'system_config.read');
 });
