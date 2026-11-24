@@ -44,7 +44,6 @@ test('spot trading live refresh never overwrites the customer-edited limit price
 
 test('spot trading clears stale ticker, order book, and candles when live refresh fails', () => {
   assert.ok(page.includes('marketUpdatedAt'));
-  assert.ok(page.includes('Provider updated'));
   assert.ok(page.includes('marketFeedWarning'));
   const startRefresh = page.indexOf('const refreshMarketData=');
   const endRefresh = page.indexOf('const refreshId=window.setInterval', startRefresh);
@@ -108,10 +107,15 @@ test('market API carries per-symbol server snapshot time separately from provide
   assert.ok(api.includes('snapshotTs: Number.isFinite(snapshot?.ts)'));
 });
 
-test('spot UI labels server snapshot time and does not substitute browser receipt time', () => {
-  assert.ok(page.includes('t("Snapshot checked")'));
+test('spot UI keeps market diagnostics and raw trading-rule parameters out of customer-facing markup', () => {
   assert.ok(page.includes('const serverSnapshotTimestampMs=ticker?.snapshotTs?ticker.snapshotTs*1000:null;'));
-  assert.ok(!page.includes('setMarketUpdatedAt(Date.now())'));
+  for (const label of ['Snapshot checked', 'Provider updated', 'Tick size', 'Quantity step', 'Minimum quantity', 'Minimum notional']) {
+    assert.ok(!page.includes('t("' + label + '")'), label + ' must not be rendered in the spot UI');
+  }
+  assert.ok(!page.includes('displayBook?.source'));
+  assert.ok(!page.includes('displayTicker?.source'));
+  assert.ok(!page.includes('spot-quote-source'));
+  assert.ok(!page.includes('term-snapshot'));
 });
 
 const authPage = fs.readFileSync(path.resolve(__dirname, '../../frontend/src/features/auth/AuthPages.tsx'), 'utf8');
