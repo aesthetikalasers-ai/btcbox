@@ -19,6 +19,8 @@ test('admin spot-market API is protected by the existing system-config permissio
   assert.match(api, /SUPPORTED_LEDGER_ASSETS\.has\(baseAsset\)/);
   assert.match(api, /SUPPORTED_LEDGER_ASSETS\.has\(quoteAsset\)/);
   assert.match(api, /quoteAsset !== 'USDT'/);
+  assert.match(api, /enabled && \(!isAssetModuleEnabled\(db, baseAsset, 'spot_enabled'\) \|\| !isAssetVisible\(db, baseAsset\)\)/);
+  assert.match(api, /SPOT_ASSET_NOT_AVAILABLE/);
   assert.match(api, /p_actor_user_id: adminUserId/);
   assert.match(api, /p_request_id: requestId, p_request_hash: requestHash/);
   assert.match(api, /admin_set_spot_market_v1/);
