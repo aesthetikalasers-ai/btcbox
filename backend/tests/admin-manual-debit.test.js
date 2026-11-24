@@ -45,6 +45,8 @@ test('negative available balance is narrowly enabled for marked manual debit onl
   assert.ok(migration.includes('financial_accounts_negative_balance_guard'));
   assert.ok(migration.includes('financial_ledger_negative_balance_guard'));
   assert.ok(migration.includes('negative available balance requires a marked admin debit or a deposit offset'));
+  assert.ok(migration.includes('v_deposit_offset := OLD.available < 0 AND NEW.available > OLD.available'));
+  assert.ok(migration.includes('NEW.available_after - NEW.available_delta < 0'));
 });
 
 test('manual debit UI has no reason field and uses a stable idempotency key', () => {
