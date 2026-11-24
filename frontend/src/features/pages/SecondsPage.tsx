@@ -39,6 +39,7 @@ export function SecondsPage() {
   const [snapshot, setSnapshot] = useState<SecondsPositionsSnapshot | null>(null);
   const [positionsLoadError, setPositionsLoadError] = useState(false);
   const [policy, setPolicy] = useState<SecondsPolicyResponse | null>(null);
+  const [policyUnavailableMessage, setPolicyUnavailableMessage] = useState("");
   const [uid, setUid] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -138,6 +139,7 @@ export function SecondsPage() {
       setSnapshot(null);
       setPositionsLoadError(false);
       setPolicy(null);
+      setPolicyUnavailableMessage("");
       setAvailableUSDT(null);
       setPendingIntent(null);
       setError("");
@@ -192,8 +194,16 @@ export function SecondsPage() {
           setSnapshot(null);
           setPositionsLoadError(true);
         }
-        if (policyResult.status === "fulfilled") setPolicy(policyResult.value);
-        else setPolicy(null);
+        if (policyResult.status === "fulfilled") {
+          setPolicy(policyResult.value);
+          setPolicyUnavailableMessage("");
+        } else {
+          setPolicy(null);
+          const policyCode = (policyResult.reason as { code?: string } | undefined)?.code;
+          setPolicyUnavailableMessage(policyCode === "SECONDS_ASSETS_DISABLED"
+            ? t("Seconds contracts are unavailable because no supported assets are enabled.")
+            : t("Seconds contract policy is temporarily unavailable. No new order can be submitted."));
+        }
       })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
@@ -430,6 +440,7 @@ export function SecondsPage() {
           </div>
         </div>
         {marketWarning ? <p role="status" className="text-xs text-brand-text-muted">{marketWarning}</p> : null}
+        {policyUnavailableMessage ? <div role="status" className="rounded-lg border border-brand-warning/30 bg-brand-warning/10 p-3 text-xs font-semibold text-brand-text">{policyUnavailableMessage}</div> : null}
 
         {notice ? <div role="status" className="rounded-xl border border-brand-success/30 bg-brand-success/10 p-3 text-xs font-semibold text-brand-success flex items-center gap-2"><ShieldCheck className="h-4 w-4 shrink-0" />{notice}</div> : null}
         {error ? <div role="alert" className="rounded-xl border border-brand-danger/30 bg-brand-danger/10 p-3 text-xs font-semibold text-brand-danger flex items-center gap-2"><ShieldAlert className="h-4 w-4 shrink-0" />{error}</div> : null}
