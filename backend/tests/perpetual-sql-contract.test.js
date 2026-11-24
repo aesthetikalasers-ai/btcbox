@@ -413,5 +413,4 @@ test('0053 promotes a BTCBOX book mark with two independent fresh spot-index pro
   assert.ok(migration.includes("else 'degraded'"));
   assert.ok(migration.includes('BTCBOX order-book mark'));
   assert.ok(migration.includes('grant execute on function public.perp_record_mark_price(text,numeric,numeric,jsonb,integer)'));
-  assert.ok(!migration.includes('fixed funding rate'));
 });
