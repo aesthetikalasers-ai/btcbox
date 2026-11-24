@@ -36,6 +36,9 @@ test('public perpetual catalogue returns the configured minimum notional and fro
   assert.ok(route.includes('min_quantity,min_notional,market_quantity_step,market_min_quantity,market_max_quantity'));
   const page = fs.readFileSync(path.join(root, '../frontend/src/features/pages/ContractPage.tsx'), 'utf8');
   assert.ok(page.includes('selectedMarket.min_notional'));
+  assert.ok(page.includes('selectedMarket.market_quantity_step'));
+  assert.ok(page.includes('selectedMarket.market_min_quantity'));
+  assert.ok(page.includes('const usesMarketLot = orderType === "market" && !reduceOnly && !closePosition'));
   assert.ok(page.includes('Order notional is below the market minimum.'));
   assert.ok(page.includes('if (!reduceOnly'));
 });
