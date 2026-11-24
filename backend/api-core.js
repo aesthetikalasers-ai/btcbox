@@ -4727,6 +4727,14 @@ async function handleRequest(event, context) {
     // ---------- Admin: Perpetual markets / liquidations / insurance fund ----------
     if (sub.startsWith('perpetual/')) {
       const perpSub = sub.slice('perpetual/'.length);
+      if (perpSub === 'markets' && method === 'GET') {
+        if (!hasAdminPermission(adminMembership, 'system_config.read')) return json({ ok: false, code: 'ADMIN_PERMISSION_DENIED', permission: 'system_config.read' }, 403);
+        if (!supabaseStorageConfigured()) return json({ ok: false, code: 'PERPETUAL_RPC_NOT_CONFIGURED' }, 503);
+        try {
+          const markets = await perpRestGet('perpetual_markets?select=symbol,base_asset,quote_asset,enabled,status,price_tick,quantity_step,min_quantity,min_notional,max_quantity,max_position_notional,max_leverage,maintenance_margin_rate,maker_fee_rate,taker_fee_rate,funding_interval_sec,funding_rate_cap,mark_price_stale_sec,circuit_breaker_deviation_pct,updated_at&order=symbol.asc');
+          return json({ ok: true, markets: markets });
+        } catch (e) { return json({ ok: false, code: 'PERPETUAL_READ_UNAVAILABLE' }, 503); }
+      }
       if (perpSub === 'market' && method === 'POST') {
         if (!hasAdminPermission(adminMembership, 'system_config.write')) return json({ ok: false, code: 'ADMIN_PERMISSION_DENIED', permission: 'system_config.write' }, 403);
         if (!supabaseStorageConfigured()) return json({ ok: false, code: 'PERPETUAL_RPC_NOT_CONFIGURED' }, 503);
@@ -4735,6 +4743,7 @@ async function handleRequest(event, context) {
         const priceTick = parseMoneyInput(body.price_tick);
         const quantityStep = parseMoneyInput(body.quantity_step);
         const minQuantity = parseMoneyInput(body.min_quantity);
+        const minNotional = parseMoneyInput(body.min_notional);
         const maxQuantity = body.max_quantity ? parseMoneyInput(body.max_quantity) : null;
         const maxPositionNotional = body.max_position_notional ? parseMoneyInput(body.max_position_notional) : null;
         const maxLeverage = Number(body.max_leverage);
@@ -4748,7 +4757,7 @@ async function handleRequest(event, context) {
         if (!/^[A-Z0-9]{3,20}$/.test(symbol) || !/^[A-Z0-9]{2,16}$/.test(baseAsset)
             || symbol !== baseAsset + 'USDT'
             || !priceTick || compareMoney(priceTick,'0')<=0 || !quantityStep || compareMoney(quantityStep,'0')<=0
-            || !minQuantity || compareMoney(minQuantity,'0')<=0 || !Number.isInteger(maxLeverage) || maxLeverage < 1 || maxLeverage > 100
+            || !minQuantity || compareMoney(minQuantity,'0')<=0 || !minNotional || compareMoney(minNotional,'0')<=0 || !Number.isInteger(maxLeverage) || maxLeverage < 1 || maxLeverage > 100
             || !['trading','paused','open_only','liquidation_only'].includes(status)
             || mmr === null || mmr < 0 || mmr > 0.5 || makerFee < 0 || takerFee < 0 || fundingInterval <= 0 || fundingCap <= 0) {
           return json({ ok: false, code: 'INVALID_MARKET_CONFIG', msg: 'Invalid perpetual market configuration (max_leverage must be 1-100, mmr 0-0.5).' }, 400);
@@ -4756,7 +4765,7 @@ async function handleRequest(event, context) {
         try {
           const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
           const payload = { symbol: symbol, base_asset: baseAsset, quote_asset: 'USDT', enabled: enabled, status: status,
-            price_tick: priceTick, quantity_step: quantityStep, min_quantity: minQuantity, max_quantity: maxQuantity,
+            price_tick: priceTick, quantity_step: quantityStep, min_quantity: minQuantity, min_notional: minNotional, max_quantity: maxQuantity,
             max_position_notional: maxPositionNotional, max_leverage: maxLeverage, maintenance_margin_rate: mmr,
             maker_fee_rate: makerFee, taker_fee_rate: takerFee, funding_interval_sec: fundingInterval, funding_rate_cap: fundingCap,
             updated_at: new Date().toISOString() };
