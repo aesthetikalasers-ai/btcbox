@@ -433,6 +433,8 @@ begin
   if found then
     if v_existing.symbol<>p_symbol or v_existing.type<>p_type or v_existing.side<>p_side
        or v_existing.leverage<>p_leverage or v_existing.quantity<>p_quantity
+       or v_existing.reduce_only is distinct from coalesce(p_reduce_only,false)
+       or v_existing.close_position is distinct from coalesce(p_close_position,false)
        or (v_existing.price is distinct from p_price) then
       raise exception 'client order id payload mismatch';
     end if;
@@ -671,6 +673,9 @@ begin
       where id=p_order_id;
   end if;
 
+  -- Return the persisted final remainder, not the pre-cancel loop remainder.
+  select remaining_quantity into v_remaining
+    from public.perpetual_orders where id=p_order_id;
   return jsonb_build_object('ok',true,'duplicate',false,'order_id',p_order_id,
     'filled_quantity',v_filled_qty,'remaining_quantity',v_remaining,
     'avg_fill_price', case when v_filled_qty>0 then v_filled_quote/v_filled_qty else null end);
