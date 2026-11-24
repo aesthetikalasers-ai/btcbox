@@ -2675,6 +2675,74 @@ async function handleRequest(event, context) {
     }
   }
 
+  // Public capability snapshot. Financial order writes remain fail-closed unless
+  // every matching-engine cutover flag is explicitly enabled server-side.
+  if (path === 'trading/status' && method === 'GET') {
+    const enabled = matchingEngineEnabled();
+    return json({ ok: true, spot_order_entry_enabled: enabled, spot_cancel_enabled: enabled, supported_order_types: ['limit'] });
+  }
+
+  // ---------- POST /api/order ----------
+  // Never simulate fills or mutate customer balances outside the PostgreSQL matching RPC.
+  if (path === 'order' && method === 'POST') {
+    // Never simulate fills or mutate customer balances outside the PostgreSQL matching RPC.
+    // Never simulate fills: an unavailable or unapproved engine must fail closed.
+    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
+    if (user.frozen) return json({ ok: false, msg: 'Account frozen. Trading is not available. Please contact support.', code: 'ACCOUNT_FROZEN' }, 403);
+    { const rl = await rateCheckShared('spot_order', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
+    const symbol = String(body.symbol || 'BTCUSDT').toUpperCase();
+    const side = String(body.side || 'buy').toLowerCase();
+    const type = String(body.type || body.order_type || 'limit').toLowerCase();
+    const qty = parseMoneyInput(body.qty);
+    const price = parseMoneyInput(body.price === undefined || body.price === null || body.price === '' ? '0' : body.price);
+    const pair = matchingPairFromSymbol(symbol);
+    if (!pair) return json({ ok: false, msg: 'Operation failed: this trading pair is not supported.' }, 400);
+    if (!['buy','sell'].includes(side)) return json({ ok: false, msg: 'Operation failed: invalid trade direction.' }, 400);
+    // Market orders are intentionally rejected until a separately bounded market-order policy exists.
+    if (type !== 'limit') return json({ ok: false, code: 'ORDER_TYPE_UNSUPPORTED', msg: 'Only limit orders are currently supported.' }, 400);
+    if (qty === null || compareMoney(qty, '0') <= 0 || compareMoney(qty, '1000000000000') > 0) return json({ ok: false, msg: 'Operation failed: invalid quantity.' }, 400);
+    if (price === null || compareMoney(price, '0') <= 0 || compareMoney(price, '1000000000000000') > 0) return json({ ok: false, msg: 'Operation failed: invalid limit price.' }, 400);
+    const clientOrderId = String(body.client_order_id || body.request_id || '').trim();
+    if (!/^[A-Za-z0-9_-]{16,100}$/.test(clientOrderId)) return json({ ok: false, code: 'IDEMPOTENCY_KEY_REQUIRED', msg: 'Please provide a valid client_order_id (16-100 characters).' }, 400);
+    if (!matchingEngineEnabled()) {
+      return json({ ok: false, code: 'MATCHING_ENGINE_UNAVAILABLE', msg: 'Matching engine cutover is not approved. No order was created and your balance was unchanged.' }, 503);
+    }
+    const orderId = 'O' + crypto.randomUUID().replace(/-/g, '');
+    try {
+      const result = await matchingRpc('submit_limit_order_matching_v1', {
+        p_order_id: orderId, p_user_id: String(user.uid), p_base_asset: pair[0], p_quote_asset: pair[1],
+        p_side: side, p_price: price, p_quantity: qty, p_client_order_id: clientOrderId
+      });
+      return json({ ok: true, duplicate: !!result.duplicate, order_id: result.order_id || orderId,
+        status: result.status, price: result.price, quantity: result.quantity,
+        remaining_quantity: result.remaining_quantity, reserved_remaining: result.reserved_remaining });
+    } catch (e) {
+      const status = e.status === 400 ? 400 : 503;
+      return json({ ok: false, code: e.status === 400 ? 'ORDER_REJECTED' : 'MATCHING_RPC_UNAVAILABLE',
+        msg: e.status === 400 ? 'Order validation failed. Please check trading pair rules, available balance, and request parameters.' : 'Matching database temporarily unavailable. Order result is unconfirmed. Please check your orders before retrying.' }, status);
+    }
+  }
+
+  // ---------- POST /api/order/cancel ----------
+  if (path === 'order/cancel' && method === 'POST') {
+    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
+    const orderId = String(body.order_id || '').trim();
+    const cancelId = String(body.client_cancel_id || body.request_id || '').trim();
+    if (!orderId || orderId.length > 128) return json({ ok: false, code: 'INVALID_ORDER_ID', msg: 'Invalid order ID.' }, 400);
+    if (!/^[A-Za-z0-9_-]{16,100}$/.test(cancelId)) return json({ ok: false, code: 'IDEMPOTENCY_KEY_REQUIRED', msg: 'Please provide a valid client_cancel_id (16-100 characters).' }, 400);
+    { const rl = await rateCheckShared('spot_cancel', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
+    if (!matchingEngineEnabled()) return json({ ok: false, code: 'MATCHING_ENGINE_UNAVAILABLE', msg: 'Matching engine cutover is not approved. Cancel was not executed.' }, 503);
+    try {
+      const result = await matchingRpc('cancel_limit_order_matching_v1', {
+        p_user_id: String(user.uid), p_order_id: orderId, p_client_cancel_id: cancelId
+      });
+      return json({ ok: true, duplicate: !!result.duplicate, order_id: result.order_id || orderId, status: result.status });
+    } catch (e) {
+      return json({ ok: false, code: e.status === 400 ? 'CANCEL_REJECTED' : 'MATCHING_RPC_UNAVAILABLE',
+        msg: e.status === 400 ? 'Cancel failed. Please check the order status.' : 'Matching database temporarily unavailable. Cancel result is unconfirmed. Please check your orders before retrying.' }, e.status === 400 ? 400 : 503);
+    }
+  }
+
   // ---------- GET /api/earn/products ----------
   // The active catalog is read from PostgreSQL; never substitute frontend seed data.
   if (path === 'earn/products' && method === 'GET') {
