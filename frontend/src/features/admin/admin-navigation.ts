@@ -14,7 +14,7 @@ export const ADMIN_TABS: Array<{ id: AdminTab; label: string; permission: string
   { id: "support-faq", label: "Help centre", permission: "support.manage" },
   { id: "seconds", label: "Seconds contracts", permission: "seconds_policy.read" },
   { id: "assets", label: "Asset configuration", permission: "system_config.read" },
-  { id: "markets", label: "Spot markets", permission: "system_config.read" },
+  { id: "markets", label: "Spot & Perpetual markets", permission: "system_config.read" },
 ];
 
 export const ADMIN_TAB_GROUPS: Array<{ id: string; label: string; tabs: AdminTab[] }> = [
