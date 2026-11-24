@@ -1590,7 +1590,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 @media (min-width: 600px) and (max-width: 767px) {
   .trade-drawer-root--perpetual .trade-drawer-panel {
     width: 100%;
-    max-width: min(900px, 100%);
+    max-width: 100%;
   }
 }
 /* Desktop: the drawer is not used (chart is inline), hide it above 1024px. */
