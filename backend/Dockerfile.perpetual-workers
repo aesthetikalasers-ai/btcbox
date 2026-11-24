@@ -1,0 +1,11 @@
+# Dedicated always-on worker container. Do not deploy this as a Vercel Function.
+FROM node:22-alpine
+ENV NODE_ENV=production
+WORKDIR /app
+COPY scripts/perp-worker-supervisor.js ./scripts/
+COPY scripts/perp-mark-price-worker.js ./scripts/
+COPY scripts/perp-funding-rate-worker.js ./scripts/
+COPY scripts/perp-funding-worker.js ./scripts/
+COPY scripts/perp-liquidation-worker.js ./scripts/
+USER node
+CMD ["node", "scripts/perp-worker-supervisor.js"]

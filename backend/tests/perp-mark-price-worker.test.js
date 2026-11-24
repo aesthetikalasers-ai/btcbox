@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { calculateBookDepthMidPrice } = require('../scripts/perp-mark-price-worker');
+const { calculateBookDepthMidPrice, shouldUseBootstrapMark, DEFAULT_COINGECKO_IDS } = require('../scripts/perp-mark-price-worker');
 
 test('uses quantity-weighted prices across multiple executable levels', () => {
   const bids = [
@@ -63,4 +63,18 @@ test('rejects excessive spread', () => {
     ),
     /spread is too wide/
   );
+});
+
+test('only shallow or empty books may use the explicit bootstrap mark path', () => {
+  assert.equal(shouldUseBootstrapMark(new Error('insufficient two-level bid book depth')), true);
+  assert.equal(shouldUseBootstrapMark(new Error('crossed perpetual order book')), false);
+  assert.equal(shouldUseBootstrapMark(new Error('perpetual order-book spread is too wide')), false);
+  assert.equal(shouldUseBootstrapMark(new Error('REST GET failed: 500')), false);
+});
+
+test('has a provider id mapping for every BTCBOX non-USDC/USDT market candidate',()=>{
+  const expected=['ADA','AVAX','BNB','BTC','DOGE','ETH','SOL','XRP','LINK','DOT','TRX','LTC','BCH','NEAR','UNI','ATOM','ETC','APT','ARB','OP','SUI','INJ','TIA','FIL'];
+  for(const asset of expected) assert.ok(DEFAULT_COINGECKO_IDS[asset+'USDT'], 'missing '+asset+'USDT');
+  assert.equal(Object.keys(DEFAULT_COINGECKO_IDS).length,24);
+  assert.equal(DEFAULT_COINGECKO_IDS.USDCUSDT,undefined);
 });
