@@ -20,7 +20,23 @@ const DEFAULT_COINGECKO_IDS = {
   DOGEUSDT: 'dogecoin',
   ETHUSDT: 'ethereum',
   SOLUSDT: 'solana',
-  XRPUSDT: 'ripple'
+  XRPUSDT: 'ripple',
+  LINKUSDT: 'chainlink',
+  DOTUSDT: 'polkadot',
+  TRXUSDT: 'tron',
+  LTCUSDT: 'litecoin',
+  BCHUSDT: 'bitcoin-cash',
+  NEARUSDT: 'near-protocol',
+  UNIUSDT: 'uniswap',
+  ATOMUSDT: 'cosmos',
+  ETCUSDT: 'ethereum-classic',
+  APTUSDT: 'aptos',
+  ARBUSDT: 'arbitrum',
+  OPUSDT: 'optimism',
+  SUIUSDT: 'sui',
+  INJUSDT: 'injective-protocol',
+  TIAUSDT: 'celestia',
+  FILUSDT: 'filecoin'
 };
 function loadCoinGeckoIds() {
   const ids = { ...DEFAULT_COINGECKO_IDS };
@@ -224,4 +240,4 @@ if (require.main === module) {
   main().catch(e => { console.error('[perp-mark] fatal:', e.message); process.exit(3); });
 }
 
-module.exports = { calculateBookDepthMidPrice, shouldUseBootstrapMark: error => /insufficient two-level/.test(String(error && error.message || error)) };
+module.exports = { calculateBookDepthMidPrice, shouldUseBootstrapMark: error => /insufficient two-level/.test(String(error && error.message || error)), DEFAULT_COINGECKO_IDS };
