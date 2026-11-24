@@ -1,6 +1,6 @@
 export type AdminTab = "overview" | "users" | "deposits" | "withdrawals" | "kyc" | "audit" | "orders" | "support" | "support-faq" | "payout-addresses" | "admins" | "seconds" | "markets";
 
-export const ADMIN_TABS: Array<{ id: Tab; label: string; permission: string }> = [
+export const ADMIN_TABS: Array<{ id: AdminTab; label: string; permission: string }> = [
   { id: "overview", label: "Overview", permission: "dashboard.read" },
   { id: "users", label: "Users & manual credit", permission: "users.read" },
   { id: "deposits", label: "Deposit addresses", permission: "system_config.read" },
@@ -15,7 +15,7 @@ export const ADMIN_TABS: Array<{ id: Tab; label: string; permission: string }> =
   { id: "markets", label: "Spot markets", permission: "system_config.read" },
 ];
 
-export const ADMIN_TAB_GROUPS: Array<{ id: string; label: string; tabs: Tab[] }> = [
+export const ADMIN_TAB_GROUPS: Array<{ id: string; label: string; tabs: AdminTab[] }> = [
   { id: "workspace", label: "Workspace", tabs: ["overview"] },
   { id: "users", label: "User centre", tabs: ["users", "kyc"] },
   { id: "finance", label: "Finance centre", tabs: ["deposits", "withdrawals", "payout-addresses"] },
