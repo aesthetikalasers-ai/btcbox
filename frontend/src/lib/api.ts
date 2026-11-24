@@ -1470,7 +1470,7 @@ export async function saveAdminSpotMarket(token: string, input: {
 export async function getAdminPerpMarkets(token: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; markets: AdminPerpMarket[] }>(token, "admin/perpetual/markets", { signal });
 }
-export async function saveAdminPerpMarket(token: string, input: Omit<AdminPerpMarket, "symbol" | "updated_at"> & { base_asset: string }) {
+export async function saveAdminPerpMarket(token: string, input: Omit<AdminPerpMarket, "symbol" | "updated_at"> & { base_asset: string; reason: string }) {
   return adminRequest<{ ok: true; symbol: string; enabled: boolean }>(token, "admin/perpetual/market", { method: "POST", body: input });
 }
 
