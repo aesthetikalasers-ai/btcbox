@@ -97,9 +97,9 @@ const backend = fs.readFileSync(path.resolve(__dirname, '../api-core.js'), 'utf8
 const gateway = fs.readFileSync(path.resolve(__dirname, '../market-gateway.js'), 'utf8');
 
 test('market API carries per-symbol server snapshot time separately from provider event time', () => {
-  assert.ok(backend.includes('const snapshotTs = Math.floor(Date.now() / 1000)'));
-  assert.ok(backend.includes('ts: snapshotTs,'));
-  assert.ok(backend.includes('providerTs: Number.isFinite(Number(gatewayRow.providerTs))'));
+  assert.ok(backend.includes('const gatewaySnapshotTs = Number(gatewayRow.ts)'));
+  assert.ok(backend.includes('ts: Number.isFinite(gatewaySnapshotTs) && gatewaySnapshotTs > 0 ? gatewaySnapshotTs : null'));
+  assert.ok(backend.includes('providerTs: gatewayRow.providerTs !== null'));
   assert.ok(gateway.includes('Date.parse(ticker.time)'));
   assert.ok(gateway.includes('Math.floor(providerTimeMs / 1000)'));
   assert.ok(gateway.includes('async function bybitMarket'));
