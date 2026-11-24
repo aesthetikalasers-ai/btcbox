@@ -410,7 +410,7 @@ VIEWS.settings.afterRender = function(){
         e.preventDefault();
         var newFundPassword=$('#fp-new').value;
         if(newFundPassword.length<8||!/[A-Za-z]/.test(newFundPassword)||!/[0-9]/.test(newFundPassword)||/\s/.test(newFundPassword)){toast('Fund password must be at least 8 characters and contain both letters and numbers, without spaces.','err');return;}
-        if(state.settings.twofa&&!/^\\d{6}$/.test($('#fp-2fa').value)){toast('Enter your 6-digit 2FA code.','err');return;}
+        if(state.settings.twofa&&!/^\d{6}$/.test($('#fp-2fa').value)){toast('Enter your 6-digit 2FA code.','err');return;}
         var fundUserKey=state.user&&String(state.user.uid||state.user.email||'')||'';
         if(fundUserKey&&state._fundPasswordUnknownUserKey===fundUserKey){toast('The previous fund-password change is still unconfirmed. Verify the account security status before trying again.','warn');return;}
         var btn=$('#fp-form button'); var old=btn.textContent; btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Submitting…';
