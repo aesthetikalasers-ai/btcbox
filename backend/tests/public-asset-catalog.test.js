@@ -227,3 +227,22 @@ test('public kline and depth endpoints reject hidden spot assets before provider
   assert.ok(kline.indexOf(visibilityGate) < kline.indexOf('timeoutFetchJson('), 'kline must gate before external provider requests');
   assert.ok(depth.indexOf(visibilityGate) < depth.indexOf('timeoutFetchJson('), 'depth must gate before external provider requests');
 });
+
+
+test('public asset catalog refreshes while dashboard, markets and wallet pages remain open', () => {
+  const pages = [
+    ['dashboard', dashboardPage],
+    ['dashboard market table', dashboardMarkets],
+    ['markets page', marketsPage],
+    ['wallet assets page', assetsPage],
+  ];
+  for (const [name, source] of pages) {
+    assert.ok(source.includes('window.setInterval(refresh, 30000)'), name + ' must refresh public configuration periodically');
+    assert.ok(source.includes('window.addEventListener("focus", refresh)'), name + ' must refresh when the tab regains focus');
+    assert.ok(source.includes('document.addEventListener("visibilitychange", refresh)'), name + ' must refresh when the page becomes visible');
+    assert.ok(source.includes('window.clearInterval(poll)'), name + ' must clean up its refresh timer');
+    assert.ok(source.includes('pending?.abort()'), name + ' must abort an in-flight refresh on unmount');
+  }
+  assert.ok(assetsPage.includes('getSpotMarketPairs(controller.signal)'), 'wallet asset page must refresh the enabled spot pair list with the asset catalogue');
+  assert.ok(assetsPage.includes('Promise.allSettled(['), 'wallet asset and pair refreshes must fail independently');
+});
