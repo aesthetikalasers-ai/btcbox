@@ -52,10 +52,11 @@ function calculateImpactPrices(bids,asks) {
     let qty=0,notional=0;
     for(const [price,size] of levels){qty+=size;notional+=price*size;}
     if(!Number.isFinite(qty)||qty<=0||!Number.isFinite(notional)) throw new Error('invalid '+side+' VWAP');
-    return notional/qty;
+    return {vwap:notional/qty,best:levels[0][0]};
   }
-  const bid=sideVwap(bids,'bid'), ask=sideVwap(asks,'ask');
-  if(ask<bid) throw new Error('crossed perpetual order book');
+  const bidSide=sideVwap(bids,'bid'), askSide=sideVwap(asks,'ask');
+  if(bidSide.best>askSide.best) throw new Error('crossed perpetual order book');
+  const bid=bidSide.vwap, ask=askSide.vwap;
   const mid=(bid+ask)/2;
   if(!Number.isFinite(mid)||mid<=0||((ask-bid)/mid)*100>2)
     throw new Error('perpetual order-book spread is too wide');
