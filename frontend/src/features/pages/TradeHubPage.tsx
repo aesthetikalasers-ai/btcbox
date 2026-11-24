@@ -173,7 +173,7 @@ export function TradeHubPage() {
 
 
 
-      {/* Spot Markets Quick Catalog Section */}
+      {showSpot || pairsLoading || pairsError ? (
       <section className="space-y-4 pt-4">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-brand-border/40 pb-3">
           <div className="flex items-center gap-2">
@@ -213,6 +213,7 @@ export function TradeHubPage() {
           </div>
         ) : null}
       </section>
+      ) : null}
     </PageFrame>
   );
 }
