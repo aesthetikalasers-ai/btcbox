@@ -91,25 +91,49 @@ async function coingeckoPrice(symbol) {
   if (!Number.isFinite(p) || p <= 0 || !Number.isFinite(ts) || ts <= 0) throw new Error('coingecko bad price/timestamp');
   return { source: 'coingecko', price: p, ts };
 }
-async function perpetualBookMidPrice(symbol, maxAgeSec) {
-  const cutoff = new Date(Date.now() - maxAgeSec * 1000).toISOString();
-  const base = 'perpetual_orders?select=price,updated_at&symbol=eq.' + encodeURIComponent(symbol)
-    + '&status=in.(open,partially_filled)&type=eq.limit&updated_at=gte.' + encodeURIComponent(cutoff);
-  const [bids, asks] = await Promise.all([
-    restGetAll(base + '&side=eq.buy&order=price.desc&limit=1'),
-    restGetAll(base + '&side=eq.sell&order=price.asc&limit=1')
-  ]);
-  const bid = Number(bids[0] && bids[0].price);
-  const ask = Number(asks[0] && asks[0].price);
-  if (!Number.isFinite(bid) || bid <= 0 || !Number.isFinite(ask) || ask <= 0 || ask < bid) {
-    throw new Error('fresh two-sided perpetual order book unavailable');
-  }
+function calculateBookDepthMidPrice(bids, asks) {
+  // Use multiple live price levels rather than a single easily spoofed top quote.
+  // Resting orders remain valid liquidity even when updated_at is older than the
+  // external price-feed freshness window; order status/remaining_quantity define
+  // whether they are still executable.
+  const weightedSide = (levels, side) => {
+    if (!Array.isArray(levels) || levels.length < 2) {
+      throw new Error('insufficient two-level ' + side + ' book depth');
+    }
+    let quantity = 0;
+    let notional = 0;
+    for (const level of levels.slice(0, 5)) {
+      const price = Number(level && level.price);
+      const remaining = Number(level && level.remaining_quantity);
+      if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(remaining) || remaining <= 0) {
+        throw new Error('invalid ' + side + ' book level');
+      }
+      quantity += remaining;
+      notional += price * remaining;
+    }
+    if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(notional)) {
+      throw new Error('invalid ' + side + ' book depth');
+    }
+    return notional / quantity;
+  };
+  const bid = weightedSide(bids, 'bid');
+  const ask = weightedSide(asks, 'ask');
+  if (ask < bid) throw new Error('crossed perpetual order book');
   const mid = (bid + ask) / 2;
   const spreadPct = ((ask - bid) / mid) * 100;
   if (!Number.isFinite(mid) || mid <= 0 || spreadPct > 2) {
     throw new Error('perpetual order-book spread is too wide for mark-price sampling');
   }
   return mid;
+}
+async function perpetualBookMidPrice(symbol) {
+  const base = 'perpetual_orders?select=price,remaining_quantity&symbol=eq.' + encodeURIComponent(symbol)
+    + '&status=in.(open,partially_filled)&type=eq.limit&remaining_quantity=gt.0';
+  const [bids, asks] = await Promise.all([
+    restGetAll(base + '&side=eq.buy&order=price.desc,created_at.asc&limit=5'),
+    restGetAll(base + '&side=eq.sell&order=price.asc,created_at.asc&limit=5')
+  ]);
+  return calculateBookDepthMidPrice(bids, asks);
 }
 async function recordMark(symbol, indexPrice, markPrice, freshSources, maxAgeSec) {
   const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/perp_record_mark_price', {
@@ -120,7 +144,7 @@ async function recordMark(symbol, indexPrice, markPrice, freshSources, maxAgeSec
   if (!r.ok || !j || j.ok !== true) throw new Error('perp_record_mark_price failed: ' + r.status + ' ' + JSON.stringify(j));
   return j;
 }
-(async function main() {
+async function main() {
   if (!SUPABASE_URL || !SERVICE_KEY) { console.error('[perp-mark] SUPABASE_URL/SERVICE_KEY not configured; exit.'); process.exit(1); }
   const markets = await restGetAll('perpetual_markets?select=symbol,base_asset,quote_asset,mark_price_stale_sec,circuit_breaker_deviation_pct&enabled=eq.true&order=symbol.asc');
   const selected = SYMBOL_FILTER.length ? markets.filter(m => SYMBOL_FILTER.includes(String(m.symbol).toUpperCase())) : markets;
@@ -160,7 +184,7 @@ async function recordMark(symbol, indexPrice, markPrice, freshSources, maxAgeSec
       // Mark is derived from the fresh BTCBOX perpetual best-bid/best-ask midpoint,
       // not copied from the external spot index. If the book is empty/stale/wide,
       // do not manufacture a zero-premium mark row.
-      markPrice = await perpetualBookMidPrice(symbol, maxAgeSec);
+      markPrice = await perpetualBookMidPrice(symbol);
       const res = await recordMark(symbol, indexPrice, markPrice, freshSources, maxAgeSec);
       console.log('[perp-mark]', symbol, 'index=' + indexPrice, 'mark=' + markPrice, 'sources=' + freshSources.length,
         'deviation_pct=' + maxDevPct.toFixed(3), 'db_status=' + res.status, 'ts=' + new Date().toISOString());
@@ -171,4 +195,10 @@ async function recordMark(symbol, indexPrice, markPrice, freshSources, maxAgeSec
     }
   }
   process.exit(hadFailure ? 2 : 0);
-})().catch(e => { console.error('[perp-mark] fatal:', e.message); process.exit(3); });
+}
+
+if (require.main === module) {
+  main().catch(e => { console.error('[perp-mark] fatal:', e.message); process.exit(3); });
+}
+
+module.exports = { calculateBookDepthMidPrice };
