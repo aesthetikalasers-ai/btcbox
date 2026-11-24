@@ -1812,7 +1812,7 @@ async function handleRequest(event, context) {
     const base = symbol.slice(0, -4);
     try {
       const catalog = await readSpotMarketCatalog(db);
-      if (!catalog.some(market => market.enabled && market.base_asset === base && market.quote_asset === 'USDT')) {
+      if (!catalog.some(market => market.enabled && market.base_asset === base && market.quote_asset === 'USDT' && isAssetVisible(db, market.base_asset) && isAssetVisible(db, market.quote_asset))) {
         return json({ ok: false, code: 'SPOT_MARKET_DISABLED', msg: 'This spot market is not enabled.', klines: [], data: [] }, 404);
       }
     } catch (_) {
@@ -1854,7 +1854,7 @@ async function handleRequest(event, context) {
     const base = symbol.slice(0, -4);
     try {
       const catalog = await readSpotMarketCatalog(db);
-      if (!catalog.some(market => market.enabled && market.base_asset === base && market.quote_asset === 'USDT')) {
+      if (!catalog.some(market => market.enabled && market.base_asset === base && market.quote_asset === 'USDT' && isAssetVisible(db, market.base_asset) && isAssetVisible(db, market.quote_asset))) {
         return json({ ok: false, code: 'SPOT_MARKET_DISABLED', msg: 'This spot market is not enabled.', bids: [], asks: [] }, 404);
       }
     } catch (_) {
