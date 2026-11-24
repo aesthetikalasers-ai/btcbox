@@ -303,168 +303,16 @@ declare
   v_side text;
   v_qty numeric(38,18);
 begin
-  if coalesce(p_user_id,'') = '' or p_symbol !~ '^[A-Z0-9]{3,20}
-  if found then
-    v_existing_signed := case when v_pos.side='long' then v_pos.quantity else -v_pos.quantity end;
-  end if;
-  v_new_signed := v_existing_signed + (v_dir * p_fill_qty);
-
-  if v_existing_signed <> 0 and (v_new_signed = 0 or sign(v_new_signed) <> sign(v_existing_signed)) then
-    -- fully or partially closes the existing position; realize PnL on the closed portion.
-    declare v_closed_qty numeric(38,18) := least(abs(v_existing_signed), p_fill_qty);
-            v_pnl_dir integer := case when v_pos.side='long' then 1 else -1 end;
-    begin
-      v_realized := v_pnl_dir * (p_fill_price - v_pos.entry_price) * v_closed_qty;
-      if v_new_signed = 0 then
-        v_closed := true; v_close_reason := 'user_close';
-        insert into public.perpetual_position_history(user_id,symbol,side,quantity,entry_price,close_price,realized_pnl,funding_paid,close_reason)
-        values (p_user_id,p_symbol,v_pos.side,v_pos.quantity,v_pos.entry_price,p_fill_price,v_pos.realized_pnl + v_realized,v_pos.funding_paid,'user_close');
-        delete from public.perpetual_positions where id=v_pos.id;
-        v_margin_before := v_pos.isolated_margin;
-        v_margin_after := 0;
-        return query select v_realized, (v_margin_after - v_margin_before), v_closed, v_close_reason, null::text, 0::numeric;
-        return;
-      else
-        -- flip: close old, open opposite with remainder.
-        v_closed := true; v_close_reason := 'flip';
-        insert into public.perpetual_position_history(user_id,symbol,side,quantity,entry_price,close_price,realized_pnl,funding_paid,close_reason)
-        values (p_user_id,p_symbol,v_pos.side,v_pos.quantity,v_pos.entry_price,p_fill_price,v_pos.realized_pnl + v_realized,v_pos.funding_paid,'flip');
-        delete from public.perpetual_positions where id=v_pos.id;
-        v_qty := abs(v_new_signed);
-        v_side := case when v_new_signed > 0 then 'long' else 'short' end;
-        v_entry := p_fill_price;
-        v_margin_after := (v_qty * p_fill_price) / p_leverage;
-        insert into public.perpetual_positions(user_id,symbol,side,quantity,entry_price,isolated_margin,realized_pnl,last_mark_price)
-        values (p_user_id,p_symbol,v_side,v_qty,v_entry,v_margin_after,0,p_fill_price);
-        return query select v_realized, (v_margin_after - v_pos.isolated_margin), true, 'flip', v_side, v_qty;
-        return;
-      end if;
-    end;
+  if coalesce(p_user_id,'') = '' or p_symbol is null or p_symbol !~ '^[A-Z0-9]{3,20}$'
+     or p_fill_direction is null or p_fill_direction not in ('buy','sell')
+     or p_fill_qty is null or p_fill_qty <= 0
+     or p_fill_price is null or p_fill_price <= 0
+     or p_leverage is null or p_leverage < 1 or p_leverage > 100
+     or p_mmr is null or p_mmr < 0 or p_mmr > 0.5 then
+    raise exception 'invalid perpetual position fill';
   end if;
 
-  if not found or v_existing_signed = 0 then
-    -- open new.
-    v_side := case when v_dir>0 then 'long' else 'short' end;
-    v_qty := p_fill_qty; v_entry := p_fill_price;
-    v_margin_after := (v_qty * p_fill_price) / p_leverage;
-    insert into public.perpetual_positions(user_id,symbol,side,quantity,entry_price,isolated_margin,realized_pnl,last_mark_price)
-    values (p_user_id,p_symbol,v_side,v_qty,v_entry,v_margin_after,0,p_fill_price);
-    return query select 0::numeric, v_margin_after, false, null::text, v_side, v_qty;
-    return;
-  end if;
-
-  -- same side: increase position, weighted-average entry; or reduce (but not close).
-  if sign(v_existing_signed) = v_dir then
-    v_qty := abs(v_new_signed);
-    v_entry := (abs(v_existing_signed)*v_pos.entry_price + p_fill_qty*p_fill_price) / v_qty;
-    v_margin_before := v_pos.isolated_margin;
-    v_margin_after := (v_qty * p_fill_price) / p_leverage; -- re-mark margin at current fill price (conservative)
-    update public.perpetual_positions set quantity=v_qty, entry_price=v_entry, isolated_margin=v_margin_after,
-      last_mark_price=p_fill_price, updated_at=now() where id=v_pos.id;
-    return query select 0::numeric, (v_margin_after - v_margin_before), false, null::text, v_pos.side, v_qty;
-    return;
-  else
-    -- reduce only (partial).
-    declare v_reduced_qty numeric(38,18) := p_fill_qty;
-            v_pnl_dir integer := case when v_pos.side='long' then 1 else -1 end;
-    begin
-      v_realized := v_pnl_dir * (p_fill_price - v_pos.entry_price) * v_reduced_qty;
-      v_qty := v_pos.quantity - v_reduced_qty;
-      v_margin_before := v_pos.isolated_margin;
-      v_margin_after := v_margin_before * (v_qty / v_pos.quantity); -- release margin pro-rata
-      update public.perpetual_positions set quantity=v_qty, isolated_margin=v_margin_after,
-        realized_pnl=realized_pnl + v_realized, last_mark_price=p_fill_price, updated_at=now() where id=v_pos.id;
-      return query select v_realized, (v_margin_after - v_margin_before), false, null::text, v_pos.side, v_qty;
-      return;
-    end;
-  end if;
-end;
-$$;
-
--- ============================================================
--- Submit order (limit or market) with matching. Isolated margin, reduce-only/close supported.
--- Locking order: (user,client_order_id) advisory lock, then (symbol) advisory lock -> single writer per market.
--- ============================================================
-create or replace function public.perp_submit_order(
-  p_order_id text, p_user_id text, p_symbol text, p_type text, p_side text,
-  p_price numeric, p_quantity numeric, p_leverage integer,
-  p_reduce_only boolean, p_close_position boolean, p_client_order_id text
-) returns jsonb
-language plpgsql security invoker set search_path = '' as $$
-declare
-  v_market public.perpetual_markets%rowtype;
-  v_existing public.perpetual_orders%rowtype;
-  v_order public.perpetual_orders%rowtype;
-  v_maker public.perpetual_orders%rowtype;
-  v_mark record;
-  v_request_hash text;
-  v_operation_id uuid;
-  v_fill_op_id uuid;
-  v_reserve numeric(38,18);
-  v_fill numeric(38,18);
-  v_exec_price numeric(38,18);
-  v_quote numeric(38,18);
-  v_taker_fee numeric(38,18);
-  v_maker_fee numeric(38,18);
-  v_taker_pos record;
-  v_maker_pos record;
-  v_remaining numeric(38,18);
-  v_filled_qty numeric(38,18) := 0;
-  v_filled_quote numeric(38,18) := 0;
-  v_pos_check record;
-  v_reducible_remaining numeric(38,18); -- taker reduce-only cap; NULL = no cap
-  v_maker_reducible_remaining numeric(38,18); -- maker reduce-only cap; NULL = no cap
-begin
-  -- 0. Input validation.
-  if coalesce(p_order_id,'')='' or coalesce(p_user_id,'')='' or coalesce(p_symbol,'') !~ '^[A-Z0-9]{3,20}$'
-     or p_type not in ('limit','market') or p_side not in ('buy','sell')
-     or (p_type='limit' and (p_price is null or p_price<=0)) or p_quantity is null or p_quantity<=0
-     or p_leverage is null or p_leverage < 1
-     or coalesce(p_client_order_id,'') !~ '^[A-Za-z0-9_-]{16,100}$' then
-    raise exception 'invalid perpetual order';
-  end if;
-  if p_close_position then p_reduce_only := true; end if;
-
-  perform pg_advisory_xact_lock(hashtextextended('perp-order:'||p_user_id||':'||p_client_order_id, 0));
-  perform pg_advisory_xact_lock(hashtextextended('perp-market:'||p_symbol, 0));
-
-  -- 1. Idempotency replay.
-  select * into v_existing from public.perpetual_orders where user_id=p_user_id and client_order_id=p_client_order_id;
-  if found then
-    if v_existing.symbol<>p_symbol or v_existing.type<>p_type or v_existing.side<>p_side
-       or v_existing.leverage<>p_leverage or v_existing.quantity<>p_quantity
-       or v_existing.reduce_only is distinct from coalesce(p_reduce_only,false)
-       or v_existing.close_position is distinct from coalesce(p_close_position,false)
-       or (v_existing.price is distinct from p_price) then
-      raise exception 'client order id payload mismatch';
-    end if;
-    return jsonb_build_object('ok',true,'duplicate',true,'order_id',v_existing.id,'status',v_existing.status,
-      'remaining_quantity',v_existing.remaining_quantity,'avg_fill_price',v_existing.avg_fill_price);
-  end if;
-
-  -- 2. Market & risk validation.
-  select * into v_market from public.perpetual_markets where symbol=p_symbol and enabled=true;
-  if not found then raise exception 'perpetual market disabled or unconfigured'; end if;
-  if v_market.status not in ('trading','open_only') then raise exception 'perpetual market not accepting orders'; end if;
-  if p_leverage > v_market.max_leverage then raise exception 'leverage exceeds market maximum'; end if;
-  if mod(p_quantity, v_market.quantity_step) <> 0 then raise exception 'quantity precision invalid'; end if;
-  if p_type='limit' and mod(p_price, v_market.price_tick) <> 0 then raise exception 'price precision invalid'; end if;
-  if p_quantity < v_market.min_quantity then raise exception 'quantity below minimum'; end if;
-  if v_market.max_quantity is not null and p_quantity > v_market.max_quantity then raise exception 'quantity above maximum'; end if;
-
-  -- 3. Mark price freshness (circuit breaker): reject opens if feed stale/deviated.
-  select * into v_mark from public.perp_latest_mark_price(p_symbol, v_market.mark_price_stale_sec);
-  if v_mark is null or v_mark.status='stale'
-     or (v_mark.age_sec > v_market.mark_price_stale_sec) then
-    raise exception 'mark price unavailable or stale';
-  end if;
-  if v_mark.max_deviation_pct > v_market.circuit_breaker_deviation_pct and not p_reduce_only then
-    raise exception 'price deviation circuit breaker active — reduce/close only';
-  end if;
-
-  -- 4. Reduce-only / close-position: validate opposite position exists; no margin reserve.
-  if p_reduce_only or p_close_position then
-    select * into v_pos_check from public.perpetual_positions where user_id=p_user_id and symbol=p_symbol for update;
+  select * into v_pos_check from public.perpetual_positions where user_id=p_user_id and symbol=p_symbol for update;
     if not found or v_pos_check.quantity <= 0 then raise exception 'no position to reduce'; end if;
     if (v_pos_check.side='long' and p_side='buy') or (v_pos_check.side='short' and p_side='sell') then
       raise exception 'reduce-only order cannot increase position';
@@ -906,10 +754,17 @@ declare
   v_orders_reserved numeric(38,18) := 0;
   v_total_frozen_release numeric(38,18);
 begin
+  if coalesce(p_user_id,'') = '' or p_symbol is null or p_symbol !~ '^[A-Z0-9]{3,20}$' then
+    raise exception 'invalid perpetual liquidation identity';
+  end if;
   perform pg_advisory_xact_lock(hashtextextended('perp-market:'||p_symbol, 0));
   select * into v_pos from public.perpetual_positions where user_id=p_user_id and symbol=p_symbol for update;
   if not found then return jsonb_build_object('ok',true,'no_position',true); end if;
-  if coalesce(p_user_id,'') = '' or p_symbol !~ '^[A-Z0-9]{3,20}
+  select * into v_market from public.perpetual_markets where symbol=p_symbol;
+  if not found then
+    raise exception 'perpetual market configuration missing';
+  end if;
+  select * into v_mark from public.perp_latest_mark_price(p_symbol, v_market.mark_price_stale_sec);
   if v_mark is null or v_mark.status='stale' or v_mark.age_sec > v_market.mark_price_stale_sec then
     raise exception 'mark price stale — liquidation paused (positions protected)';
   end if;
