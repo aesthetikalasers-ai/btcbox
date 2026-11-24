@@ -4750,6 +4750,7 @@ async function handleRequest(event, context) {
         const minNotional = parseMoneyInput(body.min_notional);
         const maxQuantity = body.max_quantity ? parseMoneyInput(body.max_quantity) : null;
         const maxPositionNotional = body.max_position_notional ? parseMoneyInput(body.max_position_notional) : null;
+        const invalidOptionalLimits = (body.max_quantity && !maxQuantity) || (body.max_position_notional && !maxPositionNotional);
         const maxLeverage = Number(body.max_leverage);
         const mmr = body.maintenance_margin_rate === undefined ? null : Number(body.maintenance_margin_rate);
         const makerFee = body.maker_fee_rate === undefined ? 0 : Number(body.maker_fee_rate);
@@ -4765,7 +4766,8 @@ async function handleRequest(event, context) {
             || !minQuantity || compareMoney(minQuantity,'0')<=0 || !minNotional || compareMoney(minNotional,'0')<=0 || !Number.isInteger(maxLeverage) || maxLeverage < 1 || maxLeverage > 100
             || !['trading','paused','open_only','liquidation_only'].includes(status)
             || mmr === null || mmr < 0 || mmr > 0.5 || makerFee < 0 || takerFee < 0 || fundingInterval !== 28800 || fundingCap <= 0 || fundingCap > 0.0075
-            || reason.length < 5 || reason.length > 500 || /[\\u0000-\\u001f\\u007f]/.test(reason)) {
+            || invalidOptionalLimits || !Number.isFinite(makerFee) || makerFee < 0 || makerFee > 0.1 || !Number.isFinite(takerFee) || takerFee < 0 || takerFee > 0.1
+            || !Number.isFinite(fundingCap) || reason.length < 5 || reason.length > 500 || /[\u0000-\u001f\u007f]/.test(reason)) {
           return json({ ok: false, code: 'INVALID_MARKET_CONFIG', msg: 'Invalid perpetual market configuration (max_leverage must be 1-100, mmr 0-0.5).' }, 400);
         }
         try {
