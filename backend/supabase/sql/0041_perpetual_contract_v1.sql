@@ -198,6 +198,19 @@ create table if not exists public.perpetual_liquidation_events (
   operation_id uuid not null unique references public.financial_operations(id),
   created_at timestamptz not null default now()
 );
+create table if not exists public.perpetual_bad_debt_events (
+  id uuid primary key default gen_random_uuid(),
+  user_id text not null,
+  symbol text not null,
+  liquidation_operation_id uuid not null unique references public.financial_operations(id),
+  bad_debt_operation_id uuid not null unique references public.financial_operations(id),
+  amount numeric(38,18) not null check (amount > 0),
+  insurance_cover numeric(38,18) not null default 0 check (insurance_cover >= 0),
+  recovered_amount numeric(38,18) not null default 0 check (recovered_amount >= 0 and recovered_amount <= amount),
+  status text not null default 'outstanding' check (status in ('outstanding','partially_recovered','recovered','forgiven')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
 create table if not exists public.perpetual_position_history (
   id uuid primary key default gen_random_uuid(),
   user_id text not null,
@@ -218,7 +231,7 @@ declare t text;
 begin
   foreach t in array array['perpetual_markets','perpetual_orders','perpetual_positions','perpetual_trades',
     'perpetual_cancel_requests','perpetual_funding_rates','perpetual_funding_history',
-    'perpetual_mark_price_feed','perpetual_liquidation_events','perpetual_position_history']
+    'perpetual_mark_price_feed','perpetual_liquidation_events','perpetual_bad_debt_events','perpetual_position_history']
   loop
     execute format('alter table public.%I enable row level security', t);
     execute format('revoke all on public.%I from public, anon, authenticated', t);
@@ -565,9 +578,11 @@ begin
 
     -- Fees -> insurance fund (platform account), same operation ledger leg.
     if v_taker_fee + v_maker_fee > 0 then
+      insert into public.financial_accounts(user_id,asset) values (v_market.insurance_user_id,'USDT') on conflict do nothing;
       update public.financial_accounts set available=available + (v_taker_fee + v_maker_fee),
         version=version+1, updated_at=now()
        where user_id=v_market.insurance_user_id and asset='USDT';
+      if not found then raise exception 'insurance fee credit invariant failed'; end if;
       insert into public.financial_ledger(operation_id,user_id,asset,available_delta,frozen_delta,available_after,frozen_after)
       select v_fill_op_id, v_market.insurance_user_id, 'USDT', (v_taker_fee+v_maker_fee), 0::numeric, available, frozen
         from public.financial_accounts where user_id=v_market.insurance_user_id and asset='USDT';
@@ -675,7 +690,8 @@ begin
     v_resp := jsonb_build_object('ok',true,'duplicate',true,'order_id',p_order_id,'status',v_order.status);
   else
     -- release remaining reserved margin.
-    if v_order.reserved_margin > 0 and v_order.reserve_operation_id is not null then
+    if v_order.reserved_margin > 0 then
+      if v_order.reserve_operation_id is null then raise exception 'order reserve operation missing'; end if;
       update public.financial_accounts set frozen=frozen-v_order.reserved_margin,
         available=available+v_order.reserved_margin, version=version+1, updated_at=now()
        where user_id=p_user_id and asset='USDT' and frozen >= v_order.reserved_margin;
@@ -859,6 +875,7 @@ declare
   v_insurance_cover numeric(38,18) := 0;
   v_bad_debt numeric(38,18) := 0;
   v_op uuid;
+  v_bad_debt_op uuid;
   v_idem text;
   v_close_price numeric(38,18);
   v_orders_reserved numeric(38,18) := 0;
@@ -903,12 +920,14 @@ begin
     declare v_excess numeric(38,18) := v_loss - v_pos.isolated_margin;
             v_ins_bal numeric(38,18);
     begin
+      insert into public.financial_accounts(user_id,asset) values (v_market.insurance_user_id,'USDT') on conflict do nothing;
       select available into v_ins_bal from public.financial_accounts where user_id=v_market.insurance_user_id and asset='USDT' for update;
       v_insurance_cover := least(v_excess, coalesce(v_ins_bal,0));
       v_bad_debt := v_excess - v_insurance_cover;
       if v_insurance_cover > 0 then
         update public.financial_accounts set available=available-v_insurance_cover, version=version+1, updated_at=now()
-         where user_id=v_market.insurance_user_id and asset='USDT';
+         where user_id=v_market.insurance_user_id and asset='USDT' and available >= v_insurance_cover;
+        if not found then raise exception 'insurance liquidation debit invariant failed'; end if;
       end if;
     end;
   end if;
@@ -940,6 +959,15 @@ begin
   values (p_user_id,p_symbol,v_pos.side,v_pos.quantity,v_pos.entry_price,v_close_price,v_pos.realized_pnl - v_loss,v_pos.funding_paid,'liquidation');
   insert into public.perpetual_liquidation_events(user_id,symbol,side,quantity,entry_price,mark_price_at_liq,liquidation_price,bankruptcy_price,margin_lost,insurance_cover,bad_debt,operation_id)
   values (p_user_id,p_symbol,v_pos.side,v_pos.quantity,v_pos.entry_price,v_mark.mark_price,v_liq_price,v_bankruptcy,least(v_loss,v_pos.isolated_margin),v_insurance_cover,v_bad_debt,v_op);
+  if v_bad_debt > 0 then
+    insert into public.financial_operations(idempotency_key,user_id,asset,operation_type,request_hash,metadata)
+    values ('perp-bad-debt-'||v_pos.id::text,p_user_id,'USDT','perp_bad_debt',
+      encode(extensions.digest(v_idem||':bad-debt:'||v_bad_debt::text,'sha256'),'hex'),
+      jsonb_build_object('symbol',p_symbol,'liquidation_operation_id',v_op,'amount',v_bad_debt,'insurance_cover',v_insurance_cover))
+    returning id into v_bad_debt_op;
+    insert into public.perpetual_bad_debt_events(user_id,symbol,liquidation_operation_id,bad_debt_operation_id,amount,insurance_cover)
+    values (p_user_id,p_symbol,v_op,v_bad_debt_op,v_bad_debt,v_insurance_cover);
+  end if;
   delete from public.perpetual_positions where id=v_pos.id;
   -- cancel any open orders for this user/symbol (reduce exposure); reserved margin already released above.
   update public.perpetual_orders set status='cancelled', remaining_quantity=0, reserved_margin=0, updated_at=now()

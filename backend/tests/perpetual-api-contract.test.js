@@ -230,3 +230,14 @@ test('perpetual matching caps maker reduce-only fills to live opposite position 
   assert.ok(fn.includes('coalesce(v_maker_reducible_remaining, v_maker.remaining_quantity)'));
   assert.ok(fn.includes("where id=v_maker.id and status in ('open','partially_filled')"));
 });
+
+
+test('liquidation records insurance funding and bad debt as explicit auditable operations', () => {
+  assert.match(migration, /insert into public\.financial_accounts\(user_id,asset\) values \(v_market\.insurance_user_id,'USDT'\) on conflict do nothing/i);
+  assert.match(migration, /insurance fee credit invariant failed/i);
+  assert.match(migration, /insurance liquidation debit invariant failed/i);
+  assert.match(migration, /operation_type,request_hash,metadata\)[\s\S]*?'perp_bad_debt'/i);
+  assert.match(migration, /create table if not exists public\.perpetual_bad_debt_events/i);
+  assert.match(migration, /insert into public\.perpetual_bad_debt_events/i);
+  assert.match(migration, /order reserve operation missing/i);
+});
