@@ -531,7 +531,7 @@ async function readFinancialAccountSnapshot(userId) {
   return result;
 }
 
-async function readSpotMarketCatalog() {
+async function readSpotMarketCatalog(state) {
   try {
   if (!supabaseStorageConfigured()) throw new Error('Spot market catalogue unavailable');
   const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
@@ -543,6 +543,7 @@ async function readSpotMarketCatalog() {
   if (!response.ok || !result || result.ok !== true || !Array.isArray(result.markets)) {
     throw new Error('Spot market catalogue read failed');
   }
+  const enabledAssets = new Set(normalizeAdminAssetCatalog(state && state.asset_catalog).filter(function (asset) { return asset.enabled; }).map(function (asset) { return asset.code; }));
   return result.markets.map(market => {
     if (!market || typeof market.base_asset !== 'string' || typeof market.quote_asset !== 'string' ||
         typeof market.enabled !== 'boolean' || !SUPPORTED_LEDGER_ASSETS.has(market.base_asset) ||
@@ -552,7 +553,7 @@ async function readSpotMarketCatalog() {
     return {
       base_asset: market.base_asset,
       quote_asset: market.quote_asset,
-      enabled: market.enabled,
+      enabled: market.enabled && enabledAssets.has(market.base_asset) && enabledAssets.has(market.quote_asset),
       price_tick: String(market.price_tick),
       quantity_step: String(market.quantity_step),
       min_quantity: String(market.min_quantity),
@@ -1795,7 +1796,7 @@ async function handleRequest(event, context) {
     if (!/^[A-Z0-9]{5,20}$/.test(symbol) || !symbol.endsWith('USDT') || symbol.length <= 4 || !['1m','3m','5m','15m','30m','1h','2h','4h','1d'].includes(interval)) return json({ ok: false, msg: 'Invalid USDT symbol or interval' }, 400);
     const base = symbol.slice(0, -4);
     try {
-      const catalog = await readSpotMarketCatalog();
+      const catalog = await readSpotMarketCatalog(db);
       if (!catalog.some(market => market.enabled && market.base_asset === base && market.quote_asset === 'USDT')) {
         return json({ ok: false, code: 'SPOT_MARKET_DISABLED', msg: 'This spot market is not enabled.', klines: [], data: [] }, 404);
       }
@@ -2789,6 +2790,14 @@ async function handleRequest(event, context) {
     const price = parseMoneyInput(body.price === undefined || body.price === null || body.price === '' ? '0' : body.price);
     const pair = matchingPairFromSymbol(symbol);
     if (!pair) return json({ ok: false, msg: 'Operation failed: this trading pair is not supported.' }, 400);
+    try {
+      const configuredMarkets = await readSpotMarketCatalog(db);
+      if (!configuredMarkets.some(market => market.enabled && market.base_asset === pair[0] && market.quote_asset === pair[1])) {
+        return json({ ok: false, code: 'ASSET_OR_MARKET_DISABLED', msg: 'This asset or spot market is currently disabled.' }, 404);
+      }
+    } catch (_) {
+      return json({ ok: false, code: 'MARKET_CATALOG_UNAVAILABLE', msg: 'Spot market configuration is temporarily unavailable. No order was submitted.' }, 503);
+    }
     if (!['buy','sell'].includes(side)) return json({ ok: false, msg: 'Operation failed: invalid trade direction.' }, 400);
     // Market orders are intentionally rejected until a separately bounded market-order policy exists.
     if (type !== 'limit') return json({ ok: false, code: 'ORDER_TYPE_UNSUPPORTED', msg: 'Only limit orders are currently supported.' }, 400);
