@@ -232,4 +232,7 @@ test('funding worker calls one atomic market RPC and never advances the boundary
   assert.ok(!fundingWorker.includes("rpc('perp_settle_funding_one'"));
   assert.ok(!fundingWorker.includes("method: 'PATCH'"));
   assert.ok(!fundingWorker.includes('perpetual_positions?select=user_id,symbol'));
+  assert.ok(fundingWorker.includes('next_funding_at=not.is.null'));
+  assert.ok(!fundingWorker.includes('&enabled=eq.true'));
+  assert.ok(fundingSql.includes('where symbol=p_symbol for update'));
 });
