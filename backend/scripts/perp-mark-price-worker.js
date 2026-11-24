@@ -137,7 +137,7 @@ async function recordMark(symbol, indexPrice, markPrice, freshSources, maxAgeSec
     const indexPrice = mean; // v1 index = mean of sources; mark = index (no premium index yet)
     const markPrice = mean;
     try {
-      const res = await recordMark(symbol, indexPrice, markPrice, sources, maxAgeSec);
+      const res = await recordMark(symbol, indexPrice, markPrice, freshSources, maxAgeSec);
       console.log('[perp-mark]', symbol, 'index=' + indexPrice, 'mark=' + markPrice, 'sources=' + freshSources.length,
         'deviation_pct=' + maxDevPct.toFixed(3), 'db_status=' + res.status, 'ts=' + new Date().toISOString());
       if (maxDevPct > breakerPct) console.warn('[perp-mark] CIRCUIT BREAKER: sources disagree >' + breakerPct + '% for ' + symbol + '; DB order-entry status is degraded.');
