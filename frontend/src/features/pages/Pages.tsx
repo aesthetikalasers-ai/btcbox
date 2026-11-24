@@ -1375,6 +1375,39 @@ export function EarnPage(){
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[reload]);
+
+ // Keep the Earn catalogue current even when this page remains open while an
+ // administrator disables a product or its underlying asset.
+ useEffect(()=>{
+  let cancelled=false;
+  let refreshing=false;
+  let pending:AbortController|null=null;
+  const refreshCatalog=()=>{
+   if(cancelled||refreshing||document.visibilityState!=="visible")return;
+   refreshing=true;
+   const controller=new AbortController();
+   pending=controller;
+   getEarnCatalog(controller.signal).then(catalog=>{
+    if(cancelled||controller.signal.aborted)return;
+    setProducts(catalog.products);
+    setActionsEnabled(catalog.actions_enabled);
+    setSelectedProduct(current=>catalog.products.some(product=>product.product_id===current)?current:(catalog.products[0]?.product_id||""));
+   }).catch(()=>{
+    if(cancelled||controller.signal.aborted)return;
+    setProducts([]);setActionsEnabled(false);setSelectedProduct("");
+    setError("Earn products are temporarily unavailable. Please try again.");
+   }).finally(()=>{refreshing=false;});
+  };
+  refreshCatalog();
+  const timer=window.setInterval(refreshCatalog,30000);
+  window.addEventListener("focus",refreshCatalog);
+  document.addEventListener("visibilitychange",refreshCatalog);
+  return ()=>{
+   cancelled=true;window.clearInterval(timer);pending?.abort();
+   window.removeEventListener("focus",refreshCatalog);
+   document.removeEventListener("visibilitychange",refreshCatalog);
+  };
+ },[]);
  const selected=products.find(item=>item.product_id===selectedProduct);
  const activePositions=positions.filter(position=>normalizeEarnStatus(position.status)==="active").length;
  // Signed-out and empty states share one compact notice instead of repeated cards.
