@@ -17,6 +17,7 @@ import {
   adminMarkWithdrawalPaid,
   adminRejectKyc,
   adminRejectWithdrawal,
+  adminSetUserFrozen,
   adminReplySupport,
   markAdminSupportRead,
   getAdminAuditLogs,
@@ -63,7 +64,7 @@ import {
   type AdminWithdrawalRecord,
 } from "../../lib/api";
 
-type ReviewDialogState = { kind: "withdrawal"; id: string } | { kind: "kyc" | "kyc-manual"; uid: string };
+type ReviewDialogState = { kind: "withdrawal"; id: string } | { kind: "kyc" | "kyc-manual" | "user-freeze"; uid: string; frozen?: boolean };
 
 const adminPermissionOptions = [["dashboard.read","Dashboard"],["users.read","Read users"],["users.manage","Manage users"],["users.freeze","Freeze accounts"],["financial_adjustment.request","Manual balance adjustment"],["kyc.read","Read KYC"],["kyc.review","Review KYC"],["deposits.read","Read deposits"],["deposits.review","Manual deposit credit"],["payout_addresses.read_sensitive","Read sensitive customer payout addresses"],["payout_addresses.manage","Manage customer payout addresses"],["withdrawals.read","Read withdrawals"],["withdrawals.review","Review and mark paid"],["orders.read","Read orders"],["support.read","Read support"],["support.reply","Reply to support"],["support.manage","Manage support"],["announcements.read","Read announcements"],["announcements.manage","Manage announcements"],["system_config.read","Read system configuration"],["system_config.write","Edit system configuration"],["seconds_policy.read","Read Seconds policy"],["seconds_policy.manage","Manage Seconds policy"],["financial_audit.read","Read financial audit"]] as const;
 const depositAddressKeys = [
@@ -757,11 +758,11 @@ export function AdminPage() {
     if (!token || !reviewDialog) return;
     const reasonText = reviewReason.trim();
     if (!reasonText) {
-      setError(reviewDialog.kind === "kyc-manual" ? "A manual verification method and review note are required." : "A rejection reason is required.");
+      setError(reviewDialog.kind === "kyc-manual" ? "A manual verification method and review note are required." : reviewDialog.kind === "user-freeze" ? "An account status change reason is required." : "A rejection reason is required.");
       return;
     }
     const target = reviewDialog;
-    const actionLockKey = target.kind === "withdrawal" ? "withdrawal:" + target.id : "kyc:" + target.uid;
+    const actionLockKey = target.kind === "withdrawal" ? "withdrawal:" + target.id : (target.kind === "user-freeze" ? "user-freeze:" : "kyc:") + target.uid;
     if (reviewActionLocksRef.current[actionLockKey]) return;
     reviewActionLocksRef.current[actionLockKey] = true;
     setBusy(true); setError(""); setNotice("");
@@ -783,6 +784,14 @@ export function AdminPage() {
         setReviewReason("");
         setManualIdentityConfirmed(false);
         await refreshKycQueueAfterReview("KYC approved after manual identity verification.");
+      } else if (target.kind === "user-freeze") {
+        const frozen = target.frozen === true;
+        await adminSetUserFrozen(token, { uid: target.uid, frozen, reason: reasonText });
+        setUsers(current => current.map(user => user.uid === target.uid ? { ...user, frozen } : user));
+        setSelectedUser(current => current?.uid === target.uid ? { ...current, frozen } : current);
+        setReviewDialog(null);
+        setReviewReason("");
+        setNotice(frozen ? "User account frozen." : "User account unfrozen.");
       } else {
         await adminRejectKyc(token, target.uid, reasonText);
         setReviewDialog(null);
@@ -1279,7 +1288,7 @@ export function AdminPage() {
     {!loading && tab === "users" ? <div className="grid gap-4">
       <Card><CardHeader><CardTitle>{adminText("Users")}</CardTitle><CardDescription>{adminText("Search for a user and open their record. Financial operations are managed in the Finance centre.")}</CardDescription></CardHeader><CardContent>
         <form className="mb-3 flex gap-2" onSubmit={event => { event.preventDefault(); void loadTab(); }}><input value={search} onChange={event => setSearch(event.target.value)} placeholder={adminText("Search UID or email")} className="h-11 min-w-0 flex-1 rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15"/><Button size="sm" type="submit">{adminText("Search")}</Button></form>
-        <div className="overflow-x-auto"><table className="w-full min-w-[520px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">UID</th><th className="px-3 py-2.5">{adminText("Email")}</th><th className="px-3 py-2.5">{adminText("KYC")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5 text-right">{adminText("Action")}</th></tr></thead><tbody>{users.map(user=><tr key={user.uid} className="border-b border-brand-border-subtle transition-colors hover:bg-brand-surface-hover/40"><td className="px-3 py-2.5 font-mono text-xs">{user.uid}</td><td className="px-3 py-2.5">{user.email}</td><td className="px-3 py-2.5"><Badge variant={statusVariant(user.kyc_status || user.kyc?.status || "")}>{user.kyc_status || user.kyc?.status || "—"}</Badge></td><td className="px-3 py-2.5"><Badge variant={user.frozen?"destructive":"success"}>{user.frozen?adminText("Frozen"):adminText("Active")}</Badge></td><td className="px-3 py-2.5 text-right"><Button size="sm" variant="outline" onClick={()=>{setFinancialAction("credit");void selectUser(user.uid).then(loaded=>{if(loaded)setTab("financial-adjustments");});}}>{adminText("Open")}</Button></td></tr>)}{users.length===0 ? <tr><td colSpan={5} className="px-3 py-10 text-center text-sm text-brand-text-muted">暂无用户记录，调整搜索条件后重试。</td></tr> : null}</tbody></table></div>
+        <div className="overflow-x-auto"><table className="w-full min-w-[520px] text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-surface-2/50 type-label uppercase tracking-wide text-brand-text-muted"><th className="px-3 py-2.5">UID</th><th className="px-3 py-2.5">{adminText("Email")}</th><th className="px-3 py-2.5">{adminText("KYC")}</th><th className="px-3 py-2.5">{adminText("Status")}</th><th className="px-3 py-2.5 text-right">{adminText("Action")}</th></tr></thead><tbody>{users.map(user=><tr key={user.uid} className="border-b border-brand-border-subtle transition-colors hover:bg-brand-surface-hover/40"><td className="px-3 py-2.5 font-mono text-xs">{user.uid}</td><td className="px-3 py-2.5">{user.email}</td><td className="px-3 py-2.5"><Badge variant={statusVariant(user.kyc_status || user.kyc?.status || "")}>{user.kyc_status || user.kyc?.status || "—"}</Badge></td><td className="px-3 py-2.5"><Badge variant={user.frozen?"destructive":"success"}>{user.frozen?adminText("Frozen"):adminText("Active")}</Badge></td><td className="px-3 py-2.5 text-right"><div className="flex justify-end gap-2"><Button size="sm" variant="outline" onClick={()=>{setFinancialAction("credit");void selectUser(user.uid).then(loaded=>{if(loaded)setTab("financial-adjustments");});}}>{adminText("Open")}</Button>{hasPermission("users.freeze")?<Button size="sm" variant={user.frozen?"outline":"destructive"} onClick={()=>{setReviewDialog({kind:"user-freeze",uid:user.uid,frozen:!user.frozen});setReviewReason("");setError("");setNotice("");}}>{adminText(user.frozen?"Unfreeze":"Freeze")}</Button>:null}</div></td></tr>)}{users.length===0 ? <tr><td colSpan={5} className="px-3 py-10 text-center text-sm text-brand-text-muted">暂无用户记录，调整搜索条件后重试。</td></tr> : null}</tbody></table></div>
       </CardContent></Card>
     </div> : null}
 
@@ -1512,18 +1521,20 @@ export function AdminPage() {
       >
         <div className="mb-4">
           <h2 id="review-dialog-title" className="text-lg font-semibold text-brand-text">
-            {reviewDialog.kind === "withdrawal" ? adminText("Reject withdrawal") : reviewDialog.kind === "kyc-manual" ? adminText("Manual identity verification") : adminText("Reject KYC application")}
+            {reviewDialog.kind === "withdrawal" ? adminText("Reject withdrawal") : reviewDialog.kind === "kyc-manual" ? adminText("Manual identity verification") : reviewDialog.kind === "user-freeze" ? adminText(reviewDialog.frozen ? "Freeze user account" : "Unfreeze user account") : adminText("Reject KYC application")}
           </h2>
           <p id="review-dialog-description" className="mt-1 text-sm text-brand-text-muted">
             {reviewDialog.kind === "withdrawal"
               ? adminText("The rejection and refund will be recorded together. Enter the reason for the audit record.")
               : reviewDialog.kind === "kyc-manual"
                 ? adminText("Use this only after you have independently verified the customer's identity. Record the verification method and details; this action is audited.")
-                : adminText("Enter the reason that will be recorded with this KYC decision.")}
+                : reviewDialog.kind === "user-freeze"
+                  ? adminText("Record why this customer account is being frozen or unfrozen. The change is written to the administrator audit log.")
+                  : adminText("Enter the reason that will be recorded with this KYC decision.")}
           </p>
         </div>
         <label className="block space-y-2 text-sm">
-          <span className="font-medium text-brand-text">{adminText(reviewDialog.kind === "kyc-manual" ? "Manual verification method and notes" : "Rejection reason")}<span className="text-brand-danger">*</span></span>
+          <span className="font-medium text-brand-text">{adminText(reviewDialog.kind === "kyc-manual" ? "Manual verification method and notes" : reviewDialog.kind === "user-freeze" ? "Account status change reason" : "Rejection reason")}<span className="text-brand-danger">*</span></span>
           <textarea
             autoFocus
             value={reviewReason}
@@ -1531,7 +1542,7 @@ export function AdminPage() {
             rows={4}
             maxLength={300}
             disabled={busy}
-            placeholder={adminText(reviewDialog.kind === "kyc-manual" ? "Describe how identity was checked (for example, live video call and document comparison)." : "Enter a clear reason (up to 300 characters)")}
+            placeholder={adminText(reviewDialog.kind === "kyc-manual" ? "Describe how identity was checked (for example, live video call and document comparison)." : reviewDialog.kind === "user-freeze" ? "Enter the reason for this account status change." : "Enter a clear reason (up to 300 characters)")}
             className="w-full resize-y rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-brand-text outline-none focus:border-brand-accent"
           />
           <span className="block text-right text-xs text-brand-text-muted">{reviewReason.length}/300</span>
@@ -1540,8 +1551,8 @@ export function AdminPage() {
         {error ? <p role="alert" className="mt-3 text-sm text-brand-danger">{adminText(error)}</p> : null}
         <div className="mt-5 flex flex-col-reverse justify-end gap-2 sm:flex-row">
           <Button type="button" variant="outline" disabled={busy} onClick={() => { setReviewDialog(null); setReviewReason(""); }}>{adminText("Cancel")}</Button>
-          <Button type="button" variant={reviewDialog.kind === "kyc-manual" ? "default" : "destructive"} disabled={busy || !reviewReason.trim() || (reviewDialog.kind === "kyc-manual" && !manualIdentityConfirmed)} onClick={() => void confirmReviewRejection()}>
-            {busy ? adminText("Submitting…") : adminText(reviewDialog.kind === "kyc-manual" ? "Confirm manual approval" : "Confirm rejection")}
+          <Button type="button" variant={reviewDialog.kind === "kyc-manual" || (reviewDialog.kind === "user-freeze" && reviewDialog.frozen === false) ? "default" : "destructive"} disabled={busy || !reviewReason.trim() || (reviewDialog.kind === "kyc-manual" && !manualIdentityConfirmed)} onClick={() => void confirmReviewRejection()}>
+            {busy ? adminText("Submitting…") : adminText(reviewDialog.kind === "kyc-manual" ? "Confirm manual approval" : reviewDialog.kind === "user-freeze" ? (reviewDialog.frozen ? "Confirm freeze" : "Confirm unfreeze") : "Confirm rejection")}
           </Button>
         </div>
       </section>
