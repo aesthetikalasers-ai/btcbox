@@ -245,7 +245,9 @@ export function ContractPage() {
   // When no contract mark is available, show the spot ticker only as an
   // explicitly labelled underlying reference — never as a perpetual mark price.
   const displayPrice = contractMarkPrice ?? liveTicker?.price ?? null;
-  const displayPriceLabel = contractMarkPrice !== null ? t("Mark price") : t("Spot reference");
+  const displayPriceLabel = selectedMarket?.mark_price_status === "bootstrap"
+    ? t("Bootstrap reference")
+    : contractMarkPrice !== null ? t("Mark price") : t("Spot reference");
   const displayChg = null;
 
   // The contract page currently has no contract-specific depth endpoint. This is
@@ -1181,7 +1183,7 @@ export function ContractPage() {
               </span>
             ) : null}
             <div className="ml-auto hidden min-w-0 shrink-0 items-center gap-2 text-right text-[11px] text-brand-text-muted lg:flex">
-              <span className="flex items-center gap-1"><span>{t("Mark")}</span><span className="bf-tabular font-mono text-brand-text-secondary">{money(markPrice, locale)}</span></span>
+              <span className="flex items-center gap-1"><span>{t(selectedMarket?.mark_price_status === "bootstrap" ? "Bootstrap" : "Mark")}</span><span className="bf-tabular font-mono text-brand-text-secondary">{money(markPrice, locale)}</span></span>
               <span className="flex items-center gap-1"><span>{t("Index")}</span><span className="bf-tabular font-mono text-brand-text-secondary">{money(indexPrice, locale)}</span></span>
             </div>
           </div>
