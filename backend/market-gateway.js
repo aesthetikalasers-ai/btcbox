@@ -86,7 +86,10 @@ const TICKER_TTL_MS = 1500;
 const KLINE_TTL_MS = 5000;
 const DEPTH_TTL_MS = 1000;
 
-function providerOrder() {
+// Environment is immutable for a running Vercel function instance. Resolve the
+// configured provider chain once at module load so tests and production share the
+// same deterministic primary-first order.
+const CONFIGURED_PROVIDER_ORDER = (() => {
   const raw = process.env.MARKET_PROVIDER_ORDER;
   // Prefer one batched Binance Vision request, then one batched Bybit request.
   // Coinbase remains the final independent fallback because it requires several
@@ -95,6 +98,10 @@ function providerOrder() {
     .map((s) => s.trim())
     .filter((s) => s && PROVIDERS[s]);
   return list.length ? list : ['binance-vision'];
+})();
+
+function providerOrder() {
+  return CONFIGURED_PROVIDER_ORDER;
 }
 
 async function fetchJson(url, timeoutMs = 6000) {
