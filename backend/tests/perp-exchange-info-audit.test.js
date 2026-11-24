@@ -40,7 +40,7 @@ test('does not invent filters for unsupported or incomplete markets', () => {
   const incomplete = symbol('ETHUSDT', { filters: [{ filterType: 'PRICE_FILTER', tickSize: '0.01' }] });
   const report = extractUsdmMarketFilters({ symbols: [stopped, incomplete] }, ['BTCUSDT','ETHUSDT','SOLUSDT']);
   assert.deepEqual(report.unsupported.map(x => x.symbol), ['BTCUSDT','SOLUSDT']);
-  assert.deepEqual(report.invalid, [{ symbol: 'ETHUSDT', missing: ['quantity_step','min_quantity','min_notional'] }]);
+  assert.deepEqual(report.invalid, [{ symbol: 'ETHUSDT', missing: ['quantity_step','min_quantity','market_quantity_step','market_min_quantity','min_notional'] }]);
 });
 
 test('rejects malformed exchangeInfo payloads', () => {
