@@ -2,6 +2,8 @@
 -- Separate real user/insurance balance movements from non-cash platform bad debt.
 -- All rows are appended atomically with the liquidation transaction.
 
+begin;
+
 alter table public.perpetual_liquidation_events
   add column if not exists insurance_operation_id uuid
   references public.financial_operations(id);
@@ -165,9 +167,12 @@ begin
   if v_loss > 0 then
     insert into public.perpetual_liquidation_journal
       (event_id,operation_id,line_no,account_code,debit,credit)
-    values
-      (v_event_id,v_op,1,'perp_liquidation_loss',v_loss,0),
-      (v_event_id,v_op,2,'user_isolated_margin',0,least(v_loss,v_pos.isolated_margin));
+    values (v_event_id,v_op,1,'perp_liquidation_loss',v_loss,0);
+    if least(v_loss,v_pos.isolated_margin) > 0 then
+      insert into public.perpetual_liquidation_journal
+        (event_id,operation_id,line_no,account_code,debit,credit)
+      values (v_event_id,v_op,2,'user_isolated_margin',0,least(v_loss,v_pos.isolated_margin));
+    end if;
     if v_insurance_cover > 0 then
       insert into public.perpetual_liquidation_journal
         (event_id,operation_id,line_no,account_code,debit,credit)
@@ -209,3 +214,5 @@ begin
   end if;
 end;
 $$;
+
+commit;
