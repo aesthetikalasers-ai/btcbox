@@ -114,6 +114,27 @@ BEGIN
     RAISE EXCEPTION 'perpetual liquidation RPC grants are not service-role-only';
   END IF;
 
+  v_proc := to_regprocedure('public.perp_record_funding_rate_snapshot(text,timestamptz,numeric,numeric)');
+  IF v_proc IS NULL OR NOT has_function_privilege('service_role',v_proc,'EXECUTE')
+     OR has_function_privilege('anon',v_proc,'EXECUTE')
+     OR has_function_privilege('authenticated',v_proc,'EXECUTE') THEN
+    RAISE EXCEPTION 'perpetual funding snapshot producer RPC grants are not service-role-only';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+     WHERE table_schema='public' AND table_name='perpetual_funding_rates'
+       AND column_name='formula_version' AND data_type='text'
+  ) THEN
+    RAISE EXCEPTION 'versioned perpetual funding formula fields were not installed';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger
+     WHERE tgname='financial_operations_perp_funding_guard_v1'
+       AND tgrelid='public.financial_operations'::regclass AND NOT tgisinternal
+  ) THEN
+    RAISE EXCEPTION 'perpetual funding financial-operation guard was not installed';
+  END IF;
+
   v_proc := to_regprocedure('public.perp_settle_funding_market(text,timestamptz)');
   IF v_proc IS NULL OR NOT has_function_privilege('service_role',v_proc,'EXECUTE')
      OR has_function_privilege('anon',v_proc,'EXECUTE')
