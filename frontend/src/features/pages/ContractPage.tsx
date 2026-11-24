@@ -326,28 +326,49 @@ export function ContractPage() {
   }, [maxLeverage, leveragePills]);
 
   useEffect(() => {
-    const controller = new AbortController();
-    setMarketsLoading(true);
-    setMarketsError("");
-    getPerpMarkets(controller.signal)
-      .then((rows) => {
-        if (controller.signal.aborted) return;
-        setMarkets(rows);
-        setMarketsFallback(false);
-        setSymbol((current) => (rows.some((m) => m.symbol === current) ? current : rows[0]?.symbol ?? ""));
-      })
-      .catch(() => {
-        if (controller.signal.aborted) return;
-        // Never replace an unavailable live contract catalogue with synthetic
-        // markets. An empty catalogue keeps order entry closed until the
-        // backend returns real, enabled markets again.
-        setMarkets([]);
-        setSymbol("");
-        setMarketsFallback(true);
-        setMarketsError(t("Perpetual market data is temporarily unavailable."));
-      })
-      .finally(() => { if (!controller.signal.aborted) setMarketsLoading(false); });
-    return () => controller.abort();
+    let cancelled = false;
+    let refreshing = false;
+    let pending: AbortController | null = null;
+    const refresh = () => {
+      if (cancelled || refreshing || document.visibilityState !== "visible") return;
+      refreshing = true;
+      const controller = new AbortController();
+      pending = controller;
+      setMarketsLoading(true);
+      setMarketsError("");
+      getPerpMarkets(controller.signal)
+        .then((rows) => {
+          if (cancelled || controller.signal.aborted) return;
+          setMarkets(rows);
+          setMarketsFallback(false);
+          setSymbol((current) => (rows.some((m) => m.symbol === current) ? current : rows[0]?.symbol ?? ""));
+        })
+        .catch(() => {
+          if (cancelled || controller.signal.aborted) return;
+          // Never replace an unavailable live contract catalogue with synthetic
+          // markets. An empty catalogue keeps order entry closed until the
+          // backend returns real, enabled markets again.
+          setMarkets([]);
+          setSymbol("");
+          setMarketsFallback(true);
+          setMarketsError(t("Perpetual market data is temporarily unavailable."));
+        })
+        .finally(() => {
+          refreshing = false;
+          if (!cancelled && !controller.signal.aborted) setMarketsLoading(false);
+        });
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 30000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      pending?.abort();
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, [reload, t]);
 
   // Resolve the USDT free balance for the mobile order entry's "available" row.
