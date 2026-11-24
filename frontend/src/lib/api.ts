@@ -126,6 +126,10 @@ export interface PublicAssetConfig {
   display_precision: number;
   enabled: boolean;
   visible: boolean;
+  spot_enabled: boolean;
+  perpetual_enabled: boolean;
+  seconds_enabled: boolean;
+  earn_enabled: boolean;
   sort_order: number;
 }
 
@@ -148,6 +152,8 @@ export async function getPublicAssetCatalog(signal?: AbortSignal): Promise<Publi
     typeof asset.name === "string" && typeof asset.display_name === "string" &&
     Number.isInteger(asset.display_precision) && asset.display_precision >= 0 && asset.display_precision <= 18 &&
     typeof asset.enabled === "boolean" && typeof asset.visible === "boolean" &&
+    typeof asset.spot_enabled === "boolean" && typeof asset.perpetual_enabled === "boolean" &&
+    typeof asset.seconds_enabled === "boolean" && typeof asset.earn_enabled === "boolean" &&
     Number.isInteger(asset.sort_order) && asset.sort_order >= 0);
   if (valid.length !== 26 || new Set(valid.map(asset => asset.code)).size !== 26) {
     throw new ApiError("BTCBOX returned an incomplete asset configuration.", 502, "INVALID_ASSET_CATALOG");
@@ -1389,6 +1395,10 @@ export interface AdminAssetConfig {
   display_precision: number;
   enabled: boolean;
   visible: boolean;
+  spot_enabled: boolean;
+  perpetual_enabled: boolean;
+  seconds_enabled: boolean;
+  earn_enabled: boolean;
   sort_order: number;
 }
 export interface AdminSpotMarket {
