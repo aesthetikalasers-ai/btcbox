@@ -18,6 +18,7 @@ Date: 2026-11-24
    - base assets must belong to the fixed BTCBOX 26-asset catalogue (USDT and USDC are not accepted as perpetual base assets);
    - symbol must match `BASEUSDT`;
    - precision, leverage, fee, funding and risk parameters are validated server-side;
+   - a positive `max_position_notional` cap is mandatory for new/edited market configurations; blank or zero exposure caps are rejected by the API and admin form;
    - `mark_price_stale_sec` and `circuit_breaker_deviation_pct` are persisted;
    - client-supplied activation state is ignored; every configuration write stores `enabled=false` and `status='paused'`;
    - before/after configuration data and the operator reason are sent to the admin audit log after the database upsert succeeds.
