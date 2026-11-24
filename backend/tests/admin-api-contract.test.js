@@ -124,6 +124,22 @@ test('admin user directory declares its state-file source and 200-row completene
   assert.ok(adminPage.includes('Source: BTCBOX state user directory'));
 });
 
+test('admin user directory reports local Supabase identity-link mapping anomalies', () => {
+  const start = api.indexOf("// GET /api/admin/users?search=");
+  const end = api.indexOf("// GET /api/admin/kyc", start);
+  assert.ok(start >= 0 && end > start, 'admin users route must exist');
+  const route = api.slice(start, end);
+  assert.ok(route.includes('const identityOwnerCounts = new Map()'));
+  assert.ok(route.includes("auth_identity_link_status: hasDuplicateIdentity ? 'duplicate_mapping' : linkedIdentityIds.length ? 'linked' : 'missing'"));
+  assert.ok(route.includes('auth_identity_count: linkedIdentityIds.length'));
+  assert.ok(client.includes('"linked" | "missing" | "duplicate_mapping"'));
+  assert.ok(adminPage.includes('user.auth_identity_link_status === "duplicate_mapping"'));
+  assert.ok(adminPage.includes('No linked Auth UUID'));
+  assert.ok(adminPage.includes('Linked in BTCBOX'));
+  assert.ok(adminPage.includes('Duplicate mapping'));
+  assert.ok(!route.includes('auth.users'));
+});
+
 test('withdrawal rejection API requires a bounded, non-control-character audit reason', () => {
   const start = api.indexOf("if (sub === 'withdraw/reject' && method === 'POST')");
   const end = api.indexOf("// POST /api/admin/withdraw/mark-paid", start);
