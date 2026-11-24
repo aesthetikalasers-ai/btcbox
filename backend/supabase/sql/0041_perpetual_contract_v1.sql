@@ -11,11 +11,16 @@ create extension if not exists pgcrypto;
 -- 1. Extend financial operation types (same pattern as 0008 / 0014).
 alter table public.financial_operations drop constraint if exists financial_operations_operation_type_check;
 alter table public.financial_operations add constraint financial_operations_operation_type_check
-  check (operation_type in ('deposit_credit','withdraw_freeze','withdraw_approve','withdraw_reject',
-    'earn_subscribe','earn_redeem','admin_adjustment','spot_trade','spot_order_reserve',
-    'spot_order_cancel','migration_opening_balance',
+  check (operation_type in (
+    -- Preserve every operation type already accepted by the production financial core.
+    'deposit_credit','withdraw_freeze','withdraw_approve','withdraw_reject','withdraw_settle','withdraw_paid',
+    'earn_subscribe','earn_redeem','admin_adjustment',
+    'spot_trade','spot_order_reserve','spot_order_cancel',
+    'seconds_open','seconds_settle','migration_opening_balance',
+    -- Perpetual v1 operation types.
     'perp_order_reserve','perp_trade','perp_order_cancel','perp_funding',
-    'perp_liquidation','perp_insurance_cover','perp_bad_debt'));
+    'perp_liquidation','perp_insurance_cover','perp_bad_debt'
+  ));
 
 -- Insurance fund is a normal financial account (platform-owned). Ensure it exists.
 insert into public.financial_accounts(user_id, asset) values ('__perp_insurance__', 'USDT')
