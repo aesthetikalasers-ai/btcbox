@@ -97,17 +97,21 @@ function calculateBookDepthMidPrice(bids, asks) {
   // external price-feed freshness window; order status/remaining_quantity define
   // whether they are still executable.
   const weightedSide = (levels, side) => {
-    if (!Array.isArray(levels) || levels.length < 2) {
-      throw new Error('insufficient two-level ' + side + ' book depth');
-    }
-    let quantity = 0;
-    let notional = 0;
-    for (const level of levels.slice(0, 5)) {
+    if (!Array.isArray(levels)) throw new Error('invalid ' + side + ' book depth');
+    const byPrice = new Map();
+    for (const level of levels) {
       const price = Number(level && level.price);
       const remaining = Number(level && level.remaining_quantity);
       if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(remaining) || remaining <= 0) {
         throw new Error('invalid ' + side + ' book level');
       }
+      byPrice.set(price, (byPrice.get(price) || 0) + remaining);
+    }
+    const priceLevels = [...byPrice.entries()].sort((a, b) => side === 'bid' ? b[0] - a[0] : a[0] - b[0]).slice(0, 5);
+    if (priceLevels.length < 2) throw new Error('insufficient two-level ' + side + ' book depth');
+    let quantity = 0;
+    let notional = 0;
+    for (const [price, remaining] of priceLevels) {
       quantity += remaining;
       notional += price * remaining;
     }
@@ -130,8 +134,8 @@ async function perpetualBookMidPrice(symbol) {
   const base = 'perpetual_orders?select=price,remaining_quantity&symbol=eq.' + encodeURIComponent(symbol)
     + '&status=in.(open,partially_filled)&type=eq.limit&remaining_quantity=gt.0';
   const [bids, asks] = await Promise.all([
-    restGetAll(base + '&side=eq.buy&order=price.desc,created_at.asc&limit=5'),
-    restGetAll(base + '&side=eq.sell&order=price.asc,created_at.asc&limit=5')
+    restGetAll(base + '&side=eq.buy&order=price.desc,created_at.asc&limit=50'),
+    restGetAll(base + '&side=eq.sell&order=price.asc,created_at.asc&limit=50')
   ]);
   return calculateBookDepthMidPrice(bids, asks);
 }
