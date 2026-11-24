@@ -1325,6 +1325,7 @@ export function ContractPage() {
             label: m.symbol,
             price: tk?.price !== undefined && tk?.price !== null ? money(Number(tk.price), locale) : null,
             changePct: tk?.chg != null ? Number(tk.chg) : null,
+            quoteVolume: tk?.vol ?? null,
           };
         })}
         onSelect={(sym) => setSymbol(sym)}

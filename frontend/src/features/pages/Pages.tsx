@@ -912,6 +912,7 @@ export function SpotTradingPage(){
       label:`${pair.replace(/USDT$/,"")}/USDT`,
       price:ticker?amountText(ticker.price):null,
       changePct:ticker&&Number.isFinite(Number(ticker.chg))?Number(ticker.chg):null,
+      quoteVolume:ticker?.vol??null,
      };
     })}
     onSelect={(pair)=>navigate(`/trade/${pair}`)}
