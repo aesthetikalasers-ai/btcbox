@@ -19,7 +19,7 @@ DECLARE
   v_deposit_offset boolean := false;
 BEGIN
   IF TG_OP = 'UPDATE' THEN
-    v_deposit_offset := OLD.available < 0 AND NEW.available > OLD.available;
+    v_deposit_offset := OLD.available < 0 AND NEW.available > OLD.available AND NEW.frozen = OLD.frozen;
   END IF;
   IF NEW.available < 0 THEN
     v_operation_id := current_setting('btcbox.financial_operation_id', true);
@@ -54,7 +54,7 @@ BEGIN
        AND (
          (o.operation_type = 'admin_adjustment' AND o.metadata->>'reason' = 'admin_manual_debit')
          OR
-         (o.operation_type = 'deposit_credit' AND NEW.available_delta > 0
+         (o.operation_type = 'deposit_credit' AND NEW.available_delta > 0 AND NEW.frozen_delta = 0
            AND NEW.available_after - NEW.available_delta < 0)
        )
   ) THEN
