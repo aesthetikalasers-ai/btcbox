@@ -259,3 +259,33 @@ The navigation label is "Seconds contracts" because this module contains both ve
 - The administrator queue uses `admin_read_seconds_open_positions_v1` and is read-only. It exposes current open positions and overdue counts; it does not allow staff to force outcomes or release reserved funds.
 - No dedicated administrator settlement-history/read-results endpoint has been verified in the current route contract. Do not reuse the customer-scoped positions endpoint or infer settlement history from the open queue. A future history screen requires an explicit admin-scoped read RPC and permission mapping.
 - Perpetual administration remains deferred to PR #113 integration; this work does not add placeholder routes or controls.
+
+
+## Admin data-source recheck — 2026-11-24 follow-up
+
+### SOURCE OBSERVED — asset catalogue and spot markets
+
+- `GET/POST /api/admin/assets` reads and writes the 26-entry `db.asset_catalog` in the existing application state document. The write validates the complete supported asset set and emits `asset_catalog_update` through the admin audit outbox before saving state.
+- This catalogue controls metadata, visibility, and product availability switches. It is not a relational coin/network registry and does not provide per-chain deposit/withdrawal enablement, address validation, confirmations, or network-specific fees and limits.
+- Spot-market configuration is a separate PostgreSQL RPC boundary: `read_spot_market_snapshot_v1` and `admin_set_spot_market_v1`. It fails closed when the PostgreSQL store or RPC response is unavailable.
+- The Admin UI currently treats the catalogue as ready when it contains exactly 26 unique entries. This verifies the expected shape, not that the latest save was durably replicated to PostgreSQL; the source is the application state store.
+
+### SOURCE OBSERVED — deposit and withdrawal records
+
+- `GET /api/admin/deposits` is PostgreSQL-only. If canonical financial reads are disabled, it returns `FINANCIAL_READ_UNAVAILABLE`; if the `deposit_records` query fails, it returns `DEPOSIT_READ_UNAVAILABLE`. It does not fall back to legacy state-file deposit history.
+- `GET /api/admin/withdrawals` behaves differently: when `financialPostgresReadsEnabled()` is true it reads `readAdminWithdrawalSnapshot()` and fails with 503 on errors; when that flag is false it falls back to withdrawal arrays embedded in `db.users`.
+- The legacy withdrawal fallback only collects a subset of statuses (`pending`, `pending_admin_review`, and `approved_pending_broadcast`) and is not proven to be a complete canonical queue. It can therefore differ from the PostgreSQL-backed queue after financial cutover.
+- This is a SOURCE OBSERVED consistency gap, not a reproduced production incident. Do not silently remove the legacy fallback until the deployment/cutover contract and any still-supported legacy environment are confirmed. The safer UI/data-contract improvement is to expose source and completeness explicitly and ensure staff can distinguish a legacy snapshot from the canonical queue.
+- Withdrawal approve/reject/mark-paid are funds-impacting actions. Do not alter their state transitions, RPC behavior, or permission gates as part of this read-path cleanup.
+
+### SOURCE OBSERVED — user directory and financial projection
+
+- `GET /api/admin/users` searches the application state user directory (maximum 200 matches). Financial totals are omitted unless the administrator has `financial_audit.read`; when PostgreSQL financial reads are enabled, balances are fetched from the canonical ledger and a read failure returns 503.
+- The user directory is therefore not itself a canonical PostgreSQL identity directory. The current code uses the application state user records and only exposes the linked Supabase Auth user UUID to the Super Admin.
+- The selected user's deposit history and balance actions are separate finance workflows; do not expand the user-directory permission into financial read or write access.
+
+### NOT VERIFIED — next implementation gates
+
+- No verified normalized admin API/schema was established in this pass for a full coin/network registry (chain identifiers, deposit enablement, withdrawal enablement, confirmations, address format, fees, limits, and maintenance status).
+- No production/staging request was executed and no database migration was applied. Before implementing network configuration, inspect the actual address/config persistence contract and any existing customer-facing network selector so that admin changes cannot create an address/network mismatch.
+- Before changing withdrawal queue fallback behavior, identify all supported deployments and the canonical financial-read cutover flag source. Add contract tests for source labels and completeness before changing runtime behavior.
