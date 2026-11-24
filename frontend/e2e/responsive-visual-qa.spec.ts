@@ -417,6 +417,7 @@ async function assertPageAtWidth(
       await expect(chartDrawer.getByRole("button", { name: "Collapse chart" }).first()).toBeVisible();
       await chartDrawer.getByRole("button", { name: "Collapse chart" }).first().click();
     } else {
+      const bodyOverflowBeforeOpen = await page.locator("body").evaluate((node) => (node as HTMLElement).style.overflow);
       await chartTrigger.click();
       const chartDialog = page.locator(".spot-chart-drawer");
       await expect(chartDialog, "Compact desktop chart trigger must open the chart panel.").toBeVisible();
@@ -435,7 +436,6 @@ async function assertPageAtWidth(
         const box = await chartCanvas.boundingBox();
         return box ? box.width * box.height : 0;
       }, { message: "The chart canvas must have non-zero rendered dimensions." }).toBeGreaterThan(0);
-      const bodyOverflowBeforeOpen = await page.locator("body").evaluate((node) => (node as HTMLElement).style.overflow);
       await chartDialog.getByRole("button", { name: "Close chart" }).click();
       await expect(chartDialog).toHaveCount(0);
       await expect(chartTrigger, "Closing the chart must restore focus to its trigger.").toBeFocused();
