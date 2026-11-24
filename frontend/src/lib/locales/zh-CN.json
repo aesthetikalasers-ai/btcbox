@@ -1819,5 +1819,21 @@
   "Unable to load open orders. Refresh to try again.": "无法加载当前委托，请刷新后重试。",
   "Unable to load order history. Refresh to try again.": "无法加载委托历史，请刷新后重试。",
   "Unable to load trade history. Refresh to try again.": "无法加载成交历史，请刷新后重试。",
-  "Unable to load funding history. Refresh to try again.": "无法加载资金费率历史，请刷新后重试。"
+  "Unable to load funding history. Refresh to try again.": "无法加载资金费率历史，请刷新后重试。",
+  "Set or change fund password": "设置或修改资金密码",
+  "Create a separate password for account fund security. It is not your login password.": "创建独立的资金安全密码，与登录密码不同。",
+  "Account security details could not be verified. Refresh the page before changing your fund password.": "无法验证账户安全信息。请刷新页面后再修改资金密码。",
+  "Account verification": "账户验证",
+  "Fund password is stored separately from your login password. Never share it with anyone.": "资金密码与登录密码分开存储。请勿向任何人透露。",
+  "New fund password": "新资金密码",
+  "At least 8 characters, letters and numbers": "至少 8 位，包含字母和数字",
+  "Confirm fund password": "确认资金密码",
+  "Re-enter fund password": "再次输入资金密码",
+  "Current login password": "当前登录密码",
+  "Enter current login password": "输入当前登录密码",
+  "6-digit code": "6 位验证码",
+  "OAuth accounts must enable two-factor authentication before setting a fund password.": "OAuth 账户必须先启用双重身份验证，才能设置资金密码。",
+  "Open security settings": "打开安全设置",
+  "Saving…": "正在保存…",
+  "Save fund password": "保存资金密码"
 }

@@ -1819,5 +1819,21 @@
   "Unable to load open orders. Refresh to try again.": "Unable to load open orders. Refresh to try again.",
   "Unable to load order history. Refresh to try again.": "Unable to load order history. Refresh to try again.",
   "Unable to load trade history. Refresh to try again.": "Unable to load trade history. Refresh to try again.",
-  "Unable to load funding history. Refresh to try again.": "Unable to load funding history. Refresh to try again."
+  "Unable to load funding history. Refresh to try again.": "Unable to load funding history. Refresh to try again.",
+  "Set or change fund password": "Set or change fund password",
+  "Create a separate password for account fund security. It is not your login password.": "Create a separate password for account fund security. It is not your login password.",
+  "Account security details could not be verified. Refresh the page before changing your fund password.": "Account security details could not be verified. Refresh the page before changing your fund password.",
+  "Account verification": "Account verification",
+  "Fund password is stored separately from your login password. Never share it with anyone.": "Fund password is stored separately from your login password. Never share it with anyone.",
+  "New fund password": "New fund password",
+  "At least 8 characters, letters and numbers": "At least 8 characters, letters and numbers",
+  "Confirm fund password": "Confirm fund password",
+  "Re-enter fund password": "Re-enter fund password",
+  "Current login password": "Current login password",
+  "Enter current login password": "Enter current login password",
+  "6-digit code": "6-digit code",
+  "OAuth accounts must enable two-factor authentication before setting a fund password.": "OAuth accounts must enable two-factor authentication before setting a fund password.",
+  "Open security settings": "Open security settings",
+  "Saving…": "Saving…",
+  "Save fund password": "Save fund password"
 }

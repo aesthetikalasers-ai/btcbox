@@ -1819,5 +1819,21 @@
   "Unable to load open orders. Refresh to try again.": "No se pudieron cargar las órdenes abiertas. Actualiza e inténtalo de nuevo.",
   "Unable to load order history. Refresh to try again.": "No se pudo cargar el historial de órdenes. Actualiza e inténtalo de nuevo.",
   "Unable to load trade history. Refresh to try again.": "No se pudo cargar el historial de operaciones. Actualiza e inténtalo de nuevo.",
-  "Unable to load funding history. Refresh to try again.": "No se pudo cargar el historial de financiación. Actualiza e inténtalo de nuevo."
+  "Unable to load funding history. Refresh to try again.": "No se pudo cargar el historial de financiación. Actualiza e inténtalo de nuevo.",
+  "Set or change fund password": "Configurar o cambiar la contraseña de fondos",
+  "Create a separate password for account fund security. It is not your login password.": "Crea una contraseña independiente para proteger los fondos de la cuenta. No es tu contraseña de inicio de sesión.",
+  "Account security details could not be verified. Refresh the page before changing your fund password.": "No se pudieron verificar los datos de seguridad de la cuenta. Actualiza la página antes de cambiar la contraseña de fondos.",
+  "Account verification": "Verificación de la cuenta",
+  "Fund password is stored separately from your login password. Never share it with anyone.": "La contraseña de fondos se almacena por separado de la contraseña de inicio de sesión. No la compartas.",
+  "New fund password": "Nueva contraseña de fondos",
+  "At least 8 characters, letters and numbers": "Al menos 8 caracteres, con letras y números",
+  "Confirm fund password": "Confirmar contraseña de fondos",
+  "Re-enter fund password": "Vuelve a introducir la contraseña de fondos",
+  "Current login password": "Contraseña de inicio de sesión actual",
+  "Enter current login password": "Introduce la contraseña de inicio de sesión actual",
+  "6-digit code": "Código de 6 dígitos",
+  "OAuth accounts must enable two-factor authentication before setting a fund password.": "Las cuentas OAuth deben activar la autenticación de dos factores antes de configurar una contraseña de fondos.",
+  "Open security settings": "Abrir ajustes de seguridad",
+  "Saving…": "Guardando…",
+  "Save fund password": "Guardar contraseña de fondos"
 }

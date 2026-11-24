@@ -403,17 +403,19 @@ VIEWS.settings.afterRender = function(){
     });
   };
   $('#set-fundpwd').onclick=function(){
-    modal(fundSet?'Change Fund Password':'Set Fund Password','<form id="fp-form"><div style="margin-bottom:12px"><label class="auth-label">'+(fundSet?'Current Fund Password':'New Fund Password (6 digits)')+'</label><input id="fp-new" class="auth-input num" type="password" maxlength="6" required></div><div style="margin-bottom:16px"><label class="auth-label">Current Login Password</label><input id="fp-cur" class="auth-input" type="password" required></div><button class="btn btn-primary btn-block">'+(fundSet?'Confirm Change':'Set Fund Password')+'</button></form>',function(close){
+    modal(fundSet?'Change Fund Password':'Set Fund Password','<form id="fp-form"><div style="margin-bottom:12px"><label class="auth-label">New Fund Password (at least 8 characters, letters and numbers)</label><input id="fp-new" class="auth-input" type="password" minlength="8" maxlength="128" autocomplete="new-password" required></div>'+(state.settings.twofa?'<div style="margin-bottom:12px"><label class="auth-label">2FA Code</label><input id="fp-2fa" class="auth-input num" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" required></div>':'')+'<div style="margin-bottom:16px"><label class="auth-label">Current Login Password</label><input id="fp-cur" class="auth-input" type="password" autocomplete="current-password" required></div><button class="btn btn-primary btn-block">'+(fundSet?'Confirm Change':'Set Fund Password')+'</button></form>',function(close){
       var fundModalUserKey=state.user&&String(state.user.uid||state.user.email||'')||'';
       if(fundModalUserKey&&state._fundPasswordUnknownUserKey===fundModalUserKey){var fundStatusButton=$('#fp-form button');if(fundStatusButton){fundStatusButton.disabled=true;fundStatusButton.textContent='Status Unconfirmed';}}
       $('#fp-form').onsubmit=async function(e){
         e.preventDefault();
-        if(!/^\d{6}$/.test($('#fp-new').value)){toast('Fund password must be 6 digits.','err');return;}
+        var newFundPassword=$('#fp-new').value;
+        if(newFundPassword.length<8||!/[A-Za-z]/.test(newFundPassword)||!/[0-9]/.test(newFundPassword)||/\s/.test(newFundPassword)){toast('Fund password must be at least 8 characters and contain both letters and numbers, without spaces.','err');return;}
+        if(state.settings.twofa&&!/^\d{6}$/.test($('#fp-2fa').value)){toast('Enter your 6-digit 2FA code.','err');return;}
         var fundUserKey=state.user&&String(state.user.uid||state.user.email||'')||'';
         if(fundUserKey&&state._fundPasswordUnknownUserKey===fundUserKey){toast('The previous fund-password change is still unconfirmed. Verify the account security status before trying again.','warn');return;}
         var btn=$('#fp-form button'); var old=btn.textContent; btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Submitting…';
         var r, fundUnknown=false;
-        try{r=await apiAdapter.setFundPassword({fund_password:$('#fp-new').value,current_password:$('#fp-cur').value});}
+        try{r=await apiAdapter.setFundPassword({fund_password:$('#fp-new').value,current_password:$('#fp-cur').value,twofa_code:state.settings.twofa?$('#fp-2fa').value:undefined});}
         catch(err){fundUnknown=true;}
         if(!fundUnknown&&(!r||Number(r.status||0)===0||Number(r.status||0)>=500||r.code==='NETWORK_ERROR'||r.code==='NETWORK_RESPONSE_ERROR'))fundUnknown=true;
         if(fundUnknown){

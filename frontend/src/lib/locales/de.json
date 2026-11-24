@@ -1819,5 +1819,21 @@
   "Unable to load open orders. Refresh to try again.": "Offene Aufträge konnten nicht geladen werden. Bitte aktualisieren und erneut versuchen.",
   "Unable to load order history. Refresh to try again.": "Der Auftragsverlauf konnte nicht geladen werden. Bitte aktualisieren und erneut versuchen.",
   "Unable to load trade history. Refresh to try again.": "Der Handelsverlauf konnte nicht geladen werden. Bitte aktualisieren und erneut versuchen.",
-  "Unable to load funding history. Refresh to try again.": "Der Finanzierungsverlauf konnte nicht geladen werden. Bitte aktualisieren und erneut versuchen."
+  "Unable to load funding history. Refresh to try again.": "Der Finanzierungsverlauf konnte nicht geladen werden. Bitte aktualisieren und erneut versuchen.",
+  "Set or change fund password": "Fondspasswort festlegen oder ändern",
+  "Create a separate password for account fund security. It is not your login password.": "Erstellen Sie ein separates Passwort zum Schutz Ihrer Kontoguthaben. Es ist nicht Ihr Anmeldepasswort.",
+  "Account security details could not be verified. Refresh the page before changing your fund password.": "Die Kontosicherheitsdaten konnten nicht überprüft werden. Aktualisieren Sie die Seite, bevor Sie das Fondspasswort ändern.",
+  "Account verification": "Kontobestätigung",
+  "Fund password is stored separately from your login password. Never share it with anyone.": "Das Fondspasswort wird getrennt vom Anmeldepasswort gespeichert. Geben Sie es niemals weiter.",
+  "New fund password": "Neues Fondspasswort",
+  "At least 8 characters, letters and numbers": "Mindestens 8 Zeichen mit Buchstaben und Zahlen",
+  "Confirm fund password": "Fondspasswort bestätigen",
+  "Re-enter fund password": "Fondspasswort erneut eingeben",
+  "Current login password": "Aktuelles Anmeldepasswort",
+  "Enter current login password": "Aktuelles Anmeldepasswort eingeben",
+  "6-digit code": "6-stelliger Code",
+  "OAuth accounts must enable two-factor authentication before setting a fund password.": "OAuth-Konten müssen vor dem Festlegen eines Fondspassworts die Zwei-Faktor-Authentifizierung aktivieren.",
+  "Open security settings": "Sicherheitseinstellungen öffnen",
+  "Saving…": "Wird gespeichert…",
+  "Save fund password": "Fondspasswort speichern"
 }

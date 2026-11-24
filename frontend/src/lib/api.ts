@@ -899,6 +899,24 @@ export async function reauthenticateBtcboxCredentials(accessToken: string, twoFa
   }
 }
 
+export async function setFundPassword(input: { fund_password: string; current_password?: string; twofa_code?: string }): Promise<void> {
+  if (DEMO_PREVIEW_ACTIVE) throw new ApiError("Fund-password changes are disabled in demo preview.", 403, "DEMO_MODE");
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/settings/fundpwd`, {
+      method: "POST", credentials: "include",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      cache: "no-store", body: JSON.stringify(input),
+    });
+  } catch {
+    throw new ApiError("Fund-password update could not be confirmed. Check your account security status before retrying.", 0, "NETWORK_ERROR");
+  }
+  const payload = await response.json().catch(() => null) as { ok?: boolean; msg?: string; code?: string; need_login?: boolean } | null;
+  if (!response.ok || !payload || payload.ok !== true) {
+    throw new ApiError(payload?.msg || "Fund password could not be saved.", payload?.need_login ? 401 : response.status, payload?.code);
+  }
+}
+
 export async function recoverBtcboxCredentials(password: string): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/account/credentials/recover`, {
     method: "POST", credentials: "include",

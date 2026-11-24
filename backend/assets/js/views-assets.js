@@ -296,7 +296,7 @@ VIEWS.withdraw = function(){
       '<div class="va-step-panel" data-wpanel="3">'+
         '<div class="va-card"><div class="va-card-body">'+
           '<div class="section-title" style="margin-bottom:14px">Security Verification</div>'+
-          '<div class="va-field"><label class="auth-label">Fund Password (6 digits)</label><input id="wd-fundpwd" class="auth-input num" type="password" maxlength="6" placeholder="******" required></div>'+
+          '<div class="va-field"><label class="auth-label">Fund Password (at least 8 characters, letters and numbers)</label><input id="wd-fundpwd" class="auth-input" type="password" minlength="8" maxlength="128" autocomplete="current-password" placeholder="Enter your fund password" required></div>'+
           '<div class="va-field"><label class="auth-label">2FA Code '+(state.settings.twofa?'':'(disabled — optional)')+'</label><input id="wd-2fa" class="auth-input num" maxlength="6" placeholder="000000"></div>'+
           '<div class="va-info" style="margin-bottom:16px">Withdrawals are debited after submission and reviewed manually. Double-check the address before submitting.</div>'+
           '<div class="va-info" style="margin-bottom:16px;border-color:var(--warning);color:var(--text-primary)"><b>提币规则：</b>提币地址需先绑定并通过审核；新绑定地址 24 小时后可提币；首次提币及大额提币需人工审核。</div>'+
@@ -346,6 +346,7 @@ VIEWS.withdraw.afterRender = function(){
   }
   let withdrawalPendingIntent=readPendingWithdrawal();
   let withdrawalSubmitting=false, withdrawalOutcomeUnknown=!!(withdrawalPendingIntent||(withdrawalUserKey&&state._withdrawUnknownUserKey===withdrawalUserKey));
+  let withdrawalRetryAllowed=false;
   let withdrawalFeeConfigReady=false;
   function currentFee(){return WITHDRAW_FEES[$('#wd-coin').value]||0;}
   function goStep(n){
@@ -467,21 +468,63 @@ VIEWS.withdraw.afterRender = function(){
       }
       withdrawalFeeConfigReady=true;
       refresh();
+      if(withdrawalRetryAllowed&&$('#wd-submit')){$('#wd-submit').disabled=false;$('#wd-submit').textContent='Retry Same Request';}
     })
     .catch(()=>{
       $('#wd-fee').textContent='Unavailable';
       $('#wd-next').disabled=true;
       $('#wd-max').disabled=true;
     });
+  async function reconcilePendingWithdrawal(){
+    const intent=withdrawalPendingIntent;
+    if(!intent||intent.invalid)return;
+    const btn=$('#wd-submit');
+    if(btn){btn.disabled=true;btn.textContent='Checking History…';}
+    try{
+      const result=await apiAdapter.withdrawalStatus(intent.request_id);
+      if(!result||result.ok!==true) throw new Error('Withdrawal history could not be confirmed');
+      if(result.found===true&&result.withdrawal){
+        clearPendingWithdrawal();
+        withdrawalOutcomeUnknown=false;
+        withdrawalRetryAllowed=false;
+        if(btn){btn.disabled=false;btn.textContent='Submit Withdrawal';}
+        showResult({ok:true,duplicate:true,status:result.withdrawal.status,
+          withdrawal_id:result.withdrawal.withdrawal_id,request_id:intent.request_id,
+          msg:'This withdrawal request already exists in your account history.'},
+          intent.coin,Number(intent.amount));
+        return;
+      }
+      if(result.found!==false) throw new Error('Withdrawal history response was invalid');
+      // No committed row is visible. Retrying the immutable payload with the same
+      // request ID is safe: the database serializes first-use retries and replays
+      // the original row if the first RPC is still completing.
+      withdrawalOutcomeUnknown=false;
+      withdrawalRetryAllowed=true;
+      $('#wd-coin').value=intent.coin;
+      refresh();
+      $('#wd-network').value=intent.network;
+      $('#wd-addr').value=intent.address;
+      $('#wd-amount').value=intent.amount;
+      calcReceive();
+      goStep(3);
+      if(btn){btn.disabled=!withdrawalFeeConfigReady;btn.textContent='Retry Same Request';}
+      toast('No matching withdrawal record was found. Re-enter your fund password and retry the exact same details with the original request ID.','warn');
+    }catch(_){
+      withdrawalOutcomeUnknown=true;
+      if(withdrawalUserKey)state._withdrawUnknownUserKey=withdrawalUserKey;
+      if(btn){btn.disabled=true;btn.textContent='Status Unconfirmed';}
+      showResult({ok:false,code:'NETWORK_ERROR',status:0,request_id:intent.request_id,
+        msg:'Withdrawal history could not be checked. Keep the original request ID; do not submit a new withdrawal until the history lookup succeeds.'},
+        intent.coin,Number(intent.amount));
+    }
+  }
   if(withdrawalOutcomeUnknown){
     const blockedBtn=$('#wd-submit');
     if(blockedBtn){blockedBtn.disabled=true;blockedBtn.textContent='Status Unconfirmed';}
-    if(withdrawalPendingIntent){
-      showResult({ok:false,code:'NETWORK_ERROR',status:0,request_id:withdrawalPendingIntent.request_id,
-        msg:'A previous withdrawal attempt has no confirmed result. Its original request ID is being retained; contact support to reconcile it before creating another withdrawal.'},
-        withdrawalPendingIntent.coin,Number(withdrawalPendingIntent.amount));
+    if(withdrawalPendingIntent&&!withdrawalPendingIntent.invalid){
+      void reconcilePendingWithdrawal();
     }else{
-      toast('A previous withdrawal result is unconfirmed. Do not create another withdrawal until support reconciles it.','warn');
+      toast('A previous withdrawal result is unconfirmed, but its original request ID is unavailable. Do not create another withdrawal until support reconciles it.','warn');
     }
   }
   /* step 1 -> step 2 (light validation with inline errors) */
@@ -528,14 +571,21 @@ VIEWS.withdraw.afterRender = function(){
       return;
     }
     const coin=$('#wd-coin').value, addr=$('#wd-addr').value.trim(), amtRaw=$('#wd-amount').value.trim(), amt=Number(amtRaw);
+    if(!withdrawalFeeConfigReady){toast('Withdrawal fee configuration is unavailable. No request was sent.','err');return;}
     if(!addr||addr.length<8){toast('Enter a valid withdrawal address.','err');return;}
     if(!amt||amt<=0){toast('Enter a valid amount.','err');return;}
     const avail=state.balances[coin]?state.balances[coin].free:0;
     if(amt+currentFee()>avail){toast('Insufficient balance for the amount plus network fee.','err');return;}
-    if(!/^\d{6}$/.test($('#wd-fundpwd').value)){toast('Fund password must be 6 digits.','err');return;}
+    const fundPassword=$('#wd-fundpwd').value;
+    if(fundPassword.length<8||!/[A-Za-z]/.test(fundPassword)||!/[0-9]/.test(fundPassword)||/\s/.test(fundPassword)){toast('Fund password must be at least 8 characters and contain both letters and numbers, without spaces.','err');return;}
     if(state.settings.twofa&&!/^\d{6}$/.test($('#wd-2fa').value)){toast('Enter your 6-digit 2FA code.','err');return;}
     const btn=$('#wd-submit');if(!btn)return;
-    const withdrawalIntent={version:1,request_id:uid(),coin,amount:amtRaw,address:addr,network:$('#wd-network').value,created_at:Date.now()};
+    const retryIntent=withdrawalRetryAllowed&&withdrawalPendingIntent?withdrawalPendingIntent:null;
+    if(retryIntent&&(coin!==retryIntent.coin||amtRaw!==retryIntent.amount||addr!==retryIntent.address||$('#wd-network').value!==retryIntent.network)){
+      toast('A retry must use the original coin, amount, network and address. Start a separate withdrawal only after this request is resolved.','err');return;
+    }
+    const withdrawalIntent=retryIntent||{version:1,request_id:uid(),coin,amount:amtRaw,address:addr,network:$('#wd-network').value,created_at:Date.now()};
+    withdrawalRetryAllowed=false;
     /* Persist the exact idempotency key + immutable intent before network I/O. Never store fund password or 2FA. */
     if(!persistPendingWithdrawal(withdrawalIntent)){
       toast('This browser cannot safely retain the withdrawal request ID. No request was sent. Enable site storage and try again.','err');

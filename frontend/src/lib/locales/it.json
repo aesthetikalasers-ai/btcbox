@@ -1819,5 +1819,21 @@
   "Unable to load open orders. Refresh to try again.": "Impossibile caricare gli ordini aperti. Aggiorna e riprova.",
   "Unable to load order history. Refresh to try again.": "Impossibile caricare la cronologia degli ordini. Aggiorna e riprova.",
   "Unable to load trade history. Refresh to try again.": "Impossibile caricare la cronologia delle operazioni. Aggiorna e riprova.",
-  "Unable to load funding history. Refresh to try again.": "Impossibile caricare la cronologia dei finanziamenti. Aggiorna e riprova."
+  "Unable to load funding history. Refresh to try again.": "Impossibile caricare la cronologia dei finanziamenti. Aggiorna e riprova.",
+  "Set or change fund password": "Imposta o modifica la password dei fondi",
+  "Create a separate password for account fund security. It is not your login password.": "Crea una password separata per proteggere i fondi dell'account. Non è la password di accesso.",
+  "Account security details could not be verified. Refresh the page before changing your fund password.": "Impossibile verificare i dati di sicurezza dell'account. Aggiorna la pagina prima di modificare la password dei fondi.",
+  "Account verification": "Verifica dell'account",
+  "Fund password is stored separately from your login password. Never share it with anyone.": "La password dei fondi è memorizzata separatamente dalla password di accesso. Non condividerla.",
+  "New fund password": "Nuova password dei fondi",
+  "At least 8 characters, letters and numbers": "Almeno 8 caratteri, con lettere e numeri",
+  "Confirm fund password": "Conferma password dei fondi",
+  "Re-enter fund password": "Inserisci nuovamente la password dei fondi",
+  "Current login password": "Password di accesso attuale",
+  "Enter current login password": "Inserisci la password di accesso attuale",
+  "6-digit code": "Codice a 6 cifre",
+  "OAuth accounts must enable two-factor authentication before setting a fund password.": "Gli account OAuth devono attivare l'autenticazione a due fattori prima di impostare una password dei fondi.",
+  "Open security settings": "Apri le impostazioni di sicurezza",
+  "Saving…": "Salvataggio…",
+  "Save fund password": "Salva password dei fondi"
 }
