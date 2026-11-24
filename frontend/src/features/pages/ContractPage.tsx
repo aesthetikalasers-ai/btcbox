@@ -1043,7 +1043,9 @@ export function ContractPage() {
     }
     if (tab === "open") return openOrdersBody;
     if (tab === "history") {
-      return positionsLoading ? <TableSkeleton rows={2} /> : orderHistory.length === 0 ? (
+      return positionsLoading ? <TableSkeleton rows={2} /> : historyError ? (
+        <p className="p-4 text-sm text-brand-danger" role="alert">{historyError}</p>
+      ) : orderHistory.length === 0 ? (
         <EmptyState icon={Inbox} title={t("No order history")} hint={t("Filled and cancelled orders will appear here.")} />
       ) : (
         <div className="overflow-x-auto"><table className="w-full text-left text-xs font-mono">
@@ -1062,7 +1064,9 @@ export function ContractPage() {
       );
     }
     if (tab === "trades") {
-      return tabLoading ? <TableSkeleton rows={2} /> : trades.length === 0 ? (
+      return tabLoading ? <TableSkeleton rows={2} /> : tabError ? (
+        <p className="p-4 text-sm text-brand-danger" role="alert">{tabError}</p>
+      ) : trades.length === 0 ? (
         <EmptyState icon={Inbox} title={t("No trades yet")} hint={t("Your executed trades for this market will appear here.")} />
       ) : (
         <div className="overflow-x-auto"><table className="w-full text-left text-xs font-mono">
@@ -1078,7 +1082,9 @@ export function ContractPage() {
         </table></div>
       );
     }
-    return tabLoading ? <TableSkeleton rows={2} /> : funding.length === 0 ? (
+    return tabLoading ? <TableSkeleton rows={2} /> : tabError ? (
+      <p className="p-4 text-sm text-brand-danger" role="alert">{tabError}</p>
+    ) : funding.length === 0 ? (
       <EmptyState icon={Inbox} title={t("No funding payments yet")} hint={t("Funding payments are settled periodically and will appear here.")} />
     ) : (
       <div className="overflow-x-auto"><table className="w-full text-left text-xs font-mono">
