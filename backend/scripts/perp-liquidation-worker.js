@@ -39,6 +39,7 @@ async function restGetAll(query) {
   for (const pos of positions) {
     try {
       const res = await rpc('perp_liquidate_position', { p_user_id: pos.user_id, p_symbol: pos.symbol });
+      if (!res || res.ok !== true) throw new Error('liquidation RPC returned an unsuccessful payload');
       if (res.liquidated === true) {
         liquidated++;
         console.log('[perp-liq] LIQUIDATED', pos.symbol, pos.user_id, 'side=' + pos.side, 'mark=' + res.mark_price, 'liq_price=' + res.liq_price,
