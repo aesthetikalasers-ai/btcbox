@@ -786,6 +786,11 @@ for (const route of routes.filter((item) => [
     const output = path.resolve(process.cwd(), "test-results/visual-qa");
     fs.mkdirSync(path.join(output, "continuous"), { recursive: true });
     await installVisualApiMocks(page);
+    // The continuous spot sweep also opens the compact chart at 1024–1279px;
+    // provide verified candles there instead of the empty visual-only fixture.
+    if (route.path === "/trade/BTCUSDT") {
+      await installInteractiveTradeApiMocks(page);
+    }
     for (const width of continuityWidths) {
       await assertPageAtWidth(page, route, width, output, "continuous");
     }
