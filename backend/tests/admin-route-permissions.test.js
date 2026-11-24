@@ -25,6 +25,7 @@ test('every read/write admin API contract is mapped to an explicit least-privile
     ["kyc/approve", "POST", "kyc.review"],
     ["kyc/reject", "POST", "kyc.review"],
     ["deposit/confirm", "POST", "deposits.review"],
+    ["deposits", "GET", "deposits.read"],
     ["addresses", "GET", "payout_addresses.read_sensitive"],
     ["address/manage", "POST", "payout_addresses.manage"],
     ["withdrawals", "GET", "withdrawals.read"],
