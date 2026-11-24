@@ -2305,11 +2305,9 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   .term-bottom-tabs { padding: 0 10px; gap: 18px; }
   .term-tab-body { overflow-y: auto; min-height: 0; padding: 2px 10px 8px; }
 
-  /* --- Middle column: order book + trades ------------------------------ */
-  /* "Expand book" control: sits on the column edge, desktop only (the phone
-     layout has no tape column to reclaim). */
+  /* --- Middle column: full-height order book --------------------------- */
+  /* "Expand book" control: sits on the column edge, desktop only. */
   .term-col--book { position: relative; }
-  .term-col--book.is-expanded > .term-rt { display: none; }
   .term-col--book.is-expanded > div:first-of-type { flex: 1 1 auto; height: auto; min-height: 0; }
   .term-book-expand {
     position: absolute;
@@ -2478,29 +2476,9 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
     font-size: 10px;
     color: var(--color-brand-text-faint);
   }
-  /* Recent trades sits under the book and scrolls on its own. */
-  /* The book is the primary reference: it takes the flexible share of the
-     middle column (rendering all 10+10 levels plus the mid price), and the
-     tape claims the remainder. `flex: 1 1 auto` on the ladder and a fixed
-     minimum on the tape gives the book room to grow while the tape never
-     collapses to zero. */
-  .term-col--book > div:first-child { flex: 1 1 auto; height: auto; min-height: 0; }
-  .term-rt { flex: 0 0 auto; height: 240px; min-height: 160px; overflow: hidden; display: flex; flex-direction: column; }
-  .term-rt > div {
-    flex: 1 1 auto;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    border: 0;
-    border-top: 1px solid var(--color-brand-border);
-    border-radius: 0;
-    overflow: hidden;
-  }
-  .term-rt table { display: block; overflow-y: auto; min-height: 0; }
-  .term-rt thead { display: table; width: 100%; table-layout: fixed; }
-  .term-rt tbody { display: table; width: 100%; table-layout: fixed; }
-  /* Recent-trades header reads as a panel title, matching the book header. */
-  .term-rt > div > div:first-child { min-height: 30px; padding: 0 10px; }
+  /* The order book is the sole middle-column panel and fills its available height. */
+  .term-col--book > div:first-of-type { flex: 1 1 auto; height: auto; min-height: 0; }
+  .term-col--book .term-book-body { flex: 1 1 auto; min-height: 0; height: auto; max-height: none; }
 
   /* --- Right column: order form --------------------------------------- */
   .term-form { display: flex; flex-direction: column; gap: 8px; min-width: 0; position: relative; }
@@ -2830,28 +2808,17 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
      dead space underneath. */
   .term-col--main,
   .term-col--entry { align-self: start; }
-  /* `.term-col--book` is `display:flex` by default; as a block its two panes
-     stack at their declared heights instead of competing for the row. */
-  .term-col--book { align-self: start; display: block; }
+  /* The order book stretches to the same row height as the chart + orders column. */
+  .term-col--book { align-self: stretch; display: flex; flex-direction: column; }
   .term-col--book > * { width: 100%; }
+  .term-col--book > div:first-of-type { flex: 1 1 auto; min-height: 0; }
 
-  /* Chart + orders panel set the row height, so the middle column is sized to
-     match: a bounded level area + a bounded tape + their headers/footers. */
+  /* Chart + orders panel set the row height; the book stretches alongside it. */
   .term-col--main { grid-template-rows: minmax(300px, 40vh) auto; }
   .term-chart-body { min-height: 260px; }
-  /* `flex:1` alone lets the level list expand to every fetched row (20 levels)
-     and push the tape away; a fixed height keeps ~10 levels visible and lets
-     the rest scroll inside. Sizes are chosen so the middle column (book +
-     tape) matches the left column (chart + orders panel) instead of setting a
-     taller row that forces extra page scroll. */
-  .term-book-body { flex: 0 0 auto; height: 210px; max-height: 210px; }
-  .term-rt { flex: 0 0 auto; height: 186px; min-height: 170px; }
-  /* Expanded book overrides the short-viewport caps: the tape is hidden, so the
-     ladder can take the full natural height instead of staying at 210px. The
-     column is `display: block` here, so this is a plain height override, not a
-     flex change. */
+  .term-book-body { flex: 1 1 auto; height: auto; max-height: none; }
   .term-col--book.is-expanded > div:first-of-type { height: auto; }
-  .term-col--book.is-expanded .term-book-body { flex: 0 0 auto; height: auto; max-height: none; }
+  .term-col--book.is-expanded .term-book-body { flex: 1 1 auto; height: auto; max-height: none; }
 }
 
 

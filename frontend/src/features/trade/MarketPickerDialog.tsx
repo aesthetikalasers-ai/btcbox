@@ -72,8 +72,8 @@ export function MarketPickerDialog({ open, onOpenChange, items, activeId, onSele
             />
           </div>
           <div className="term-pair-dialog__columns" aria-hidden="true">
-            <span>{t("Trading pair")}</span>
-            <span data-mobile-label={t("Price / 24h change")}>{t("Last price")}</span>
+            <span>{t("Pair")}</span>
+            <span data-mobile-label={t("Last price")}>{t("Last price")}</span>
             <span>{t("24h change")}</span>
           </div>
           <div className="term-pair-dialog__list">

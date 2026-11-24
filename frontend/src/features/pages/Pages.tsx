@@ -30,7 +30,6 @@ import { SupportFaq } from "../support/SupportFaq";
 import { SupportChat } from "../support/SupportChat";
 import { TerminalOrderBook, aggregateLevels, precisionOptionsFor, DECIMALS_BY_PRECISION, type DepthPrecision, type BookView } from "../trade/TerminalOrderBook";
 import { TerminalOrderForm, type OrderType } from "../trade/TerminalOrderForm";
-import { TradesPanel } from "../trade/TradesPanel";
 import { BottomOrderPanel } from "../trade/BottomOrderPanel";
 
 type PageFrameTone = "trading"|"earn"|"assets"|"support"|"account"|"orders"|"market";
@@ -696,7 +695,7 @@ export function SpotTradingPage(){
  // A strict three-column terminal locked to the viewport height, matching the
  // information density of tier-1 exchanges:
  //   left  58%  ticker bar → K-line → collapsible orders/history/assets panel
- //   middle 20% order book + recent trades
+ //   middle 20% full-height order book
  //   right  22% order form (buy/sell, limit/market, balance, slider)
  // Below this breakpoint the existing mobile/compact flow is untouched.
  // ---------------------------------------------------------------------------
@@ -871,9 +870,6 @@ export function SpotTradingPage(){
       usdtUsd={usdtUsd}
       rows={6}
      />
-     <div className="term-rt">
-      <TradesPanel symbol={symbol} />
-     </div>
     </section>
     <aside id="trade-entry" className="term-col term-col--entry" aria-label={t("Order form")}>
      <TerminalOrderForm
@@ -986,11 +982,6 @@ export function SpotTradingPage(){
     trailing={<Link to="/orders" aria-label={t("Order history")} title={t("Order history")}><History className="h-4 w-4"/></Link>}
    >{ordersExpanded?(bottomTab==="orders"?<div id="trade-orders-body" className="space-y-1">{openOrders.length?openOrders.map((item,index)=>{const id=String(item.order_id??item.id??index);return <div key={id} className="spot-order-row"><div className="spot-order-summary"><p className="font-semibold">{item.symbol||symbol} · {item.side==="buy"?t("Buy"):item.side==="sell"?t("Sell"):item.side||"—"}</p><p className="spot-order-values">{t("Price")} {amountText(item.price)} · {t("Remaining")} {amountText(item.remaining_quantity??item.quantity)}</p><Badge variant="outline">{item.status}</Badge></div><Button size="sm" variant="outline" disabled={busy||!tradingStatus?.spot_cancel_enabled} onClick={()=>void cancelOrder(item)}>{cancelRequestIds[id]?t("Retry cancel"):t("Cancel")}</Button></div>;}):<p className="spot-orders-empty text-sm text-brand-text-muted">{t("No open orders")}</p>}</div>:<div className="spot-asset-strip"><div><span>{t("Available")} · {base}</span><strong>{availableBalances[base]?.free!==undefined?amountText(availableBalances[base].free):"—"}</strong></div><div><span>{t("Available")} · USDT</span><strong>{availableBalances.USDT?.free!==undefined?amountText(availableBalances.USDT.free):"—"}</strong></div><Link to="/assets">{t("View assets")}</Link></div>):null}</BottomOrderPanel>
   </div>
-  {/* Mobile spot trading intentionally omits the recent-trades panel.
-      Keep the desktop/tablet tape mounted only where it remains part of the layout. */}
-  {!isPhone ? <section aria-label={t("Recent trades")} className="mt-2 min-w-0">
-    <TradesPanel symbol={symbol} limit={6} />
-  </section> : null}
 
  </PageFrame>;
  const terminalBody=compactTrade||isPhone?<>{compactTerminal}{orderConfirmation}</>:<>{proTerminal}{orderConfirmation}</>;

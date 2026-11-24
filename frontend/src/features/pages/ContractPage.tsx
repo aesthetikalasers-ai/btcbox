@@ -32,7 +32,6 @@ import { useAuth } from "../../lib/auth";
 import { useMarketStream } from "../../lib/useMarketStream";
 import { localeTags, useI18n } from "../../lib/i18n";
 import { PositionRiskPanel, fromPerpPosition } from "../trade/PositionRiskPanel";
-import { TradesPanel } from "../trade/TradesPanel";
 import { useMarketStreamEvent } from "../../lib/useMarketStreamEvent";
 import { OrderBookDepth } from "../trade/OrderBookDepth";
 import { ChartDrawer } from "../trade/ChartDrawer";
@@ -1289,13 +1288,6 @@ export function ContractPage() {
                 </div>
               </div>
 
-              {/* 最新成交（移动端）：与桌面右侧同一组件，窄屏只显示最近 6 条 */}
-              {streamSymbol ? (
-                <div className="mt-2 border-t border-brand-border/40 px-4 pt-2">
-                  <TradesPanel symbol={streamSymbol} limit={6} />
-                </div>
-              ) : null}
-
               {/* 持仓 / 委托（下方全宽）：分段页签已含持仓明细 */}
               <div className="mt-1 flex flex-1 flex-col">
                 {mobilePositionsAndOrders}
@@ -1312,7 +1304,6 @@ export function ContractPage() {
                 {signedOut ? null : positionRiskCard}
                 {orderEntryCard}
                 <OrderBookDepth mid={depthMid} book={displayBook} streamState={liveDepth.state} usdtUsd={usdtUsd} />
-                {streamSymbol ? <TradesPanel symbol={streamSymbol} /> : null}
               </div>
             </div>
           </>
