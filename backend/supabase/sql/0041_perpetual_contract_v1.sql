@@ -9,6 +9,64 @@
 
 create extension if not exists pgcrypto;
 
+-- 0. Canonical BTCBOX asset registry. Production already owns this table; on
+-- populated projects CREATE TABLE IF NOT EXISTS and ON CONFLICT DO NOTHING
+-- preserve all existing asset rows and their legacy triggers. The empty-schema
+-- bootstrap also needs the registry before perpetual markets can add asset FKs.
+create table if not exists public.btcbox_assets (
+  asset_code text primary key check (asset_code ~ '^[A-Z0-9]{2,16}$'),
+  asset_name text not null,
+  asset_type text not null default 'crypto'
+    check (asset_type in ('crypto','fiat','stablecoin')),
+  decimals smallint not null default 8 check (decimals between 0 and 18),
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+alter table public.btcbox_assets enable row level security;
+revoke all on public.btcbox_assets from public, anon, authenticated;
+grant select, insert, update, delete on public.btcbox_assets to service_role;
+
+create or replace function public.btcbox_set_updated_at_v1()
+returns trigger language plpgsql set search_path = pg_catalog as $$
+begin
+  new.updated_at := now();
+  return new;
+end;
+$$;
+do $asset_trigger$
+begin
+  if not exists (
+    select 1 from pg_trigger
+    where tgrelid='public.btcbox_assets'::regclass
+      and tgname='btcbox_assets_updated_at'
+      and not tgisinternal
+  ) then
+    create trigger btcbox_assets_updated_at
+      before update on public.btcbox_assets
+      for each row execute function public.btcbox_set_updated_at_v1();
+  end if;
+end
+$asset_trigger$;
+
+-- Seed only the canonical base assets already present in the live registry.
+-- Existing names, precision and active state always win on conflict.
+insert into public.btcbox_assets(asset_code,asset_name,asset_type,decimals,active)
+values
+  ('ADA','Cardano','crypto',6,true),
+  ('AVAX','Avalanche','crypto',18,true),
+  ('BNB','BNB','crypto',8,true),
+  ('BTC','Bitcoin','crypto',8,true),
+  ('DOGE','Dogecoin','crypto',8,true),
+  ('ETH','Ethereum','crypto',18,true),
+  ('SOL','Solana','crypto',9,true),
+  ('USDT','Tether','stablecoin',6,true),
+  ('XRP','XRP','crypto',6,true)
+on conflict (asset_code) do nothing;
+
+-- Deliberately do not create the legacy btcbox_asset_seed_wallet_accounts_v1
+-- trigger in a fresh bootstrap; the perpetual engine uses financial_accounts.
+
 -- 1. Extend financial operation types without dropping the live constraint first.
 -- Install a NOT VALID replacement (new writes are checked immediately), then drop/rename
 -- the old constraint and validate existing rows in one atomic statement.
