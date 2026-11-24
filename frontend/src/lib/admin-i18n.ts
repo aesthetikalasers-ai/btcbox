@@ -304,7 +304,6 @@ const messages: Record<string, string> = {
   "Your administrator role does not include manual balance adjustment.": "当前管理员角色没有人工余额调整权限。",
   "Asset": "币种",
   "Debit amount": "扣款金额",
-  "Amount": "金额",
   "Processing…": "处理中…",
   "Retry same debit": "使用原请求重试",
   "Confirm debit": "确认扣款",
