@@ -538,13 +538,24 @@ test("trade interaction QA mobile spot market selection and order-book handoff",
   await expect(options.nth(2)).toContainText("SOL/USDT");
   const listedPrices = await options.locator(".term-pair-option__price").allTextContents();
   expect(new Set(listedPrices).size, "Each market option must show its own ticker price, not the active pair price.").toBe(3);
+  await expect(options.first().locator(".term-pair-option__volume")).toContainText("USDT");
+
+  const solOption = options.filter({ hasText: "SOL/USDT" });
+  const solFavorite = solOption.locator(".term-pair-option__favorite");
+  await solFavorite.click();
+  await expect(solFavorite).toHaveAttribute("aria-pressed", "true");
+  await dialog.getByRole("tab", { name: "Favorites" }).click();
+  await expect(options).toHaveCount(1);
+  await expect(options.first()).toContainText("SOL/USDT");
+  await dialog.getByRole("tab", { name: "All" }).click();
+  await expect(options).toHaveCount(3);
 
   const search = dialog.getByRole("searchbox", { name: "Search BTCBOX" });
   await search.fill("ETH");
   await expect(options).toHaveCount(1);
   await expect(options.first()).toContainText("ETH/USDT");
   await search.fill("");
-  await options.filter({ hasText: "SOL/USDT" }).click();
+  await options.filter({ hasText: "SOL/USDT" }).locator(".term-pair-option__select").click();
   await expect(page).toHaveURL(/\/trade\/SOLUSDT$/);
 });
 
