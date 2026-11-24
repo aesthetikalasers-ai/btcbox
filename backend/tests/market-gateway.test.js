@@ -132,6 +132,27 @@ test('provider order falls back when the first provider fails', async () => {
   }
 });
 
+test('missing provider event timestamps stay null instead of being synthesized', async () => {
+  const restore = stubFetch(async (url) => {
+    const href = String(url);
+    if (href.includes('/products')) {
+      return jsonResponse([{ id: 'BTC-USDT', quote_currency: 'USDT', status: 'online', trading_disabled: false }]);
+    }
+    if (href.includes('/ticker')) return jsonResponse({ price: '64200' });
+    if (href.includes('/stats')) return jsonResponse({ open: '64000', high: '65447', low: '63336', volume: '10' });
+    throw new Error('unexpected provider request');
+  });
+  try {
+    const gw = freshGateway({ MARKET_PROVIDER_ORDER: 'coinbase' });
+    const snapshot = await gw.getMarket({ symbols: ['BTC'] });
+    assert.equal(snapshot.ok, true);
+    assert.equal(snapshot.data.BTC.providerTs, null);
+    assert.ok(snapshot.data.BTC.ts > 0);
+  } finally {
+    restore();
+  }
+});
+
 test('partial primary coverage is merged with the batched Bybit fallback without replacing primary rows', async () => {
   const now = Date.now();
   const primary = [{ ...TICKER_ROWS[0], closeTime: now }];
