@@ -12,6 +12,7 @@ the fresh-database bootstrap.
 - Market taxonomy: `backend/supabase/sql/0045_market_asset_categories_v1.sql`
 - Atomic funding settlement and clearing: `backend/supabase/sql/0046_perpetual_funding_atomic_clearing_v1.sql`
 - Liquidation accounting closure: `backend/supabase/sql/0047_perpetual_liquidation_accounting_closure_v1.sql`
+- Fixed funding-rate formula and snapshot producer: `backend/supabase/sql/0048_perpetual_funding_rate_producer_v1.sql`
 
 The numbered SQL files are the canonical source. Do not hand-maintain a second
 copy of any migration in this directory.
@@ -40,6 +41,8 @@ Before applying any DDL, verify against the exact production project:
    is not a schema-reconciliation mechanism.
 7. Confirm PITR/backup recoverability, a lock/statement timeout plan and an
    operator-approved maintenance window. Do not run a fresh-schema bootstrap.
+8. Review 0048's additive columns, producer RPC and financial-operation guard;
+   do not apply it until 0041, 0046 and 0047 are present and reconciled.
 
 ## Apply sequence for the populated production database
 
@@ -64,6 +67,10 @@ Apply each file as its own tracked Supabase migration, in this exact order:
 7. **0047** — replaces the liquidation RPC, adds a separate insurance-cover
    operation and a balanced liquidation risk journal. It requires the
    liquidation tables and operation types from 0041.
+8. **0048** — adds formula-versioned funding snapshot fields, the database-side
+   funding-rate calculation RPC, and a guard that rejects any `perp_funding`
+   financial operation unless it references a fresh `btcbox-funding-v1` snapshot.
+   It does not settle positions or move funds.
 
 For every file, let the Supabase migration mechanism record its real migration
 version/name. Do not manually invent timestamps or insert migration-ledger rows.
@@ -118,8 +125,15 @@ long-running worker process for them. Therefore the engine must remain disabled.
   BTCBOX assets ADA, AVAX, BNB, BTC, DOGE, ETH, SOL and XRP. Other symbols can add
   a trusted CoinGecko ID through `PERP_COINGECKO_IDS`. At least two fresh, distinct
   providers are required; three agreeing sources are needed for an `ok` feed status.
-- Funding worker: v1 deliberately records a zero funding rate until a validated
-  premium-index calculation is implemented. It is not yet a live funding-rate engine.
+- Funding-rate producer: `perp-funding-rate-worker.js` samples the best five
+  distinct executable limit-order levels on each side and submits the two
+  quantity-weighted VWAPs. The database calculates and persists the approved
+  formula; the producer does not settle positions or move funds. The formula's
+  Impact Bid/Ask inputs are this explicitly defined depth-weighted proxy, not a
+  fixed-quote-notional exchange impact-price calculation.
+- Funding settlement worker: `perp-funding-worker.js` calls the atomic market RPC
+  only. Run the producer frequently (recommended 5 seconds) so the snapshot stays
+  within the database's 2-minute freshness guard before a due boundary.
 - Liquidation worker: must run continuously at the intended 2–5 second cadence;
   a once-per-minute schedule is not equivalent.
 
