@@ -17,7 +17,7 @@ let livePriceCache = { expiresAt: 0, prices: {} };
 // Public, read-only endpoints must not be coupled to the account-state singleton.
 // Market prices and display FX can continue during a persistence incident;
 // the health endpoint reports the degraded state explicitly.
-const PUBLIC_NO_DB_PATHS = new Set(['market', 'market/pairs', 'kline', 'depth', 'trading/status', 'config', 'fx/usdt-usd', 'health']);
+const PUBLIC_NO_DB_PATHS = new Set(['market', 'market/pairs', 'kline', 'depth', 'perpetual/markets', 'trading/status', 'config', 'fx/usdt-usd', 'health']);
 
 // ===== 数据层（失败时关闭；不使用陈旧缓存处理可变数据）=====
 // Legacy JSON/Blobs writes cannot resolve 跨实例并发读-改-写竞争; they are retired.
@@ -3069,8 +3069,14 @@ async function handleRequest(event, context) {
           const fresh = response.ok && row && ['ok', 'degraded'].includes(row.status) &&
             Number.isFinite(age) && age >= 0 && age <= Number(market.mark_price_stale_sec) &&
             Number(row.mark_price) > 0 && Number(row.index_price) > 0;
-          return { ...market, mark_price: fresh ? String(row.mark_price) : null, index_price: fresh ? String(row.index_price) : null,
-            mark_price_status: fresh ? row.status : 'stale' };
+          // Bootstrap is a validated external index anchor only. Expose that
+          // Index Price while keeping Mark Price unavailable until BTCBOX has
+          // a sufficiently deep, executable two-sided book.
+          const freshIndex = response.ok && row && ['ok', 'degraded', 'bootstrap'].includes(row.status) &&
+            Number.isFinite(age) && age >= 0 && age <= Number(market.mark_price_stale_sec) &&
+            Number(row.index_price) > 0;
+          return { ...market, mark_price: fresh ? String(row.mark_price) : null, index_price: freshIndex ? String(row.index_price) : null,
+            mark_price_status: fresh ? row.status : freshIndex ? row.status : 'stale' };
         } catch (_) {
           return { ...market, mark_price: null, index_price: null, mark_price_status: 'unavailable' };
         }
