@@ -119,6 +119,48 @@ export async function probeHealth(signal?: AbortSignal): Promise<HealthProbeResu
   }
 }
 
+export interface PublicAssetConfig {
+  code: string;
+  name: string;
+  display_name: string;
+  display_precision: number;
+  enabled: boolean;
+  visible: boolean;
+  spot_enabled: boolean;
+  perpetual_enabled: boolean;
+  seconds_enabled: boolean;
+  earn_enabled: boolean;
+  sort_order: number;
+}
+
+export async function getPublicAssetCatalog(signal?: AbortSignal): Promise<PublicAssetConfig[]> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/assets`, {
+      method: "GET", credentials: "include", headers: { Accept: "application/json" },
+      cache: "no-store", signal,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") throw error;
+    throw new ApiError("Asset configuration is temporarily unavailable.", 0, "ASSET_CATALOG_UNAVAILABLE");
+  }
+  const payload = await response.json().catch(() => null) as { ok?: boolean; assets?: PublicAssetConfig[]; msg?: string; code?: string } | null;
+  if (!response.ok || payload?.ok !== true || !Array.isArray(payload.assets)) {
+    throw new ApiError(payload?.msg || "Asset configuration is temporarily unavailable.", response.status, payload?.code || "ASSET_CATALOG_UNAVAILABLE");
+  }
+  const valid = payload.assets.filter(asset => asset && /^[A-Z0-9]{2,16}$/.test(asset.code) &&
+    typeof asset.name === "string" && typeof asset.display_name === "string" &&
+    Number.isInteger(asset.display_precision) && asset.display_precision >= 0 && asset.display_precision <= 18 &&
+    typeof asset.enabled === "boolean" && typeof asset.visible === "boolean" &&
+    typeof asset.spot_enabled === "boolean" && typeof asset.perpetual_enabled === "boolean" &&
+    typeof asset.seconds_enabled === "boolean" && typeof asset.earn_enabled === "boolean" &&
+    Number.isInteger(asset.sort_order) && asset.sort_order >= 0);
+  if (valid.length !== 26 || new Set(valid.map(asset => asset.code)).size !== 26) {
+    throw new ApiError("BTCBOX returned an incomplete asset configuration.", 502, "INVALID_ASSET_CATALOG");
+  }
+  return valid.sort((a, b) => a.sort_order - b.sort_order || a.code.localeCompare(b.code));
+}
+
 export async function getSpotMarketPairs(signal?: AbortSignal): Promise<SpotMarketPair[]> {
   if (DEMO_PREVIEW_ACTIVE) return getDemoMarketPairs();
   try {
@@ -218,16 +260,12 @@ export async function getMarkets(signal?: AbortSignal): Promise<MarketTicker[]> 
     row.snapshotTs <= 0 ||
     row.snapshotTs > nowSeconds + 30
   ));
-  // providerTs is the provider's last-trade/event time, not the time at
-  // which this aggregate snapshot was fetched. Quiet markets can legitimately
-  // have an older last trade while their current 24h ticker remains valid.
-  // Reject impossible/future provider timestamps, but use snapshotTs alone
-  // for freshness so one illiquid pair cannot blank the entire market list.
-  const providerTimestampInvalid = rows.some((row) => row.providerTs !== null && (
+  const providerTimestampInvalid = rows.some((row) => (
     typeof row.providerTs !== "number" ||
     !Number.isFinite(row.providerTs) ||
     row.providerTs <= 0 ||
-    row.providerTs > nowSeconds + 30
+    row.providerTs > nowSeconds + 30 ||
+    nowSeconds - row.providerTs > 90
   ));
   const snapshotStale = snapshotInvalid || providerTimestampInvalid || rows.some((row) => (
     typeof row.snapshotTs !== "number" || nowSeconds - row.snapshotTs > 90
@@ -540,12 +578,17 @@ export async function getAccount(signal?: AbortSignal): Promise<AccountSnapshot>
   const validAmount = (value: unknown) =>
     (typeof value === "number" && Number.isFinite(value) && value >= 0) ||
     (typeof value === "string" && /^(?:\d+)(?:\.\d{1,18})?$/.test(value.trim()));
+  // Admin-authorized manual debits may leave a negative available balance.
+  // Accept signed free balances while keeping frozen/reserved amounts non-negative.
+  const validFreeBalance = (value: unknown) =>
+    (typeof value === "number" && Number.isFinite(value)) ||
+    (typeof value === "string" && /^-?(?:\d+)(?:\.\d{1,18})?$/.test(value.trim()));
   const validBalances = !!payload.balances &&
     typeof payload.balances === "object" &&
     !Array.isArray(payload.balances) &&
     Object.entries(payload.balances).every(([asset, balance]) =>
       !!asset && !!balance && typeof balance === "object" && !Array.isArray(balance) &&
-      validAmount((balance as AccountBalance).free) &&
+      validFreeBalance((balance as AccountBalance).free) &&
       validAmount((balance as AccountBalance).frozen)
     );
   // Fail closed: a malformed balance or missing history array must never be
@@ -1021,9 +1064,14 @@ export function buildTotpUri(secret: string, accountLabel: string): string {
 
 export interface SupportMessage {
   id: string;
+  uid?: string;
+  email?: string;
+  username?: string;
   from: "user" | "admin";
   content: string;
   time: string;
+  admin_unread_count?: number;
+  thread_unanswered_count?: number;
 }
 
 export interface AdminPayoutAddress {
@@ -1300,18 +1348,36 @@ export interface AdminUserRecord {
   uid: string;
   email: string;
   /** Supabase Auth UUID, populated only for Super Admin user-list responses. */
+  /** Local mapping status only; this does not assert live Supabase Auth account status. */
+  auth_identity_link_status?: "linked" | "missing" | "duplicate_mapping" | "invalid_mapping";
+  auth_identity_count?: number;
   admin_auth_user_id?: string;
   kyc_status?: string;
   kyc?: { status?: string };
   frozen: boolean;
   total_usdt?: string | number;
+  financial_summary_source?: "postgres_financial_ledger" | "legacy_state_retention_limited";
+  financial_summary_completeness?: "canonical_snapshot" | "retention_limited";
   balances?: Record<string, AccountBalance>;
-  financial_balance_source?: "postgres_financial_ledger" | "legacy_state_retention_limited" | "unverified";
+  financial_balance_source?: "postgres_financial_ledger" | "legacy_state_retention_limited";
   deposit_history?: DepositRecord[];
   deposit_history_source?: "postgres_financial_ledger" | "legacy_state_retention_limited";
   withdrawal_history?: WithdrawalRecord[];
   withdrawal_history_source?: "postgres_financial_ledger" | "legacy_state_retention_limited";
 }
+export interface AdminDepositRecord {
+  id: string;
+  uid: string;
+  email?: string;
+  coin: string;
+  network: string;
+  amount: string;
+  txid: string;
+  status: string;
+  time?: string | null;
+}
+export type AdminWithdrawalSource = 'postgres_financial_ledger' | 'legacy_state_snapshot';
+export type AdminWithdrawalCompleteness = 'pending_queue' | 'partial';
 export interface AdminWithdrawalRecord {
   id: string;
   uid: string;
@@ -1340,6 +1406,19 @@ export interface AdminConfig {
   withdrawal_fees: Record<string, string>;
   announcement: string;
 }
+export interface AdminAssetConfig {
+  code: string;
+  name: string;
+  display_name: string;
+  display_precision: number;
+  enabled: boolean;
+  visible: boolean;
+  spot_enabled: boolean;
+  perpetual_enabled: boolean;
+  seconds_enabled: boolean;
+  earn_enabled: boolean;
+  sort_order: number;
+}
 export interface AdminPerpMarket {
   symbol: string;
   base_asset: string;
@@ -1349,12 +1428,8 @@ export interface AdminPerpMarket {
   price_tick: string | number;
   quantity_step: string | number;
   min_quantity: string | number;
-  min_notional: string | number;
-  market_quantity_step: string | number;
-  market_min_quantity: string | number;
-  market_max_quantity?: string | number | null;
   max_quantity?: string | number | null;
-  max_position_notional: string | number;
+  max_position_notional?: string | number | null;
   max_leverage: number;
   maintenance_margin_rate: string | number;
   maker_fee_rate: string | number;
@@ -1409,6 +1484,10 @@ export interface AdminAuditRecord {
   by: string;
   detail: string;
   postgres_sync_status: string;
+  operator_uid?: string;
+  operator_email?: string;
+  operator_identity_status?: 'linked' | 'ambiguous' | 'unmatched' | 'non_uuid_actor';
+  subject_email?: string;
 }
 async function adminRequest<T>(token: string, path: string, options: { method?: string; body?: unknown; signal?: AbortSignal } = {}): Promise<T> {
   if (!token || token.length < 20) throw new ApiError("Administrator Supabase session is missing.", 401, "ADMIN_AUTH_REQUIRED");
@@ -1448,16 +1527,25 @@ export async function getAdminStats(token: string, signal?: AbortSignal) {
 }
 export async function getAdminUsers(token: string, search = "", signal?: AbortSignal) {
   const query = search.trim() ? `?search=${encodeURIComponent(search.trim())}` : "";
-  return adminRequest<{ ok: true; users: AdminUserRecord[] }>(token, `admin/users${query}`, { signal });
+  return adminRequest<{ ok: true; users: AdminUserRecord[]; source: "btcbox_state_user_directory"; completeness: "snapshot" | "limit_reached"; matched_count: number; returned_count: number }>(token, `admin/users${query}`, { signal });
 }
 export async function getAdminUser(token: string, uid: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; user: AdminUserRecord }>(token, `admin/user?uid=${encodeURIComponent(uid)}`, { signal });
 }
+export async function getAdminDeposits(token: string, signal?: AbortSignal) {
+  return adminRequest<{ ok: true; deposits: AdminDepositRecord[]; source: string; completeness: string }>(token, "admin/deposits", { signal });
+}
 export async function getAdminWithdrawals(token: string, signal?: AbortSignal) {
-  return adminRequest<{ ok: true; withdrawals: AdminWithdrawalRecord[]; pending_count?: number; pending_admin_review_count?: number }>(token, "admin/withdrawals", { signal });
+  return adminRequest<{ ok: true; withdrawals: AdminWithdrawalRecord[]; source: AdminWithdrawalSource; completeness: AdminWithdrawalCompleteness; pending_count?: number; pending_admin_review_count?: number }>(token, "admin/withdrawals", { signal });
 }
 export async function getAdminConfig(token: string, signal?: AbortSignal) {
   return adminRequest<AdminConfig & { ok: true }>(token, "admin/config", { signal });
+}
+export async function getAdminAssets(token: string, signal?: AbortSignal) {
+  return adminRequest<{ ok: true; assets: AdminAssetConfig[] }>(token, "admin/assets", { signal });
+}
+export async function saveAdminAssets(token: string, assets: AdminAssetConfig[]) {
+  return adminRequest<{ ok: true; assets: AdminAssetConfig[]; audit_sync_pending?: boolean }>(token, "admin/assets", { method: "POST", body: { assets } });
 }
 export async function getAdminSpotMarkets(token: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; markets: AdminSpotMarket[] }>(token, "admin/spot-markets", { signal });
@@ -1473,10 +1561,16 @@ export async function saveAdminSpotMarket(token: string, input: {
 export async function getAdminPerpMarkets(token: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; markets: AdminPerpMarket[] }>(token, "admin/perpetual/markets", { signal });
 }
-export async function saveAdminPerpMarket(token: string, input: Omit<AdminPerpMarket, "symbol" | "updated_at"> & { base_asset: string; reason: string }) {
-  return adminRequest<{ ok: true; symbol: string; enabled: boolean }>(token, "admin/perpetual/market", { method: "POST", body: input });
+export async function saveAdminPerpMarket(token: string, input: {
+  base_asset: string; quote_asset: "USDT"; enabled: false; status: "paused";
+  price_tick: string; quantity_step: string; min_quantity: string;
+  max_quantity: string | null; max_position_notional: string | null;
+  max_leverage: number; maintenance_margin_rate: string; maker_fee_rate: string; taker_fee_rate: string;
+  funding_interval_sec: number; funding_rate_cap: string; mark_price_stale_sec: number;
+  circuit_breaker_deviation_pct: string; reason: string;
+}) {
+  return adminRequest<{ ok: true; symbol: string; enabled: false; status: "paused"; audit_sync_pending?: boolean }>(token, "admin/perpetual/market", { method: "POST", body: input });
 }
-
 export interface AdminSecondsOpenPosition {
   position_id: string;
   user_id: string;
@@ -1536,26 +1630,14 @@ export async function saveAdminSecondsPolicy(token: string, input: {
 export async function saveAdminConfig(token: string, config: AdminConfig) {
   return adminRequest<AdminConfig & { ok: true; audit_sync_pending?: boolean }>(token, "admin/config", { method: "POST", body: config });
 }
-export async function adminManualCredit(token: string, input: { uid: string; coin: string; amount: string; reference: string; note?: string; idempotency_key: string }) {
-  return adminRequest<{ ok: true; duplicate?: boolean; balance?: AccountBalance; audit_sync_pending?: boolean }>(token, "admin/deposit/confirm", { method: "POST", body: input });
-}
-export async function adminAdjustBalance(token: string, input: {
-  uid: string; coin: string; delta: string;
-  mode: "adjust" | "freeze" | "unfreeze"; reason?: string; request_id: string;
-}) {
-  return adminRequest<{
-    ok: true; msg?: string; duplicate?: boolean; operation_id?: string;
-    balances?: Record<string, { free: string; frozen: string }>;
-  }>(token, "admin/user/balance", { method: "POST", body: input });
+export async function adminAdjustUserBalance(token: string, input: { uid: string; coin: string; delta: string; mode: "adjust" | "freeze" | "unfreeze"; request_id: string }) {
+  return adminRequest<{ ok: true; operation_id: string; duplicate: boolean; balances: Record<string, { free: string | number; frozen: string | number }> }>(token, "admin/user/balance", { method: "POST", body: input });
 }
 export async function adminSetUserFrozen(token: string, input: { uid: string; frozen: boolean; reason: string }) {
-  return adminRequest<{ ok: true; msg?: string; audit_sync_pending?: boolean }>(token, "admin/user/freeze", { method: "POST", body: input });
+  return adminRequest<{ ok: true; audit_sync_pending?: boolean; msg: string }>(token, "admin/user/freeze", { method: "POST", body: input });
 }
-export async function adminResetUserPassword(token: string, input: { uid: string; new_password: string }) {
-  return adminRequest<{ ok: true; msg?: string; audit_sync_pending?: boolean }>(token, "admin/user/reset-pwd", { method: "POST", body: input });
-}
-export async function adminResetUserEmail(token: string, input: { uid: string; new_email: string }) {
-  return adminRequest<{ ok: true; msg?: string; audit_sync_pending?: boolean }>(token, "admin/user/reset-email", { method: "POST", body: input });
+export async function adminManualCredit(token: string, input: { uid: string; coin: string; amount: string; reference: string; note?: string; idempotency_key: string }) {
+  return adminRequest<{ ok: true; duplicate?: boolean; balance?: AccountBalance; audit_sync_pending?: boolean }>(token, "admin/deposit/confirm", { method: "POST", body: input });
 }
 export async function adminApproveWithdrawal(token: string, id: string) {
   return adminRequest<{ ok: true; status: string; audit_sync_pending?: boolean }>(token, "admin/withdraw/approve", { method: "POST", body: { id } });
@@ -1583,8 +1665,9 @@ export async function getAdminAuditLogs(token: string, limit = 50, signal?: Abor
 export async function getAdminOrders(token: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; orders: OrderRecord[]; source?: string }>(token, "admin/orders", { signal });
 }
-export async function getAdminSupportMessages(token: string, signal?: AbortSignal) {
-  return adminRequest<{ ok: true; messages: SupportMessage[] }>(token, "admin/support/messages", { signal });
+export async function getAdminSupportMessages(token: string, search = "", signal?: AbortSignal) {
+  const query = search.trim() ? "?search=" + encodeURIComponent(search.trim()) : "";
+  return adminRequest<{ ok: true; messages: SupportMessage[]; search?: string | null }>(token, "admin/support/messages" + query, { signal });
 }
 export async function markAdminSupportRead(token: string, uid: string) {
   return adminRequest<{ ok: true; duplicate?: boolean; unread: number; audit_sync_pending?: boolean }>(token, "admin/support/read", { method: "POST", body: { uid } });
@@ -1633,16 +1716,11 @@ export interface PerpMarket {
   price_tick: string;
   quantity_step: string;
   min_quantity: string;
-  min_notional: string;
-  market_quantity_step: string;
-  market_min_quantity: string;
-  market_max_quantity?: string | null;
   funding_interval_sec: number;
   funding_rate_cap: number;
   next_funding_at?: string | null;
   mark_price?: number | string | null;
   index_price?: number | string | null;
-  mark_price_status?: "ok" | "degraded" | "stale" | "unavailable";
 }
 export interface PerpPosition {
   position_id: string;
@@ -1686,7 +1764,7 @@ export interface PerpTrade {
 export interface PerpFundingRecord {
   symbol: string;
   funding_at: string;
-  funding_rate: number | string | null;
+  funding_rate: number | string;
   payment?: number | string;
   mark_price?: number | string | null;
 }
@@ -1751,77 +1829,35 @@ export async function closePerpPosition(input: { symbol: string; clientOrderId: 
   if (!response.ok || !payload || payload.ok !== true) throw new ApiError(payload?.msg || "Close-position request was not accepted.", response.status, payload?.code || "PERP_CLOSE_REJECTED");
   return { order_id: payload.order_id || "", status: payload.status || "accepted", duplicate: payload.duplicate === true };
 }
-type PerpOrderApiRow = Omit<PerpOrder, "order_id"> & { id: string; order_id?: string };
-type PerpPositionApiRow = Omit<PerpPosition, "position_id" | "unrealized_pnl" | "liquidation_price"> & {
-  id?: string; position_id?: string;
-  unrealized_pnl?: number | string | null;
-  liquidation_price?: number | string | null;
-  unrealized_pnl_est?: number | string | null;
-  liquidation_price_est?: number | string | null;
-};
-function normalizePerpOrder(row: PerpOrderApiRow): PerpOrder {
-  if (!row || typeof (row.order_id || row.id) !== "string") {
-    throw new ApiError("Perpetual order response contains an invalid order identifier.", 502, "INVALID_PERP_ORDER_ROW");
-  }
-  return { ...row, order_id: row.order_id || row.id };
-}
 export async function getPerpOpenOrders(signal?: AbortSignal): Promise<PerpOrder[]> {
   if (DEMO_PREVIEW_ACTIVE) return demoLedgerPerpOpenOrders();
-  const payload = await readAuthenticated<{ ok: true; orders?: PerpOrderApiRow[]; open?: PerpOrderApiRow[] }>("perpetual/orders", signal);
-  const rows = payload.open ?? payload.orders;
-  if (!Array.isArray(rows)) throw new ApiError("Perpetual open orders are unavailable.", 502, "INVALID_PERP_ORDERS");
-  return rows.map(normalizePerpOrder);
+  const payload = await readAuthenticated<{ ok: true; orders: PerpOrder[] }>("perpetual/orders", signal);
+  if (!Array.isArray(payload.orders)) throw new ApiError("Perpetual open orders are unavailable.", 502, "INVALID_PERP_ORDERS");
+  return payload.orders;
 }
 export async function getPerpOrderHistory(signal?: AbortSignal): Promise<PerpOrder[]> {
   if (DEMO_PREVIEW_ACTIVE) return demoLedgerPerpOrderHistory();
-  const payload = await readAuthenticated<{ ok: true; orders?: PerpOrderApiRow[]; history?: PerpOrderApiRow[] }>("perpetual/orders", signal);
-  const rows = payload.history ?? payload.orders;
-  if (!Array.isArray(rows)) throw new ApiError("Perpetual order history is unavailable.", 502, "INVALID_PERP_ORDER_HISTORY");
-  return rows.map(normalizePerpOrder);
+  const payload = await readAuthenticated<{ ok: true; orders: PerpOrder[] }>("perpetual/orders?history=true", signal);
+  if (!Array.isArray(payload.orders)) throw new ApiError("Perpetual order history is unavailable.", 502, "INVALID_PERP_ORDER_HISTORY");
+  return payload.orders;
 }
 export async function getPerpPositions(signal?: AbortSignal): Promise<PerpPosition[]> {
   if (DEMO_PREVIEW_ACTIVE) return demoLedgerPerpPositions();
-  const payload = await readAuthenticated<{ ok: true; positions: PerpPositionApiRow[] }>("perpetual/positions", signal);
+  const payload = await readAuthenticated<{ ok: true; positions: PerpPosition[] }>("perpetual/positions", signal);
   if (!Array.isArray(payload.positions)) throw new ApiError("Perpetual positions are unavailable.", 502, "INVALID_PERP_POSITIONS");
-  return payload.positions.map((row) => {
-    const positionId = row.position_id || row.id;
-    if (!positionId) throw new ApiError("Perpetual position response is missing its identifier.", 502, "INVALID_PERP_POSITION_ID");
-    return {
-      ...row,
-      position_id: positionId,
-      unrealized_pnl: row.unrealized_pnl ?? row.unrealized_pnl_est ?? null,
-      liquidation_price: row.liquidation_price ?? row.liquidation_price_est ?? null,
-    };
-  });
+  return payload.positions;
 }
 export async function getPerpTrades(symbol: string, signal?: AbortSignal): Promise<PerpTrade[]> {
   if (DEMO_PREVIEW_ACTIVE) return demoLedgerPerpTrades();
   const query = new URLSearchParams({ symbol });
   const payload = await readAuthenticated<{ ok: true; trades: PerpTrade[] }>(`perpetual/trades?${query.toString()}`, signal);
   if (!Array.isArray(payload.trades)) throw new ApiError("Perpetual trade history is unavailable.", 502, "INVALID_PERP_TRADES");
-  return payload.trades.filter((trade) => trade.symbol === symbol);
+  return payload.trades;
 }
 export async function getPerpFundingHistory(symbol: string, signal?: AbortSignal): Promise<PerpFundingRecord[]> {
   if (DEMO_PREVIEW_ACTIVE) return [];
-  const payload = await readAuthenticated<{
-    ok: true;
-    funding?: PerpFundingRecord[];
-    history?: Array<{ symbol: string; funding_at: string; payment_delta: number | string }>;
-    rates?: Array<{ symbol: string; funding_at: string; rate: number | string; mark_price?: number | string | null }>;
-  }>("perpetual/funding", signal);
-  if (Array.isArray(payload.funding)) return payload.funding.filter((row) => row.symbol === symbol);
-  if (!Array.isArray(payload.history) || !Array.isArray(payload.rates)) {
-    throw new ApiError("Perpetual funding history is unavailable.", 502, "INVALID_PERP_FUNDING");
-  }
-  const rates = new Map(payload.rates.map((row) => [`${row.symbol}:${row.funding_at}`, row]));
-  return payload.history.filter((row) => row.symbol === symbol).map((row) => {
-    const rate = rates.get(`${row.symbol}:${row.funding_at}`);
-    return {
-      symbol: row.symbol,
-      funding_at: row.funding_at,
-      funding_rate: rate?.rate ?? null,
-      payment: row.payment_delta,
-      mark_price: rate?.mark_price ?? null,
-    };
-  });
+  const query = new URLSearchParams({ symbol });
+  const payload = await readAuthenticated<{ ok: true; funding: PerpFundingRecord[] }>(`perpetual/funding?${query.toString()}`, signal);
+  if (!Array.isArray(payload.funding)) throw new ApiError("Perpetual funding history is unavailable.", 502, "INVALID_PERP_FUNDING");
+  return payload.funding;
 }
