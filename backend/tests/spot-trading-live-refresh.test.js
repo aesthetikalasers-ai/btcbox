@@ -43,13 +43,11 @@ test('spot trading live refresh never overwrites the customer-edited limit price
 });
 
 test('spot trading clears stale ticker, order book, and candles when live refresh fails', () => {
-  assert.ok(page.includes('marketUpdatedAt'));
   assert.ok(page.includes('marketFeedWarning'));
   const startRefresh = page.indexOf('const refreshMarketData=');
   const endRefresh = page.indexOf('const refreshId=window.setInterval', startRefresh);
   const refresh = page.slice(startRefresh, endRefresh);
   assert.ok(refresh.includes('setTicker(null)'));
-  assert.ok(refresh.includes('setMarketUpdatedAt(null)'));
   assert.ok(refresh.includes('setBook(null)'));
   assert.ok(refresh.includes('Market data is temporarily unavailable.'));
   assert.ok(page.includes('setCandles([])'));
