@@ -99,6 +99,7 @@ const messages: Record<string, string> = {
   "ACTIVE ADMIN": "有效管理员",
   "Loading": "正在加载",
   "Users": "用户",
+  "Financial total (USDT)": "财务总额（USDT）",
   "Search a user, then select an asset row for staff manual credit.": "搜索用户并选择资产行，进行人工入账。",
   "Search UID or email": "搜索用户编号或邮箱",
   "Search": "搜索",
