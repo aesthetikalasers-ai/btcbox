@@ -442,7 +442,11 @@ async function matchingRpc(name, payload) {
 // every write returns 503/409 and market reads return an empty list with a
 // perpetual_enabled=false flag. Never fake availability.
 function perpetualEngineEnabled() {
-  return process.env.FINANCIAL_PERPETUAL_ENGINE_ENABLED === '1' && financialWritesEnabled();
+  // A write cutover also requires an explicit operator acknowledgement that
+  // mark-price, funding and liquidation workers are deployed and monitored.
+  return process.env.FINANCIAL_PERPETUAL_ENGINE_ENABLED === '1'
+    && process.env.FINANCIAL_PERPETUAL_WORKERS_READY === '1'
+    && financialWritesEnabled();
 }
 function perpetualEngineRequested() {
   return process.env.FINANCIAL_PERPETUAL_ENGINE_ENABLED === '1';
