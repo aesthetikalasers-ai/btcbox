@@ -4,23 +4,42 @@
 -- All money is numeric(38,18). Application layer MUST pass strings; never JS Number for settlement.
 -- SAFETY: every write path is gated by the API-layer `perpetualEngineEnabled()` switch (default OFF).
 --         Markets default enabled=false / status='paused'. No fake availability via UI.
--- Apply ONLY to a dedicated staging/test Supabase project first; run 0041 tests before any cutover.
+-- Additive upgrade for an existing BTCBOX financial schema; NOT an empty-database initializer.
+-- Apply only through the reviewed Supabase migration procedure after preflight and approval.
 
 create extension if not exists pgcrypto;
 
--- 1. Extend financial operation types (same pattern as 0008 / 0014).
-alter table public.financial_operations drop constraint if exists financial_operations_operation_type_check;
-alter table public.financial_operations add constraint financial_operations_operation_type_check
-  check (operation_type in (
-    -- Preserve every operation type already accepted by the production financial core.
-    'deposit_credit','withdraw_freeze','withdraw_approve','withdraw_reject','withdraw_settle','withdraw_paid',
-    'earn_subscribe','earn_redeem','admin_adjustment',
-    'spot_trade','spot_order_reserve','spot_order_cancel',
-    'seconds_open','seconds_settle','migration_opening_balance',
-    -- Perpetual v1 operation types.
-    'perp_order_reserve','perp_trade','perp_order_cancel','perp_funding',
-    'perp_liquidation','perp_insurance_cover','perp_bad_debt'
-  ));
+-- 1. Extend financial operation types without dropping the live constraint first.
+-- Install a NOT VALID replacement (new writes are checked immediately), then drop/rename
+-- the old constraint and validate existing rows in one atomic statement.
+do $constraint$
+begin
+  perform set_config('lock_timeout','3s',true);
+  perform set_config('statement_timeout','30s',true);
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid='public.financial_operations'::regclass
+      and conname='financial_operations_operation_type_check_v2'
+  ) then
+    alter table public.financial_operations
+      add constraint financial_operations_operation_type_check_v2
+      check (operation_type in (
+        'deposit_credit','withdraw_freeze','withdraw_approve','withdraw_reject','withdraw_settle','withdraw_paid',
+        'earn_subscribe','earn_redeem','admin_adjustment',
+        'spot_trade','spot_order_reserve','spot_order_cancel',
+        'seconds_open','seconds_settle','migration_opening_balance',
+        'perp_order_reserve','perp_trade','perp_order_cancel','perp_funding',
+        'perp_liquidation','perp_insurance_cover','perp_bad_debt'
+      )) not valid;
+  end if;
+  alter table public.financial_operations
+    drop constraint if exists financial_operations_operation_type_check;
+  alter table public.financial_operations
+    rename constraint financial_operations_operation_type_check_v2 to financial_operations_operation_type_check;
+  alter table public.financial_operations
+    validate constraint financial_operations_operation_type_check;
+end
+$constraint$;
 
 -- Insurance fund is a normal financial account (platform-owned). Ensure it exists.
 insert into public.financial_accounts(user_id, asset) values ('__perp_insurance__', 'USDT')
@@ -283,6 +302,15 @@ declare
   v_side text;
   v_qty numeric(38,18);
 begin
+  if coalesce(p_user_id,'') = '' or p_symbol is null or p_symbol !~ '^[A-Z0-9]{3,20}$'
+     or p_fill_direction is null or p_fill_direction not in ('buy','sell')
+     or p_fill_qty is null or p_fill_qty <= 0
+     or p_fill_price is null or p_fill_price <= 0
+     or p_leverage is null or p_leverage < 1 or p_leverage > 100
+     or p_mmr is null or p_mmr < 0 or p_mmr > 0.5 then
+    raise exception 'invalid perpetual position fill';
+  end if;
+
   select * into v_pos from public.perpetual_positions where user_id=p_user_id and symbol=p_symbol for update;
   if found then
     v_existing_signed := case when v_pos.side='long' then v_pos.quantity else -v_pos.quantity end;
@@ -413,6 +441,8 @@ begin
   if found then
     if v_existing.symbol<>p_symbol or v_existing.type<>p_type or v_existing.side<>p_side
        or v_existing.leverage<>p_leverage or v_existing.quantity<>p_quantity
+       or v_existing.reduce_only is distinct from coalesce(p_reduce_only,false)
+       or v_existing.close_position is distinct from coalesce(p_close_position,false)
        or (v_existing.price is distinct from p_price) then
       raise exception 'client order id payload mismatch';
     end if;
@@ -651,6 +681,9 @@ begin
       where id=p_order_id;
   end if;
 
+  -- Return the persisted final remainder, not the pre-cancel loop remainder.
+  select remaining_quantity into v_remaining
+    from public.perpetual_orders where id=p_order_id;
   return jsonb_build_object('ok',true,'duplicate',false,'order_id',p_order_id,
     'filled_quantity',v_filled_qty,'remaining_quantity',v_remaining,
     'avg_fill_price', case when v_filled_qty>0 then v_filled_quote/v_filled_qty else null end);
@@ -881,10 +914,16 @@ declare
   v_orders_reserved numeric(38,18) := 0;
   v_total_frozen_release numeric(38,18);
 begin
+  if coalesce(p_user_id,'') = '' or p_symbol is null or p_symbol !~ '^[A-Z0-9]{3,20}$' then
+    raise exception 'invalid perpetual liquidation identity';
+  end if;
   perform pg_advisory_xact_lock(hashtextextended('perp-market:'||p_symbol, 0));
   select * into v_pos from public.perpetual_positions where user_id=p_user_id and symbol=p_symbol for update;
   if not found then return jsonb_build_object('ok',true,'no_position',true); end if;
   select * into v_market from public.perpetual_markets where symbol=p_symbol;
+  if not found then
+    raise exception 'perpetual market configuration missing';
+  end if;
   select * into v_mark from public.perp_latest_mark_price(p_symbol, v_market.mark_price_stale_sec);
   if v_mark is null or v_mark.status='stale' or v_mark.age_sec > v_market.mark_price_stale_sec then
     raise exception 'mark price stale — liquidation paused (positions protected)';
@@ -967,6 +1006,17 @@ begin
     returning id into v_bad_debt_op;
     insert into public.perpetual_bad_debt_events(user_id,symbol,liquidation_operation_id,bad_debt_operation_id,amount,insurance_cover)
     values (p_user_id,p_symbol,v_op,v_bad_debt_op,v_bad_debt,v_insurance_cover);
+    -- This is an outstanding platform receivable, not a user balance debit.
+    -- The zero-delta marker preserves the existing operation-to-ledger audit link.
+    insert into public.financial_ledger(
+      operation_id,user_id,asset,available_delta,frozen_delta,available_after,frozen_after
+    )
+    select v_bad_debt_op,p_user_id,'USDT',0,0,available,frozen
+      from public.financial_accounts
+     where user_id=p_user_id and asset='USDT';
+    if not found then
+      raise exception 'bad debt ledger audit marker account missing';
+    end if;
   end if;
   delete from public.perpetual_positions where id=v_pos.id;
   -- cancel any open orders for this user/symbol (reduce exposure); reserved margin already released above.
