@@ -242,3 +242,23 @@ test('liquidation records insurance funding and bad debt as explicit auditable o
   assert.match(migration, /insert into public\.perpetual_bad_debt_events/i);
   assert.match(migration, /order reserve operation missing/i);
 });
+
+test('funding worker retries failed settlements and never advances the boundary after a partial failure', () => {
+  const fund = fs.readFileSync(path.join(root, 'scripts', 'perp-funding-worker.js'), 'utf8');
+  assert.ok(fund.includes('async function restGetAll(query)'));
+  assert.ok(fund.includes("'Range-Unit': 'items'"));
+  assert.ok(fund.includes('if (marketFailed)'));
+  assert.ok(fund.includes('boundary NOT advanced'));
+  assert.ok(fund.indexOf('if (marketFailed)') < fund.indexOf('funding settled marker'));
+  assert.ok(fund.includes("if (!r.ok) throw new Error('REST GET failed: ' + r.status)"));
+  assert.ok(fund.includes("if (!rateResponse.ok) throw new Error('funding rate insert failed"));
+});
+
+test('liquidation worker paginates every position and does not convert REST failures into an empty position set', () => {
+  const liq = fs.readFileSync(path.join(root, 'scripts', 'perp-liquidation-worker.js'), 'utf8');
+  assert.ok(liq.includes('async function restGetAll(query)'));
+  assert.ok(liq.includes("'Range-Unit': 'items'"));
+  assert.ok(liq.includes('for (let offset = 0; offset < 500000; offset += PAGE_SIZE)'));
+  assert.ok(liq.includes("if (!r.ok) throw new Error('REST GET failed: ' + r.status)"));
+  assert.ok(!liq.includes('&limit=500'));
+});
