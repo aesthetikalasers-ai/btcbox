@@ -97,16 +97,36 @@ declare
   v_close_price numeric(38,18);
   v_orders_reserved numeric(38,18) := 0;
   v_total_frozen_release numeric(38,18);
+  v_funding_result jsonb;
 begin
   if coalesce(p_user_id,'') = '' or p_symbol is null or p_symbol !~ '^[A-Z0-9]{3,20}$' then
     raise exception 'invalid perpetual liquidation identity';
   end if;
   perform pg_advisory_xact_lock(hashtextextended('perp-market:'||p_symbol, 0));
-  select * into v_pos from public.perpetual_positions where user_id=p_user_id and symbol=p_symbol for update;
-  if not found then return jsonb_build_object('ok',true,'no_position',true); end if;
-  select * into v_market from public.perpetual_markets where symbol=p_symbol;
+  select * into v_market from public.perpetual_markets where symbol=p_symbol for update;
   if not found then
     raise exception 'perpetual market configuration missing';
+  end if;
+
+  -- Funding due at this boundary must settle before liquidation equity is tested.
+  -- The funding RPC takes the same transaction-scoped advisory lock; PostgreSQL
+  -- permits the same transaction to reacquire it. Any missing/invalid rate
+  -- snapshot raises and rolls the entire liquidation back (fail closed).
+  if v_market.next_funding_at is not null
+     and v_market.next_funding_at <= clock_timestamp() then
+    v_funding_result := public.perp_settle_funding_market(p_symbol, v_market.next_funding_at);
+    if coalesce((v_funding_result->>'ok')::boolean,false) is not true
+       or coalesce((v_funding_result->>'stale_boundary')::boolean,false) then
+      raise exception 'due funding boundary could not be settled before liquidation';
+    end if;
+  end if;
+
+  -- Reload after funding settlement: isolated_margin and account balances may
+  -- have changed. Risk calculations below must never use the pre-funding row.
+  select * into v_pos from public.perpetual_positions
+   where user_id=p_user_id and symbol=p_symbol and closed_at is null for update;
+  if not found then
+    return jsonb_build_object('ok',true,'no_position',true);
   end if;
   select * into v_mark from public.perp_latest_mark_price(p_symbol, v_market.mark_price_stale_sec);
   if v_mark is null or v_mark.status='stale' or v_mark.age_sec > v_market.mark_price_stale_sec then
