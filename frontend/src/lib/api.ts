@@ -1371,6 +1371,8 @@ export interface AdminDepositRecord {
   status: string;
   time?: string | null;
 }
+export type AdminWithdrawalSource = 'postgres_financial_ledger' | 'legacy_state_snapshot';
+export type AdminWithdrawalCompleteness = 'pending_queue' | 'partial';
 export interface AdminWithdrawalRecord {
   id: string;
   uid: string;
@@ -1525,7 +1527,7 @@ export async function getAdminDeposits(token: string, signal?: AbortSignal) {
   return adminRequest<{ ok: true; deposits: AdminDepositRecord[]; source: string; completeness: string }>(token, "admin/deposits", { signal });
 }
 export async function getAdminWithdrawals(token: string, signal?: AbortSignal) {
-  return adminRequest<{ ok: true; withdrawals: AdminWithdrawalRecord[]; pending_count?: number; pending_admin_review_count?: number }>(token, "admin/withdrawals", { signal });
+  return adminRequest<{ ok: true; withdrawals: AdminWithdrawalRecord[]; source: AdminWithdrawalSource; completeness: AdminWithdrawalCompleteness; pending_count?: number; pending_admin_review_count?: number }>(token, "admin/withdrawals", { signal });
 }
 export async function getAdminConfig(token: string, signal?: AbortSignal) {
   return adminRequest<AdminConfig & { ok: true }>(token, "admin/config", { signal });
