@@ -224,21 +224,21 @@ test('public catalogue recovers to database authority and degrades safely after 
   const recovered = await harness.read();
   assert.equal(recovered.source, 'database');
   assert.equal(recovered.tradingEnabled, true);
-  assert.deepEqual(recovered.markets.map(market => market.base_asset), ['BTC']);
+  assert.deepEqual(Array.from(recovered.markets, market => market.base_asset), ['BTC']);
   assert.equal(recovered.markets[0].trading_enabled, true);
 
   harness.setReader(async () => { throw new Error('database unavailable again'); });
   const outage = await harness.read();
   assert.equal(outage.source, 'stale-cache');
   assert.equal(outage.tradingEnabled, false);
-  assert.deepEqual(outage.markets.map(market => market.base_asset), ['BTC']);
+  assert.deepEqual(Array.from(outage.markets, market => market.base_asset), ['BTC']);
   assert.equal(outage.markets[0].trading_enabled, false);
 
   now += 15 * 60 * 1000 + 1;
   const expired = await harness.read();
   assert.equal(expired.source, 'static-fallback');
   assert.equal(expired.tradingEnabled, false);
-  assert.deepEqual(expired.markets.map(market => market.base_asset), ['BTC', 'ETH']);
+  assert.deepEqual(Array.from(expired.markets, market => market.base_asset), ['BTC', 'ETH']);
 });
 
 test('an older concurrent database response cannot overwrite a newer successful catalogue', async () => {
@@ -257,14 +257,14 @@ test('an older concurrent database response cannot overwrite a newer successful 
 
   resolveNewer([catalogMarket('ETH')]);
   const newerResult = await newerRequest;
-  assert.deepEqual(newerResult.markets.map(market => market.base_asset), ['ETH']);
+  assert.deepEqual(Array.from(newerResult.markets, market => market.base_asset), ['ETH']);
 
   resolveOlder([catalogMarket('BTC')]);
   const olderResult = await olderRequest;
-  assert.deepEqual(olderResult.markets.map(market => market.base_asset), ['ETH']);
+  assert.deepEqual(Array.from(olderResult.markets, market => market.base_asset), ['ETH']);
 
   harness.setReader(async () => { throw new Error('database unavailable'); });
   const afterOutage = await harness.read();
   assert.equal(afterOutage.source, 'stale-cache');
-  assert.deepEqual(afterOutage.markets.map(market => market.base_asset), ['ETH']);
+  assert.deepEqual(Array.from(afterOutage.markets, market => market.base_asset), ['ETH']);
 });
