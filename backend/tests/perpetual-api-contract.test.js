@@ -241,7 +241,9 @@ test('perpetual mark feed rejects invalid, stale, or source-detached prices', ()
   const fn = migration.slice(start, end);
   assert.ok(fn.includes("raise exception 'invalid mark price payload'"));
   assert.ok(fn.includes("raise exception 'invalid or stale mark price source'"));
-  assert.ok(fn.includes("mark/index price must match validated source mean"));
+  assert.ok(fn.includes("index price must match the validated external spot source mean"));
+  assert.ok(fn.includes("v_mark_deviation := abs(p_mark_price-p_index_price)/p_index_price*100"));
+  assert.ok(fn.includes("v_max_dev := greatest(v_max_dev, v_mark_deviation)"));
   assert.ok(fn.includes("abs(extract(epoch from now())*1000"));
 });
 
@@ -315,7 +317,11 @@ test('funding market settlement is atomic, market-locked and advances only after
   assert.ok(fn.includes('set next_funding_at=p_funding_at +'));
   assert.ok(fn.includes('if p_funding_at > now()'));
   assert.ok(fn.includes('abs(v_rate.rate) > v_market.funding_rate_cap'));
-  assert.ok(fn.includes('non-zero funding requires recorded mark and index prices'));
+  assert.ok(fn.includes('validated funding rate snapshot missing'));
+  assert.ok(fn.includes('funding snapshot is incomplete'));
+  assert.ok(fn.includes('funding snapshot sources are invalid or duplicated'));
+  assert.ok(fn.includes('funding snapshot samples are invalid or stale'));
+  assert.ok(!fn.includes('values (p_symbol,p_funding_at,0,0,false)'));
   assert.ok(migration.includes('check (clearing_delta = -payment_delta)'));
   assert.ok(migration.includes('perpetual_funding_clearing_ledger'));
 });
