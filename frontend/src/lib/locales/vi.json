@@ -1831,7 +1831,6 @@
   "Re-enter fund password": "Nhập lại mật khẩu quỹ",
   "Current login password": "Mật khẩu đăng nhập hiện tại",
   "Enter current login password": "Nhập mật khẩu đăng nhập hiện tại",
-  "Authenticator code": "Mã ứng dụng xác thực",
   "6-digit code": "Mã gồm 6 chữ số",
   "OAuth accounts must enable two-factor authentication before setting a fund password.": "Tài khoản OAuth phải bật xác thực hai yếu tố trước khi đặt mật khẩu quỹ.",
   "Open security settings": "Mở cài đặt bảo mật",
