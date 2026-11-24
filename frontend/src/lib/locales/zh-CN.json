@@ -1707,7 +1707,7 @@
   "Minimum notional": "最低名义金额",
   "Market trading rules are unavailable. Order entry is disabled.": "暂时无法获取市场交易规则，已禁用下单。",
   "Price must follow the market tick; quantity must follow the step and minimum order rules.": "价格必须符合市场最小变动单位；数量必须符合数量步进及最低下单要求。",
-  "Spot reference": "现货参考价格",,
+  "Spot reference": "现货参考价格",
   "Bootstrap reference": "启动参考价格",
   "Bootstrap": "启动价"
   "Underlying spot order book": "标的现货订单簿",
