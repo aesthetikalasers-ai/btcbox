@@ -102,6 +102,7 @@ FILES=(
   0050_perpetual_bootstrap_mark_price_v1.sql
   0051_perpetual_market_min_notional_v1.sql
   0052_perpetual_two_source_median_bootstrap_v1.sql
+  0053_perpetual_two_source_live_mark_v1.sql
 )
 
 echo "[info] Bootstrapping a fresh BTCBOX schema with ${#FILES[@]} canonical SQL files."
