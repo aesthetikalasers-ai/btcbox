@@ -3201,7 +3201,21 @@ async function handleRequest(event, context) {
       const uid = encodeURIComponent(String(user.uid));
       const asMaker = await perpRestGet('perpetual_trades?select=id,symbol,maker_order_id,taker_order_id,price,quantity,quote_amount,maker_fee,taker_fee,created_at&maker_user_id=eq.' + uid + '&order=created_at.desc&limit=100');
       const asTaker = await perpRestGet('perpetual_trades?select=id,symbol,maker_order_id,taker_order_id,price,quantity,quote_amount,maker_fee,taker_fee,created_at&taker_user_id=eq.' + uid + '&order=created_at.desc&limit=100');
-      const trades = [...asMaker.map(t => ({ ...t, role: 'maker' })), ...asTaker.map(t => ({ ...t, role: 'taker' }))]
+      const combined = [...asMaker.map(t => ({ ...t, role: 'maker' })), ...asTaker.map(t => ({ ...t, role: 'taker' }))];
+      const orderIds = [...new Set(combined.flatMap(t => [t.maker_order_id, t.taker_order_id]).filter(Boolean))];
+      const orderRows = orderIds.length
+        ? await perpRestGet('perpetual_orders?select=id,side&id=in.(' + orderIds.map(id => encodeURIComponent(String(id))).join(',') + ')')
+        : [];
+      const orderSides = new Map(orderRows.map(order => [order.id, order.side]));
+      const trades = combined.map(t => {
+        const maker = t.role === 'maker';
+        const orderId = maker ? t.maker_order_id : t.taker_order_id;
+        return {
+          trade_id: t.id, symbol: t.symbol, side: orderSides.get(orderId),
+          price: t.price, quantity: t.quantity,
+          fee: maker ? t.maker_fee : t.taker_fee, role: t.role, created_at: t.created_at
+        };
+      }).filter(t => t.side === 'buy' || t.side === 'sell')
         .sort((a, b) => (a.created_at < b.created_at ? 1 : -1)).slice(0, 100);
       return json({ ok: true, trades: trades });
     } catch (e) { return json({ ok: false, code: 'PERPETUAL_READ_UNAVAILABLE' }, 503); }

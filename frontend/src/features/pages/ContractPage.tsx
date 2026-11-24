@@ -401,6 +401,8 @@ export function ContractPage() {
       setOpenOrders([]);
       setOrderHistory([]);
       setPositionsError("");
+      setOrdersError("");
+      setHistoryError("");
       setPositionsLoading(false);
       return;
     }

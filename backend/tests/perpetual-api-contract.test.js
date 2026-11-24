@@ -147,3 +147,12 @@ test('perpetual market reads expose only fresh mark/index feed values', () => {
   assert.ok(route.includes("index_price: fresh ? String(row.index_price) : null"));
   assert.ok(route.includes("mark_price_status: fresh ? row.status : 'stale'"));
 });
+
+
+test('perpetual trade history maps database IDs, participant side and own fee to UI fields', () => {
+  const route = routeSlice("path === 'perpetual/trades' && method === 'GET'", "path === 'perpetual/funding' && method === 'GET'");
+  assert.ok(route.includes("perpetual_orders?select=id,side&id=in."));
+  assert.ok(route.includes("trade_id: t.id"));
+  assert.ok(route.includes("side: orderSides.get(orderId)"));
+  assert.ok(route.includes("fee: maker ? t.maker_fee : t.taker_fee"));
+});
