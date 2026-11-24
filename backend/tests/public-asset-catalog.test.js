@@ -60,12 +60,12 @@ test('wallet asset display follows configured names, precision metadata, visibil
   assert.ok(assetsPage.includes('hasEnabledSpotPair'));
   assert.ok(assetsPage.includes('pair.enabled'));
   assert.ok(marketsPage.includes('getPublicAssetCatalog(controller.signal)'));
-  assert.ok(marketsPage.includes('assetNames[market.sym] || getAssetName(market.sym)'));
+  assert.ok(marketsPage.includes('assetNames[assetCodeFromMarketSymbol(market.sym)] || getAssetName(market.sym)'));
   assert.ok(marketsPage.includes('!configuredName.toUpperCase().includes(needle)'));
-  assert.ok(marketsPage.includes('[markets, query, filter, favorites, sort, assetNames]'));
+  assert.ok(marketsPage.includes('[markets, assetCatalog, query, filter, favorites, sort, assetNames]'));
   assert.ok(marketsPage.includes('assetNames={assetNames}'));
   assert.ok(dashboardMarkets.includes('getPublicAssetCatalog(controller.signal)'));
-  assert.ok(dashboardMarkets.includes('assetNames[item.sym] || getAssetName(item.sym)'));
+  assert.ok(dashboardMarkets.includes('assetNames[assetCodeFromMarketSymbol(item.sym)] || names[assetCodeFromMarketSymbol(item.sym)] || getAssetName(item.sym)'));
   assert.ok(marketsPage.includes('assetCatalog.length > 0 && (!assetConfig || !assetConfig.enabled || !assetConfig.visible || !assetConfig.spot_enabled)'));
   assert.ok(marketsPage.includes('[markets, assetCatalog, query, filter, favorites, sort, assetNames]'));
   assert.ok(dashboardMarkets.includes('assetCatalog.length > 0 && (!assetConfig || !assetConfig.enabled || !assetConfig.visible || !assetConfig.spot_enabled)'));
