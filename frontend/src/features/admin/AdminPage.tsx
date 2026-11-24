@@ -1411,7 +1411,7 @@ export function AdminPage() {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <CardTitle>{adminText("Perpetual market configuration")}</CardTitle>
-                <CardDescription>{adminText("Configure the existing USDT-margined perpetual market fields. Saving never activates trading; all markets remain disabled and paused.")}</CardDescription>
+                <CardDescription>{adminText("Configure existing USDT-margined perpetual market fields. New or edited settings are saved disabled and paused; the list shows each market's actual stored status.")}</CardDescription>
               </div>
               <Badge variant="warning">{adminText("Trading disabled")}</Badge>
             </div>
@@ -1427,7 +1427,7 @@ export function AdminPage() {
                 </tr></thead>
                 <tbody>{perpMarkets.map(market => <tr key={market.symbol} className="border-b border-brand-border-subtle">
                   <td className="px-3 py-2.5 font-semibold">{market.base_asset}/{market.quote_asset}</td>
-                  <td className="px-3 py-2.5"><Badge variant="warning">{adminText("Paused · disabled")}</Badge></td>
+                  <td className="px-3 py-2.5"><Badge variant={market.enabled ? "destructive" : "warning"}>{market.enabled ? adminText("Enabled") : adminText("Disabled")} · {adminText(market.status)}</Badge></td>
                   <td className="px-3 py-2.5 text-right tabular-nums">{market.max_leverage}x</td>
                   <td className="px-3 py-2.5 text-right text-xs tabular-nums">{asText(market.price_tick)} / {asText(market.quantity_step)}</td>
                   <td className="px-3 py-2.5 text-right text-xs tabular-nums">{asText(market.min_quantity)}</td>
