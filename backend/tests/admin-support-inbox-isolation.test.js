@@ -39,10 +39,10 @@ test('admin support inbox bounds history per customer and counts unread by messa
   assert.ok(start >= 0 && end > start);
   const route = api.slice(start, end);
   assert.ok(route.includes('const conversation = Array.isArray(u.support_messages) ? u.support_messages : [];'));
-  assert.ok(route.includes('conversation.slice(-100).forEach'));
+  assert.ok(route.includes('selectedMessages.slice(-100).forEach'));
   assert.ok(route.includes('const readCursorIndex = lastReadMessageId'));
   assert.ok(route.includes('index > readCursorIndex'));
   assert.ok(route.includes('admin_unread_count: unreadCount'));
-  assert.ok(!route.includes('list.slice(-500)'));
+  assert.ok(route.includes('const boundedList = searchQuery ? list.slice(-500) : list'));
   assert.ok(!route.includes('list.slice(0, 100)'));
 });
