@@ -72,6 +72,9 @@ test('asset module flags independently gate new product entry while preserving e
     assert.ok(api.includes(flag + ': typeof item.' + flag + ' === \'boolean\' ? item.' + flag + ' : fallback.' + flag));
   }
   assert.ok(api.includes("filter(function (asset) { return asset.enabled && asset.spot_enabled; })"));
+  assert.ok(api.includes('function isAssetVisible(state, code)'));
+  assert.ok(api.includes('market.enabled && isAssetVisible(db, market.base_asset) && isAssetVisible(db, market.quote_asset)'));
+  assert.ok(api.includes('market.enabled && isAssetVisible(db, market.base_asset) && isAssetVisible(db, market.quote_asset) && market.quote_asset === \'USDT\''));
   assert.ok(api.includes("policy.symbols.filter(symbol => isAssetModuleEnabled(db, symbol, 'seconds_enabled'))"));
   assert.ok(api.includes("if (!isAssetModuleEnabled(db, symbol, 'seconds_enabled'))"));
   assert.ok(api.includes("isAssetModuleEnabled(db, market.base_asset, 'perpetual_enabled')"));
