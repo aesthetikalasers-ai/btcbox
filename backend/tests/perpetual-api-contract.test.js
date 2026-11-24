@@ -179,9 +179,9 @@ test('perpetual trade history maps database IDs, participant side and own fee to
 
 
 test('perpetual funding settlement updates funding_paid once and cannot borrow another position margin', () => {
-  const migration = fs.readFileSync(path.join(root, 'supabase', 'sql', '0041_perpetual_contract_v1.sql'), 'utf8');
+  const migration = fs.readFileSync(path.join(root, 'supabase', 'sql', '0046_perpetual_funding_atomic_clearing_v1.sql'), 'utf8');
   const start = migration.indexOf('create or replace function public.perp_settle_funding_one(');
-  const end = migration.indexOf('-- Liquidation check + execute.', start);
+  const end = migration.indexOf('create or replace function public.perp_settle_funding_market(', start);
   assert.ok(start >= 0 && end > start, 'funding settlement function must exist');
   const fn = migration.slice(start, end);
   assert.equal((fn.match(/funding_paid\s*=\s*funding_paid\s*-\s*v_payment/g) || []).length, 1,
@@ -289,4 +289,20 @@ test('perpetual workers validate RPC success payloads before counting settlement
   const liq = fs.readFileSync(path.join(root, 'scripts', 'perp-liquidation-worker.js'), 'utf8');
   assert.ok(fund.includes("result.ok !== true"));
   assert.ok(liq.includes("res.ok !== true"));
+});
+
+test('funding market settlement is atomic, market-locked and advances only after all users succeed', () => {
+  const migration = fs.readFileSync(path.join(root, 'supabase', 'sql', '0046_perpetual_funding_atomic_clearing_v1.sql'), 'utf8');
+  const start = migration.indexOf('create or replace function public.perp_settle_funding_market(');
+  const end = migration.indexOf('revoke all on function public.perp_settle_funding_market', start);
+  assert.ok(start >= 0 && end > start, 'atomic market funding function must exist');
+  const fn = migration.slice(start, end);
+  assert.ok(fn.includes("pg_advisory_xact_lock(hashtextextended('perp-market:'||p_symbol, 0))"));
+  assert.ok(fn.includes('v_market.next_funding_at <> p_funding_at'));
+  assert.ok(fn.includes('for v_pos in'));
+  assert.ok(fn.includes('public.perp_settle_funding_one'));
+  assert.ok(fn.includes('update public.perpetual_funding_rates set settled=true'));
+  assert.ok(fn.includes('set next_funding_at=p_funding_at +'));
+  assert.ok(migration.includes('check (clearing_delta = -payment_delta)'));
+  assert.ok(migration.includes('perpetual_funding_clearing_ledger'));
 });
