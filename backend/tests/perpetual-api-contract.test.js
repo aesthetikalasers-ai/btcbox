@@ -140,12 +140,12 @@ test('workers exist and are idempotent/restart-safe', () => {
   assert.ok(mark.includes('market.circuit_breaker_deviation_pct'), 'mark worker uses the market-specific circuit breaker');
   assert.ok(mark.includes("symbol !== String(market.base_asset || '').toUpperCase() + String(market.quote_asset || '').toUpperCase()"),
     'mark worker rejects symbol/base/quote mismatches');
-  assert.ok(mark.includes('Number(j && j.closeTime)'), 'Binance source uses provider close time');
-  assert.ok(mark.includes('async function okxPrice(symbol)'), 'OKX provides a second real-time market source');
-  assert.ok(mark.includes('Number(item && item.ts)'), 'OKX source uses provider timestamp');
+  assert.ok(mark.includes('Number(row.closeTime)'), 'batched Binance source uses provider close time');
+  assert.ok(mark.includes('/api/v5/market/tickers?instType=SPOT'), 'batched OKX ticker endpoint provides a second real-time market source');
+  assert.ok(mark.includes('Number(row.ts)'), 'batched OKX source uses provider timestamp');
   assert.ok(mark.includes('include_last_updated_at=true'), 'CoinGecko source requests provider update time');
-  assert.ok(mark.includes('updatedAtSec * 1000'), 'provider seconds are normalized to milliseconds for SQL freshness checks');
-  assert.ok(mark.includes('const freshSources = sources.filter'), 'stale provider observations are discarded');
+  assert.ok(mark.includes('Number(row && row.last_updated_at) * 1000'), 'CoinGecko seconds are normalized to milliseconds for SQL freshness checks');
+  assert.ok(mark.includes('function buildFreshSources') && mark.includes('Math.abs(nowMs - source.ts) <= maxAgeSec * 1000'), 'stale provider observations are discarded');
   assert.ok(mark.includes('recordMark(symbol, indexPrice, markPrice, freshSources, maxAgeSec)'), 'only fresh provider observations are recorded');
   assert.ok(mark.includes('ADAUSDT') && mark.includes('AVAXUSDT') && mark.includes('DOGEUSDT') && mark.includes('XRPUSDT'),
     'registered BTCBOX assets have built-in provider mappings');
