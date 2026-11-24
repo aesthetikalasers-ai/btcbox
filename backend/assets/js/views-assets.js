@@ -468,6 +468,7 @@ VIEWS.withdraw.afterRender = function(){
       }
       withdrawalFeeConfigReady=true;
       refresh();
+      if(withdrawalRetryAllowed&&$('#wd-submit')){$('#wd-submit').disabled=false;$('#wd-submit').textContent='Retry Same Request';}
     })
     .catch(()=>{
       $('#wd-fee').textContent='Unavailable';
