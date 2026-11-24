@@ -299,7 +299,11 @@ test('mark worker sends the fresh source array and uses an independent perpetual
   assert.ok(markWorker.includes('perpetualBookMidPrice'));
   assert.ok(markWorker.includes('side=eq.buy'));
   assert.ok(markWorker.includes('side=eq.sell'));
-  assert.ok(markWorker.includes('fresh two-sided perpetual order book unavailable'));
+  assert.ok(markWorker.includes('calculateBookDepthMidPrice'));
+  assert.ok(markWorker.includes('remaining_quantity=gt.0'));
+  assert.ok(markWorker.includes('limit=5'));
+  assert.ok(!markWorker.includes('updated_at=gte.'));
+  assert.ok(markWorker.includes('insufficient two-level'));
 });
 
 test('mark feed keeps external spot index independent from the perpetual-book mark premium', () => {
