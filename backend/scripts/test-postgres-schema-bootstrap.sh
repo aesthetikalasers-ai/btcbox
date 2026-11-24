@@ -35,6 +35,7 @@ DECLARE
   v_market_categories regclass := to_regclass('public.btcbox_market_categories');
   v_asset_categories regclass := to_regclass('public.btcbox_asset_category_assignments');
   v_funding_clearing regclass := to_regclass('public.perpetual_funding_clearing_ledger');
+  v_assets regclass := to_regclass('public.btcbox_assets');
   v_proc regprocedure;
   v_signature text;
 BEGIN
@@ -59,6 +60,22 @@ BEGIN
   END IF;
   IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid=v_admin_members) THEN
     RAISE EXCEPTION 'private.admin_memberships must have RLS enabled';
+  END IF;
+  IF v_assets IS NULL THEN
+    RAISE EXCEPTION 'canonical BTCBOX asset registry was not installed';
+  END IF;
+  IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid=v_assets) THEN
+    RAISE EXCEPTION 'btcbox_assets must have RLS enabled';
+  END IF;
+  IF has_table_privilege('anon','public.btcbox_assets','SELECT')
+     OR has_table_privilege('authenticated','public.btcbox_assets','SELECT')
+     OR NOT has_table_privilege('service_role','public.btcbox_assets','SELECT')
+     OR NOT has_table_privilege('service_role','public.btcbox_assets','INSERT') THEN
+    RAISE EXCEPTION 'btcbox_assets grants are not service-role-only';
+  END IF;
+  IF (SELECT count(*) FROM public.btcbox_assets
+      WHERE asset_code IN ('ADA','AVAX','BNB','BTC','DOGE','ETH','SOL','USDT','XRP')) <> 9 THEN
+    RAISE EXCEPTION 'canonical BTCBOX asset seed is incomplete';
   END IF;
   IF v_funding_clearing IS NULL THEN
     RAISE EXCEPTION 'perpetual funding clearing ledger was not installed';
