@@ -48,6 +48,30 @@ test('admin frontend functions call the same paths the backend implements and ne
 });
 
 
+test('admin deposit workbench reads only canonical PostgreSQL records and is permission-scoped', () => {
+  const permissionStart = api.indexOf('const requiredPermission = (function(route, verb)');
+  const permissionEnd = api.indexOf(')(sub, method);', permissionStart);
+  const permissionMap = api.slice(permissionStart, permissionEnd);
+  assert.ok(permissionMap.includes("route === 'deposits' && verb === 'GET'"));
+  assert.ok(permissionMap.includes("return 'deposits.read'"));
+
+  const routeStart = api.indexOf("if (sub === 'deposits' && method === 'GET')");
+  const routeEnd = api.indexOf("// GET /api/admin/withdrawals", routeStart);
+  assert.ok(routeStart >= 0 && routeEnd > routeStart, 'read-only deposits route must exist');
+  const route = api.slice(routeStart, routeEnd);
+  assert.ok(route.includes('financialPostgresReadsEnabled()'));
+  assert.ok(route.includes('/rest/v1/deposit_records?'));
+  assert.ok(route.includes("source: 'postgres_financial_ledger'"));
+  assert.ok(route.includes("completeness: 'latest_200'"));
+  assert.ok(route.includes('DEPOSIT_READ_UNAVAILABLE'));
+  assert.doesNotMatch(route, /saveDB\s*\(/);
+  assert.doesNotMatch(route, /admin_manual_deposit_atomic/);
+  assert.ok(client.includes('export async function getAdminDeposits'));
+  assert.ok(adminPage.includes('getAdminDeposits(token)'));
+  assert.ok(adminPage.includes('tab === "deposit-records"'));
+  assert.ok(adminPage.includes('latest 200'));
+});
+
 test('withdrawal rejection API requires a bounded, non-control-character audit reason', () => {
   const start = api.indexOf("if (sub === 'withdraw/reject' && method === 'POST')");
   const end = api.indexOf("// POST /api/admin/withdraw/mark-paid", start);
