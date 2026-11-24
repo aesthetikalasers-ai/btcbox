@@ -144,6 +144,14 @@ test('admin user directory reports local Supabase identity-link mapping anomalie
   assert.ok(!route.includes('auth.users'));
 });
 
+test('admin audit pagination preserves legacy cursors and deduplicates rows across pages', () => {
+  assert.ok(api.includes("next_before: hasMore && page.length ? String(page[page.length - 1].id || '') : null"));
+  assert.ok(adminPage.includes('setAuditNextBefore(snapshot.next_before || null)'));
+  assert.ok(adminPage.includes('seen.add(key)'));
+  assert.ok(adminPage.includes('reason.code === "AUDIT_CURSOR_NOT_FOUND"'));
+  assert.ok(adminPage.includes('Older audit cursor has expired') || adminPage.includes('retention-limited snapshot'));
+});
+
 test('admin audit log resolves operator and subject links without hiding unmatched actors', () => {
   assert.ok(api.includes('function resolveAuditIdentity(uidValue, actorValue)'));
   assert.ok(api.includes("operator_identity_status: !isSupabaseUserId(actorId) ? 'non_uuid_actor'"));
