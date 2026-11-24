@@ -504,9 +504,9 @@ BEGIN
   INSERT INTO public.perpetual_markets(
     symbol,base_asset,quote_asset,enabled,status,price_tick,quantity_step,min_quantity,
     funding_interval_sec,funding_rate_cap,mark_price_stale_sec,next_funding_at
-  ) VALUES ('BTCUSDT','BTC','USDT',true,'trading',0.01,0.001,0.001,3600,0.0075,300,v_at)
+  ) VALUES ('BTCUSDT','BTC','USDT',true,'trading',0.01,0.001,0.001,28800,0.0075,300,v_at)
   ON CONFLICT(symbol) DO UPDATE SET enabled=true,status='trading',
-    funding_interval_sec=3600,funding_rate_cap=0.0075,mark_price_stale_sec=300,next_funding_at=excluded.next_funding_at;
+    funding_interval_sec=28800,funding_rate_cap=0.0075,mark_price_stale_sec=300,next_funding_at=excluded.next_funding_at;
 
   PERFORM pg_temp.test_credit('MD-PERP-L','perp-long-ci','USDT',1000,'perp-long-credit-0001','long-ref','perp CI');
   PERFORM pg_temp.test_credit('MD-PERP-S','perp-short-ci','USDT',1000,'perp-short-credit-0001','short-ref','perp CI');
@@ -514,10 +514,13 @@ BEGIN
    WHERE user_id IN ('perp-long-ci','perp-short-ci') AND asset='USDT';
   INSERT INTO public.perpetual_positions(user_id,symbol,side,quantity,entry_price,isolated_margin)
   VALUES ('perp-long-ci','BTCUSDT','long',1,1000,100),('perp-short-ci','BTCUSDT','short',1,1000,100);
-  INSERT INTO public.perpetual_funding_rates(symbol,funding_at,rate,premium_index,mark_price,index_price,sources)
-  VALUES ('BTCUSDT',v_at,0.001,0.001,1000,1000,jsonb_build_array(
+  INSERT INTO public.perpetual_funding_rates(
+    symbol,funding_at,rate,premium_index,mark_price,index_price,sources,
+    formula_version,interest_rate,impact_bid_price,impact_ask_price,calculated_at
+  ) VALUES ('BTCUSDT',v_at,0.001,0.0015,1000,1000,jsonb_build_array(
     jsonb_build_object('source','binance','price','1000','ts',v_ts),
-    jsonb_build_object('source','okx','price','1001','ts',v_ts)));
+    jsonb_build_object('source','okx','price','1001','ts',v_ts)),
+    'btcbox-funding-v1',0.0001,1001,1002,clock_timestamp());
   v_result := public.perp_settle_funding_market('BTCUSDT',v_at);
   IF v_result->>'ok'<>'true' OR (v_result->>'settled')::integer<>2 THEN
     RAISE EXCEPTION 'funding batch failed: %',v_result;
@@ -561,17 +564,20 @@ BEGIN
   INSERT INTO public.perpetual_markets(
     symbol,base_asset,quote_asset,enabled,status,price_tick,quantity_step,min_quantity,
     maintenance_margin_rate,funding_interval_sec,funding_rate_cap,mark_price_stale_sec,next_funding_at
-  ) VALUES ('ETHUSDT','ETH','USDT',true,'trading',0.01,0.001,0.001,0.005,3600,0.0075,300,v_at)
+  ) VALUES ('ETHUSDT','ETH','USDT',true,'trading',0.01,0.001,0.001,0.005,28800,0.0075,300,v_at)
   ON CONFLICT(symbol) DO UPDATE SET enabled=true,status='trading',maintenance_margin_rate=0.005,
-    funding_interval_sec=3600,funding_rate_cap=0.0075,mark_price_stale_sec=300,next_funding_at=excluded.next_funding_at;
+    funding_interval_sec=28800,funding_rate_cap=0.0075,mark_price_stale_sec=300,next_funding_at=excluded.next_funding_at;
   PERFORM pg_temp.test_credit('MD-PERP-LIQ','perp-liq-ci','USDT',100,'perp-liq-credit-0001','liq-ref','perp CI');
   UPDATE public.financial_accounts SET available=available-10,frozen=frozen+10 WHERE user_id='perp-liq-ci' AND asset='USDT';
   INSERT INTO public.perpetual_positions(user_id,symbol,side,quantity,entry_price,isolated_margin)
   VALUES ('perp-liq-ci','ETHUSDT','short',1,1000,10);
-  INSERT INTO public.perpetual_funding_rates(symbol,funding_at,rate,premium_index,mark_price,index_price,sources)
-  VALUES ('ETHUSDT',v_at,0.001,0.001,1200,1000,jsonb_build_array(
+  INSERT INTO public.perpetual_funding_rates(
+    symbol,funding_at,rate,premium_index,mark_price,index_price,sources,
+    formula_version,interest_rate,impact_bid_price,impact_ask_price,calculated_at
+  ) VALUES ('ETHUSDT',v_at,0.001,0.0015,1200,1000,jsonb_build_array(
     jsonb_build_object('source','binance','price','1000','ts',v_ts),
-    jsonb_build_object('source','okx','price','1001','ts',v_ts)));
+    jsonb_build_object('source','okx','price','1001','ts',v_ts)),
+    'btcbox-funding-v1',0.0001,1001,1002,clock_timestamp());
   INSERT INTO public.perpetual_mark_price_feed(symbol,index_price,mark_price,sources,source_count,max_deviation_pct,status)
   VALUES ('ETHUSDT',1000,1200,jsonb_build_array(
     jsonb_build_object('source','binance','price','1000','ts',v_ts),
