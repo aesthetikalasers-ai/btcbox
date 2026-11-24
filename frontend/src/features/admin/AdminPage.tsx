@@ -1716,7 +1716,7 @@ export function AdminPage() {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <CardTitle>{adminText("Perpetual market configuration")}</CardTitle>
-                <CardDescription>{adminText("Configure USDT-margined perpetual market rules. Every saved market remains disabled and paused; enabling trading is a separate release gate.")}</CardDescription>
+                <CardDescription>{adminText("Configure USDT-margined perpetual market rules. Every saved market remains paused; its data feed may be enabled to prewarm mark prices. Trading activation is a separate release gate.")}</CardDescription>
               </div>
               <Badge variant="warning">{adminText("Trading disabled")}</Badge>
             </div>
