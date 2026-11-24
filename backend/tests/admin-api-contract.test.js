@@ -69,6 +69,14 @@ test('perpetual admin market form is paused-only and includes all mandatory risk
   assert.ok(!adminPage.includes('enabled: true, status: "trading"'));
 });
 
+test('perpetual market form requires a reason and does not misreport a confirmed save on refresh failure', () => {
+  assert.ok(adminPage.includes('perpMarketDraft.reason'));
+  assert.ok(adminPage.includes('Reason for market configuration change (required)'));
+  assert.ok(adminPage.includes('reason,'));
+  assert.ok(adminPage.includes('Perpetual market settings were saved, but the list could not refresh.'));
+  assert.ok(client.includes('reason: string'));
+});
+
 test('withdrawal rejection API requires a bounded, non-control-character audit reason', () => {
   const start = api.indexOf("if (sub === 'withdraw/reject' && method === 'POST')");
   const end = api.indexOf("// POST /api/admin/withdraw/mark-paid", start);
