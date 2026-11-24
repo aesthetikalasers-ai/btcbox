@@ -48,6 +48,18 @@ test('admin frontend functions call the same paths the backend implements and ne
 });
 
 
+test('admin perpetual market configuration has matching permission-gated backend and frontend methods', () => {
+  assert.ok(api.includes("route === 'perpetual/markets' && verb === 'GET') return 'system_config.read'"));
+  assert.ok(api.includes("route === 'perpetual/market' && verb === 'POST') return 'system_config.write'"));
+  assert.ok(client.includes('export async function getAdminPerpMarkets'));
+  assert.ok(client.includes('"admin/perpetual/markets"'));
+  assert.ok(client.includes('export async function saveAdminPerpMarket'));
+  assert.ok(client.includes('"admin/perpetual/market"'));
+  assert.ok(adminPage.includes('getAdminPerpMarkets(token)'));
+  assert.ok(adminPage.includes('enabled: false, status: "paused"'));
+  assert.ok(adminPage.includes('saveAdminPerpMarket(token'));
+});
+
 test('withdrawal rejection API requires a bounded, non-control-character audit reason', () => {
   const start = api.indexOf("if (sub === 'withdraw/reject' && method === 'POST')");
   const end = api.indexOf("// POST /api/admin/withdraw/mark-paid", start);
