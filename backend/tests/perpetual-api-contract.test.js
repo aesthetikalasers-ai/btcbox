@@ -164,7 +164,7 @@ test('perpetual funding settlement updates funding_paid once and cannot borrow a
   const end = migration.indexOf('-- Liquidation check + execute.', start);
   assert.ok(start >= 0 && end > start, 'funding settlement function must exist');
   const fn = migration.slice(start, end);
-  assert.equal((fn.match(/funding_paid\\s*=\\s*funding_paid\\s*-\\s*v_payment/g) || []).length, 1,
+  assert.equal((fn.match(/funding_paid\s*=\s*funding_paid\s*-\s*v_payment/g) || []).length, 1,
     'funding_paid must be accumulated exactly once per settlement');
   assert.ok(fn.includes('then -v_rate.rate else v_rate.rate'),
     'settlement amount must use the persisted funding rate, not caller input');
