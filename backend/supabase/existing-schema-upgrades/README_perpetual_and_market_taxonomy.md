@@ -54,9 +54,11 @@ The perpetual worker files are currently one-pass Node scripts, not an active
 scheduler. The repository's Vercel configuration does not register a cron or
 long-running worker process for them. Therefore the engine must remain disabled.
 
-- Mark-price worker: currently defaults to BTCUSDT, ETHUSDT, SOLUSDT and BNBUSDT;
-  each enabled market needs two supported price sources. Additional symbols need
-  an explicit trusted source mapping before they can receive marks.
+- Mark-price worker: discovers enabled perpetual markets from Supabase and
+  includes built-in Binance/CoinGecko mappings for the registered BTCBOX assets
+  ADA, AVAX, BNB, BTC, DOGE, ETH, SOL and XRP. Other symbols require an explicit
+  trusted CoinGecko ID in `PERP_COINGECKO_IDS`; every market still requires two
+  successful sources before a mark is recorded.
 - Funding worker: v1 deliberately records a zero funding rate until a validated
   premium-index calculation is implemented. It is not yet a live funding-rate engine.
 - Liquidation worker: must run continuously at the intended 2–5 second cadence;
