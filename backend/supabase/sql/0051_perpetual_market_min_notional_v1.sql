@@ -24,6 +24,13 @@ alter table public.perpetual_markets
   alter column market_quantity_step set not null,
   alter column market_min_quantity set not null;
 
+-- This migration is a schema cutover, not a market launch. Explicitly stop any
+-- previously configured contracts until their new filters and risk caps are
+-- reviewed under the updated admin workflow.
+update public.perpetual_markets
+   set enabled = false, status = 'paused'
+ where enabled is distinct from false or status is distinct from 'paused';
+
 alter table public.perpetual_markets
   alter column min_notional set default 5,
   alter column min_notional set not null;
@@ -110,9 +117,14 @@ begin
   -- 2. Market & risk validation.
   select * into v_market from public.perpetual_markets where symbol=p_symbol and enabled=true;
   if not found then raise exception 'perpetual market disabled or unconfigured'; end if;
-  if v_market.status not in ('trading','open_only') then raise exception 'perpetual market not accepting orders'; end if;
-  if p_leverage > v_market.max_leverage then raise exception 'leverage exceeds market maximum';
-  if not coalesce(p_reduce_only,false) and not p_close_position and (v_market.max_position_notional is null or v_market.max_position_notional <= 0) then raise exception 'market risk exposure cap unavailable'; end if; end if;
+  if v_market.status not in ('trading','open_only') and not coalesce(p_reduce_only,false) then
+    raise exception 'perpetual market not accepting opening orders';
+  end if;
+  if p_leverage > v_market.max_leverage then raise exception 'leverage exceeds market maximum'; end if;
+  if not coalesce(p_reduce_only,false) and not p_close_position
+     and (v_market.max_position_notional is null or v_market.max_position_notional <= 0) then
+    raise exception 'market risk exposure cap unavailable';
+  end if;
   if p_close_position then
     -- Full-position closes use the exact locked position quantity and must
     -- never be blocked by opening-order lot/minimum filters.
