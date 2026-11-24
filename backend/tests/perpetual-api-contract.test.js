@@ -33,7 +33,7 @@ test('perpetual engine feature switch defaults OFF and gates every write', () =>
 
 test('public perpetual catalogue returns the configured minimum notional and frontend checks it before opening', () => {
   const route = routeSlice("path === 'perpetual/markets' && method === 'GET'", "path === 'perpetual/order' && method === 'POST'");
-  assert.ok(route.includes('min_quantity,min_notional'));
+  assert.ok(route.includes('min_quantity,min_notional,market_quantity_step,market_min_quantity,market_max_quantity'));
   const page = fs.readFileSync(path.join(root, '../frontend/src/features/pages/ContractPage.tsx'), 'utf8');
   assert.ok(page.includes('selectedMarket.min_notional'));
   assert.ok(page.includes('Order notional is below the market minimum.'));
@@ -137,6 +137,10 @@ test('admin perpetual market routes are reachable only through explicit system-c
   const writeRoute = api.slice(writeStart, writeStart + 5500);
   assert.ok(writeRoute.includes("const minNotional = parseMoneyInput(body.min_notional)"));
   assert.ok(writeRoute.includes('min_notional: minNotional'));
+  assert.ok(writeRoute.includes('market_quantity_step: marketQuantityStep'));
+  assert.ok(writeRoute.includes('market_min_quantity: marketMinQuantity'));
+  assert.ok(writeRoute.includes('market_max_quantity: marketMaxQuantity'));
+  assert.ok(writeRoute.includes('invalidMarketMax'));
   assert.ok(writeRoute.includes("compareMoney(minNotional,'0')<=0"));
 });
 
