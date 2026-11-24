@@ -11,10 +11,16 @@ begin;
 
 do $preflight$
 begin
-  if to_regclass('public.btcbox_assets') is null
-     or to_regclass('public.btcbox_wallet_accounts') is null
-     or to_regclass('public.btcbox_user_profiles') is null then
-    raise exception 'BTCBOX asset registry, wallet accounts and user profiles are required';
+  if to_regclass('public.btcbox_assets') is null then
+    raise exception 'BTCBOX asset registry is required';
+  end if;
+
+  -- The populated production schema has both wallet tables and the legacy
+  -- asset-seeding trigger. A fresh bootstrap has neither wallet table; it still
+  -- receives the canonical asset registry without creating wallet structures.
+  if (to_regclass('public.btcbox_wallet_accounts') is null)
+     is distinct from (to_regclass('public.btcbox_user_profiles') is null) then
+    raise exception 'wallet accounts and user profiles must either both exist or both be absent';
   end if;
 
   if exists (
@@ -39,7 +45,7 @@ begin
     raise exception 'target asset exists with an unexpected active state or precision; reconcile before seeding';
   end if;
 
-  if exists (
+  if to_regclass('public.btcbox_wallet_accounts') is not null and exists (
     select 1 from public.btcbox_wallet_accounts
      where asset_code in (
        'USDC','LINK','DOT','TRX','LTC','BCH','NEAR','UNI','ATOM',
@@ -79,7 +85,6 @@ declare
   v_wallet_rows bigint;
   v_nonzero_wallets bigint;
 begin
-  select count(*) into v_profiles from public.btcbox_user_profiles;
   select count(*) into v_assets
     from public.btcbox_assets
    where active is true
@@ -87,19 +92,24 @@ begin
        'USDC','LINK','DOT','TRX','LTC','BCH','NEAR','UNI','ATOM',
        'ETC','APT','ARB','OP','SUI','INJ','TIA','FIL'
      );
-  select count(*), count(*) filter (where available <> 0 or frozen <> 0)
-    into v_wallet_rows, v_nonzero_wallets
-    from public.btcbox_wallet_accounts
-   where asset_code in (
-     'USDC','LINK','DOT','TRX','LTC','BCH','NEAR','UNI','ATOM',
-     'ETC','APT','ARB','OP','SUI','INJ','TIA','FIL'
-   );
+  if v_assets <> 17 then
+    raise exception 'asset registry verification failed: expected 17 new active assets, found %', v_assets;
+  end if;
 
-  if v_assets <> 17
-     or v_wallet_rows <> v_profiles * 17
-     or v_nonzero_wallets <> 0 then
-    raise exception 'asset wallet seeding verification failed: active_assets %, profiles %, wallet_rows %, nonzero_wallets %',
-      v_assets, v_profiles, v_wallet_rows, v_nonzero_wallets;
+  if to_regclass('public.btcbox_wallet_accounts') is not null then
+    select count(*) into v_profiles from public.btcbox_user_profiles;
+    select count(*), count(*) filter (where available <> 0 or frozen <> 0)
+      into v_wallet_rows, v_nonzero_wallets
+      from public.btcbox_wallet_accounts
+     where asset_code in (
+       'USDC','LINK','DOT','TRX','LTC','BCH','NEAR','UNI','ATOM',
+       'ETC','APT','ARB','OP','SUI','INJ','TIA','FIL'
+     );
+
+    if v_wallet_rows <> v_profiles * 17 or v_nonzero_wallets <> 0 then
+      raise exception 'asset wallet seeding verification failed: profiles %, wallet_rows %, nonzero_wallets %',
+        v_profiles, v_wallet_rows, v_nonzero_wallets;
+    end if;
   end if;
 end
 $verify$;
