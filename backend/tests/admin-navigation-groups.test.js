@@ -17,7 +17,7 @@ test('admin navigation groups the existing tabs by business centre without dupli
     'tabs: ["overview"]',
     'tabs: ["users", "kyc"]',
     'tabs: ["deposit-records", "deposits", "withdrawals", "financial-adjustments", "payout-addresses"]',
-    'tabs: ["orders", "markets", "seconds"]',
+    'tabs: ["orders", "assets", "markets", "seconds"]',
     'tabs: ["support", "support-faq"]',
     'tabs: ["audit"]',
     'tabs: ["admins"]',
