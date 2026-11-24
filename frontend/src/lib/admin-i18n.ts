@@ -32,7 +32,7 @@ const messages: Record<string, string> = {
   "Record ID": "记录编号",
   "Refresh records": "刷新记录",
   "No deposit records found in the latest query.": "当前查询范围内没有充值记录。",
-  "Withdrawal queue refreshed.": "提现队列已刷新。"
+  "Withdrawal queue refreshed.": "提现队列已刷新。",
   "Withdrawal review queue could not be refreshed.": "无法刷新提现审核队列。",
   "Audit source changed while loading older records. Refresh the Audit log before continuing.": "加载历史记录时审计数据源发生变化，请先刷新审计日志。",
   "Older audit records could not be loaded.": "无法加载更早的审计记录。",
