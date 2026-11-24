@@ -89,6 +89,13 @@ BEGIN
      OR NOT has_table_privilege('service_role','public.perpetual_funding_clearing_ledger','INSERT') THEN
     RAISE EXCEPTION 'perpetual funding clearing ledger grants are not service-role-only';
   END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+     WHERE table_schema='public' AND table_name='perpetual_liquidation_events'
+       AND column_name='insurance_operation_id' AND data_type='uuid'
+  ) THEN
+    RAISE EXCEPTION 'liquidation event insurance operation link was not installed';
+  END IF;
   IF v_liquidation_journal IS NULL THEN
     RAISE EXCEPTION 'perpetual liquidation journal was not installed';
   END IF;
