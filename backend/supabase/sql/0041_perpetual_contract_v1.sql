@@ -336,7 +336,7 @@ begin
     execute format('grant select, insert, update on public.%I to service_role', t);
   end loop;
 end $$;
-grant usage, select on all sequences in schema public to service_role;
+grant usage, select on sequence public.perpetual_mark_price_feed_id_seq to service_role;
 -- FIX (Critical-2): perp_apply_fill_to_position / liquidation delete positions; service_role needs DELETE.
 grant delete on public.perpetual_positions to service_role;
 
