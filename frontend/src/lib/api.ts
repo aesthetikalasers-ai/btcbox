@@ -1606,6 +1606,7 @@ export interface PerpMarket {
   next_funding_at?: string | null;
   mark_price?: number | string | null;
   index_price?: number | string | null;
+  mark_price_status?: "ok" | "degraded" | "stale" | "unavailable";
 }
 export interface PerpPosition {
   position_id: string;
