@@ -36,6 +36,14 @@ The migration `0051_perpetual_market_min_notional_v1.sql` is not included in thi
 5. **Maker-side reduce-only logic is new matching behavior.** The rewritten function adds a maker-position cap and cancellation path in addition to the taker cap. This requires targeted regression tests for maker/taker partial fills, opposite-side position availability, simultaneous orders, cancellation, and ledger/margin invariants.
 6. **Full-function rewrite risk remains.** The migration replaces the complete order submission RPC, not just a small validation block. Every reservation, partial-fill, fee, insurance, cancel, idempotency and close-position path must be compared with the current authoritative function and exercised against a disposable staging database.
 
+## Current authoritative SQL risks still deferred
+
+The same liquidation-only status guard is also present in this branch's current authoritative migration `0041_perpetual_contract_v1.sql`: it rejects any status other than `trading` or `open_only` before checking the reduce-only / close-position flags. Therefore this is not only a PR #116 regression; the existing SQL contract also prevents emergency reduce/close orders while the market is `liquidation_only`.
+
+The current migration `0041` also treats `max_position_notional` as nullable and only applies an exposure check when the value is present. The new admin form/API now require a positive cap for new or edited market configurations, but this does not retrofit or protect any pre-existing row with a null cap. The authoritative order RPC must be hardened and tested before any market activation.
+
+These order-RPC changes remain deliberately deferred because they affect matching, positions, margin reservation and settlement. No status semantics or financial SQL was changed in this admin-only batch.
+
 ## Current implementation boundary
 
 The current admin panel intentionally exposes only fields already present in migration 0041. The PR #116 minimum-notional and market-order lot fields are not displayed or sent until their schema migration and rewritten order RPC are separately reviewed and approved.
