@@ -60,6 +60,15 @@ test('admin perpetual market configuration has matching permission-gated backend
   assert.ok(adminPage.includes('saveAdminPerpMarket(token'));
 });
 
+test('perpetual admin market form is paused-only and includes all mandatory risk fields', () => {
+  for (const field of ['price_tick','quantity_step','min_quantity','min_notional','max_leverage','maintenance_margin_rate','maker_fee_rate','taker_fee_rate','funding_interval_sec','funding_rate_cap','mark_price_stale_sec','circuit_breaker_deviation_pct']) {
+    assert.ok(adminPage.includes(field), 'admin perpetual form missing ' + field);
+  }
+  assert.ok(adminPage.includes('enabled: false, status: "paused"'));
+  assert.ok(adminPage.includes('Save paused perpetual market'));
+  assert.ok(!adminPage.includes('enabled: true, status: "trading"'));
+});
+
 test('withdrawal rejection API requires a bounded, non-control-character audit reason', () => {
   const start = api.indexOf("if (sub === 'withdraw/reject' && method === 'POST')");
   const end = api.indexOf("// POST /api/admin/withdraw/mark-paid", start);
