@@ -17,7 +17,7 @@ let livePriceCache = { expiresAt: 0, prices: {} };
 // Public, read-only endpoints must not be coupled to the account-state singleton.
 // Market prices and display FX can continue during a persistence incident;
 // the health endpoint reports the degraded state explicitly.
-const PUBLIC_NO_DB_PATHS = new Set(['market', 'market/pairs', 'kline', 'depth', 'perpetual/markets', 'trading/status', 'config', 'fx/usdt-usd', 'health']);
+const PUBLIC_NO_DB_PATHS = new Set(['market', 'market/pairs', 'kline', 'depth', 'trading/status', 'config', 'fx/usdt-usd', 'health']);
 
 // ===== 数据层（失败时关闭；不使用陈旧缓存处理可变数据）=====
 // Legacy JSON/Blobs writes cannot resolve 跨实例并发读-改-写竞争; they are retired.
@@ -442,11 +442,7 @@ async function matchingRpc(name, payload) {
 // every write returns 503/409 and market reads return an empty list with a
 // perpetual_enabled=false flag. Never fake availability.
 function perpetualEngineEnabled() {
-  // A write cutover also requires an explicit operator acknowledgement that
-  // mark-price, funding and liquidation workers are deployed and monitored.
-  return process.env.FINANCIAL_PERPETUAL_ENGINE_ENABLED === '1'
-    && process.env.FINANCIAL_PERPETUAL_WORKERS_READY === '1'
-    && financialWritesEnabled();
+  return process.env.FINANCIAL_PERPETUAL_ENGINE_ENABLED === '1' && financialWritesEnabled();
 }
 function perpetualEngineRequested() {
   return process.env.FINANCIAL_PERPETUAL_ENGINE_ENABLED === '1';
@@ -470,10 +466,8 @@ async function perpRpc(name, payload) {
 async function perpRestGet(pathAndQuery) {
   const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
   const response = await fetch(base + '/rest/v1/' + pathAndQuery, { method: 'GET', headers: supabaseHeaders() });
-  if (!response.ok) throw new Error('Perpetual database read failed: ' + response.status);
-  const rows = await response.json().catch(() => null);
-  if (!Array.isArray(rows)) throw new Error('Perpetual database read returned an invalid payload');
-  return rows;
+  if (!response.ok) return [];
+  return response.json().catch(() => []);
 }
 
 // Seconds-contract reference price. The server always fetches the open/settle
@@ -537,7 +531,7 @@ async function readFinancialAccountSnapshot(userId) {
   return result;
 }
 
-async function readSpotMarketCatalog() {
+async function readSpotMarketCatalog(state) {
   try {
   if (!supabaseStorageConfigured()) throw new Error('Spot market catalogue unavailable');
   const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
@@ -549,6 +543,7 @@ async function readSpotMarketCatalog() {
   if (!response.ok || !result || result.ok !== true || !Array.isArray(result.markets)) {
     throw new Error('Spot market catalogue read failed');
   }
+  const enabledAssets = new Set(normalizeAdminAssetCatalog(state && state.asset_catalog).filter(function (asset) { return asset.enabled && asset.visible && asset.spot_enabled; }).map(function (asset) { return asset.code; }));
   return result.markets.map(market => {
     if (!market || typeof market.base_asset !== 'string' || typeof market.quote_asset !== 'string' ||
         typeof market.enabled !== 'boolean' || !SUPPORTED_LEDGER_ASSETS.has(market.base_asset) ||
@@ -558,7 +553,7 @@ async function readSpotMarketCatalog() {
     return {
       base_asset: market.base_asset,
       quote_asset: market.quote_asset,
-      enabled: market.enabled,
+      enabled: market.enabled && enabledAssets.has(market.base_asset) && enabledAssets.has(market.quote_asset),
       price_tick: String(market.price_tick),
       quantity_step: String(market.quantity_step),
       min_quantity: String(market.min_quantity),
@@ -576,6 +571,42 @@ const SUPPORTED_LEDGER_ASSETS = new Set([
   'XRP', 'DOGE', 'ADA', 'AVAX', 'LINK', 'DOT', 'TRX', 'LTC', 'BCH', 'NEAR', 'UNI', 'ATOM', 'ETC',
   'APT', 'ARB', 'OP', 'SUI', 'INJ', 'TIA', 'FIL',
 ]);
+const ASSET_CATALOG_DEFAULTS = [
+  ['USDT','Tether'],['USDC','USD Coin'],['BTC','Bitcoin'],['ETH','Ethereum'],['SOL','Solana'],['BNB','BNB'],
+  ['XRP','XRP'],['DOGE','Dogecoin'],['ADA','Cardano'],['AVAX','Avalanche'],['LINK','Chainlink'],['DOT','Polkadot'],['TRX','TRON'],['LTC','Litecoin'],['BCH','Bitcoin Cash'],
+  ['NEAR','NEAR Protocol'],['UNI','Uniswap'],['ATOM','Cosmos'],['ETC','Ethereum Classic'],['APT','Aptos'],['ARB','Arbitrum'],['OP','Optimism'],['SUI','Sui'],['INJ','Injective'],['TIA','Celestia'],['FIL','Filecoin']
+].map(function (entry, index) { return { code: entry[0], name: entry[1], display_name: entry[1], display_precision: 8, enabled: true, visible: true, spot_enabled: true, perpetual_enabled: true, seconds_enabled: true, earn_enabled: true, sort_order: (index + 1) * 10 }; });
+function normalizeAdminAssetCatalog(value) {
+  const source = Array.isArray(value) ? value : ASSET_CATALOG_DEFAULTS;
+  const byCode = new Map(source.filter(function (item) { return item && typeof item.code === 'string'; }).map(function (item) { return [item.code, item]; }));
+  return ASSET_CATALOG_DEFAULTS.map(function (fallback) {
+    const item = byCode.get(fallback.code) || fallback;
+    return {
+      code: fallback.code,
+      name: typeof item.name === 'string' ? item.name : fallback.name,
+      display_name: typeof item.display_name === 'string' ? item.display_name : fallback.display_name,
+      display_precision: Number.isInteger(item.display_precision) && item.display_precision >= 0 && item.display_precision <= 18 ? item.display_precision : fallback.display_precision,
+      enabled: typeof item.enabled === 'boolean' ? item.enabled : fallback.enabled,
+      visible: typeof item.visible === 'boolean' ? item.visible : fallback.visible,
+      spot_enabled: typeof item.spot_enabled === 'boolean' ? item.spot_enabled : fallback.spot_enabled,
+      perpetual_enabled: typeof item.perpetual_enabled === 'boolean' ? item.perpetual_enabled : fallback.perpetual_enabled,
+      seconds_enabled: typeof item.seconds_enabled === 'boolean' ? item.seconds_enabled : fallback.seconds_enabled,
+      earn_enabled: typeof item.earn_enabled === 'boolean' ? item.earn_enabled : fallback.earn_enabled,
+      sort_order: Number.isInteger(item.sort_order) && item.sort_order >= 0 && item.sort_order <= 9999 ? item.sort_order : fallback.sort_order
+    };
+  }).sort(function (a, b) { return a.sort_order - b.sort_order || a.code.localeCompare(b.code); });
+}
+
+
+function isAssetVisible(state, code) {
+  const asset = normalizeAdminAssetCatalog(state && state.asset_catalog).find(function (item) { return item.code === code; });
+  return !!(asset && asset.visible);
+}
+
+function isAssetModuleEnabled(state, code, moduleKey) {
+  const asset = normalizeAdminAssetCatalog(state && state.asset_catalog).find(function (item) { return item.code === code; });
+  return !!(asset && asset.enabled && asset[moduleKey] === true);
+}
 
 async function readAdminAccountBalances(userIds) {
   if (!supabaseStorageConfigured()) throw new Error('Financial database unavailable');
@@ -600,7 +631,7 @@ async function readAdminAccountBalances(userIds) {
       // rejecting those valid rows made the entire admin user list fail with 503.
       if (!SUPPORTED_LEDGER_ASSETS.has(asset)) throw new Error('Admin account balance response invalid');
       const b = assets[asset];
-      if (!b || !Number.isFinite(b.free) || !Number.isFinite(b.frozen) || b.free < 0 || b.frozen < 0) throw new Error('Admin account balance response invalid');
+      if (!b || !Number.isFinite(b.free) || !Number.isFinite(b.frozen) || b.frozen < 0) throw new Error('Admin account balance response invalid');
     }
   }
   // A user with no normalized account rows is a valid zero-balance account, not
@@ -1485,6 +1516,18 @@ async function handleRequest(event, context) {
     }, db ? 200 : 503);
   }
 
+  // ---------- GET /api/assets ----------
+  // Public display metadata only. Asset configuration never exposes wallet addresses,
+  // network settings, fees, or private account balances.
+  if (path === 'assets' && method === 'GET') {
+    return json({ ok: true, assets: normalizeAdminAssetCatalog(db && db.asset_catalog).map(function (asset) {
+      return { code: asset.code, name: asset.name, display_name: asset.display_name,
+        display_precision: asset.display_precision, enabled: asset.enabled,
+        visible: asset.visible, spot_enabled: asset.spot_enabled, perpetual_enabled: asset.perpetual_enabled,
+        seconds_enabled: asset.seconds_enabled, earn_enabled: asset.earn_enabled, sort_order: asset.sort_order };
+    }) });
+  }
+
   // ---------- GET /api/config ----------
   if (path === 'config' && method === 'GET') {
     return json({
@@ -1761,74 +1804,47 @@ async function handleRequest(event, context) {
     }
   }
 
-  // ---------- GET /api/kline (Binance Vision primary, fresh-provider fallback) ----------
+  // ---------- GET /api/kline (Coinbase primary, Bybit fallback) ----------
   if (path === 'kline' && method === 'GET') {
     const symbol = ((event.queryStringParameters && event.queryStringParameters.symbol) || 'BTCUSDT').toUpperCase();
     const interval = (event.queryStringParameters && event.queryStringParameters.interval) || '1m';
     if (!/^[A-Z0-9]{5,20}$/.test(symbol) || !symbol.endsWith('USDT') || symbol.length <= 4 || !['1m','3m','5m','15m','30m','1h','2h','4h','1d'].includes(interval)) return json({ ok: false, msg: 'Invalid USDT symbol or interval' }, 400);
     const base = symbol.slice(0, -4);
     try {
-      const catalog = await readSpotMarketCatalog();
-      if (!catalog.some(market => market.enabled && market.base_asset === base && market.quote_asset === 'USDT')) {
+      const catalog = await readSpotMarketCatalog(db);
+      if (!catalog.some(market => market.enabled && market.base_asset === base && market.quote_asset === 'USDT' && isAssetVisible(db, market.base_asset) && isAssetVisible(db, market.quote_asset))) {
         return json({ ok: false, code: 'SPOT_MARKET_DISABLED', msg: 'This spot market is not enabled.', klines: [], data: [] }, 404);
       }
     } catch (_) {
       return json({ ok: false, code: 'MARKET_CATALOG_UNAVAILABLE', msg: 'Spot market catalogue is temporarily unavailable.', klines: [], data: {} }, 503);
     }
-    const intervalSeconds = { '1m':60, '3m':180, '5m':300, '15m':900, '30m':1800, '1h':3600, '2h':7200, '4h':14400, '1d':86400 }[interval];
-    const intervalBybit = { '1m':'1', '3m':'3', '5m':'5', '15m':'15', '30m':'30', '1h':'60', '2h':'120', '4h':'240', '1d':'D' }[interval];
+    const coinbaseGranularity = { '1m': 60, '5m': 300, '15m': 900, '1h': 3600, '1d': 86400 }[interval];
     const timeoutFetchJson = async url => {
       const res = await fetch(url, { signal: AbortSignal.timeout(5000), headers: { 'Accept': 'application/json' } });
       if (!res.ok) throw new Error('market provider HTTP ' + res.status);
       return res.json();
     };
-    const normalizeCandles = rows => (Array.isArray(rows) ? rows : [])
-      .filter(k => Array.isArray(k) && k.length >= 6 && k.slice(0, 6).every(v => Number.isFinite(Number(v))))
-      .map(k => ({ time: Number(k[0]), open: Number(k[1]), high: Number(k[2]), low: Number(k[3]), close: Number(k[4]), volume: Number(k[5]) }))
-      .filter(k => k.time > 0 && k.open > 0 && k.high > 0 && k.low > 0 && k.close > 0 && k.volume >= 0
-        && k.high >= Math.max(k.open, k.close, k.low) && k.low <= Math.min(k.open, k.close, k.high))
-      .sort((a, b) => a.time - b.time);
-    // A provider returning HTTP 200 is not enough: reject candle sets whose
-    // newest open time is too old for the selected interval. Otherwise a stale
-    // Coinbase response can look like a healthy chart while live tickers move.
-    const candleSetIsFresh = rows => {
-      if (!rows.length) return false;
-      const latestOpenMs = Number(rows[rows.length - 1].time);
-      const ageSeconds = Date.now() / 1000 - latestOpenMs / 1000;
-      return Number.isFinite(ageSeconds) && ageSeconds >= -30 && ageSeconds <= Math.max(intervalSeconds * 3, 180);
-    };
-    const candleResponse = (rows, source) => json({ ok: true, source, klines: rows, data: rows });
-
-    // Binance Vision is already the reachable public provider for production
-    // ticker/depth requests and supports every interval exposed by this API.
-    // Use it first so unsupported/stale Coinbase candles cannot disable charts.
-    try {
-      const rows = await timeoutFetchJson('https://data-api.binance.vision/api/v3/klines?symbol=' + encodeURIComponent(symbol) + '&interval=' + encodeURIComponent(interval) + '&limit=350');
-      const normalized = normalizeCandles(rows);
-      if (candleSetIsFresh(normalized)) return candleResponse(normalized, 'binance-vision');
-    } catch (_) { /* Try the independent providers below. */ }
-
-    const coinbaseGranularity = { '1m':60, '5m':300, '15m':900, '1h':3600, '1d':86400 }[interval];
     if (coinbaseGranularity) {
       try {
         const rows = await timeoutFetchJson('https://api.exchange.coinbase.com/products/' + encodeURIComponent(base + '-USDT') + '/candles?granularity=' + coinbaseGranularity);
         if (!Array.isArray(rows)) throw new Error('invalid Coinbase candles');
-        const normalized = normalizeCandles(rows
-          .filter(k => Array.isArray(k) && k.length >= 6)
-          .map(k => [Number(k[0]) * 1000, Number(k[3]), Number(k[2]), Number(k[1]), Number(k[4]), Number(k[5])]));
-        if (candleSetIsFresh(normalized)) return candleResponse(normalized, 'coinbase');
-      } catch (_) { /* Try Bybit below; stale candles are never returned as live. */ }
+        const raw = rows.filter(k => Array.isArray(k) && k.length >= 6 && k.slice(0, 6).every(v => Number.isFinite(Number(v))))
+          .map(k => [Number(k[0]) * 1000, Number(k[3]), Number(k[2]), Number(k[1]), Number(k[4]), Number(k[5])])
+          .sort((a, b) => a[0] - b[0]);
+        if (raw.length) return json({ ok: true, source: 'coinbase', klines: raw.map(k => ({ time: k[0], open: k[1], high: k[2], low: k[3], close: k[4], volume: k[5] })), data: raw });
+      } catch (_) { /* Try Bybit below; never synthesize candle values. */ }
     }
     try {
-      const payload = await timeoutFetchJson('https://api.bybit.com/v5/market/kline?category=spot&symbol=' + encodeURIComponent(symbol) + '&interval=' + encodeURIComponent(intervalBybit) + '&limit=350');
+      const intervalBybit = { '1m':'1', '3m':'3', '5m':'5', '15m':'15', '30m':'30', '1h':'60', '2h':'120', '4h':'240', '1d':'D' }[interval];
+      const payload = await timeoutFetchJson('https://api.bybit.com/v5/market/kline?category=spot&symbol=' + encodeURIComponent(symbol) + '&interval=' + encodeURIComponent(intervalBybit) + '&limit=300');
       const rows = payload && payload.result && payload.result.list;
       if (!Array.isArray(rows)) throw new Error('invalid Bybit candles');
-      const normalized = normalizeCandles(rows);
-      if (candleSetIsFresh(normalized)) return candleResponse(normalized, 'bybit');
-      throw new Error('Bybit candles are stale or empty');
-    } catch (_) {
-      return json({ ok: false, code: 'KLINE_DATA_UNAVAILABLE', msg: 'Fresh K-line data is temporarily unavailable.', klines: [], data: [] }, 503);
-    }
+      const raw = rows.filter(k => Array.isArray(k) && k.length >= 6 && k.slice(0, 6).every(v => Number.isFinite(Number(v))))
+        .map(k => [Number(k[0]), Number(k[1]), Number(k[2]), Number(k[3]), Number(k[4]), Number(k[5])])
+        .sort((a, b) => a[0] - b[0]);
+      if (!raw.length) throw new Error('empty Bybit candles');
+      return json({ ok: true, source: 'bybit', klines: raw.map(k => ({ time: k[0], open: k[1], high: k[2], low: k[3], close: k[4], volume: k[5] })), data: raw });
+    } catch (_) { return json({ ok: false, code: 'KLINE_DATA_UNAVAILABLE', msg: 'K-line data unavailable.', klines: [], data: [] }, 503); }
   }
 
   // ---------- GET /api/depth (Coinbase primary, Bybit fallback) ----------
@@ -1837,8 +1853,8 @@ async function handleRequest(event, context) {
     if (!/^[A-Z0-9]{5,20}$/.test(symbol) || !symbol.endsWith('USDT') || symbol.length <= 4) return json({ ok: false, msg: 'Invalid USDT symbol' }, 400);
     const base = symbol.slice(0, -4);
     try {
-      const catalog = await readSpotMarketCatalog();
-      if (!catalog.some(market => market.enabled && market.base_asset === base && market.quote_asset === 'USDT')) {
+      const catalog = await readSpotMarketCatalog(db);
+      if (!catalog.some(market => market.enabled && market.base_asset === base && market.quote_asset === 'USDT' && isAssetVisible(db, market.base_asset) && isAssetVisible(db, market.quote_asset))) {
         return json({ ok: false, code: 'SPOT_MARKET_DISABLED', msg: 'This spot market is not enabled.', bids: [], asks: [] }, 404);
       }
     } catch (_) {
@@ -2617,8 +2633,8 @@ async function handleRequest(event, context) {
   // Public catalogue exposes only enabled, operator-configured USDT pairs.
   if (path === 'market/pairs' && method === 'GET') {
     try {
-      const markets = await readSpotMarketCatalog();
-      return json({ ok: true, markets: markets.filter(market => market.enabled) });
+      const markets = await readSpotMarketCatalog(db);
+      return json({ ok: true, markets: markets.filter(market => market.enabled && isAssetVisible(db, market.base_asset) && isAssetVisible(db, market.quote_asset)) });
     } catch (_) {
       return json({ ok: false, code: 'MARKET_CATALOG_UNAVAILABLE', msg: 'Spot market catalogue is temporarily unavailable.', markets: [] }, 503);
     }
@@ -2641,8 +2657,8 @@ async function handleRequest(event, context) {
      */
     let bases;
     try {
-      const catalog = await readSpotMarketCatalog();
-      bases = [...new Set(catalog.filter(market => market.enabled && market.quote_asset === 'USDT').map(market => market.base_asset))];
+      const catalog = await readSpotMarketCatalog(db);
+      bases = [...new Set(catalog.filter(market => market.enabled && isAssetVisible(db, market.base_asset) && isAssetVisible(db, market.quote_asset) && market.quote_asset === 'USDT').map(market => market.base_asset))];
     } catch (_) {
       return json({ ok: false, code: 'MARKET_CATALOG_UNAVAILABLE', msg: 'Spot market catalogue is temporarily unavailable.', markets: [], data: {} }, 503);
     }
@@ -2789,6 +2805,14 @@ async function handleRequest(event, context) {
     const price = parseMoneyInput(body.price === undefined || body.price === null || body.price === '' ? '0' : body.price);
     const pair = matchingPairFromSymbol(symbol);
     if (!pair) return json({ ok: false, msg: 'Operation failed: this trading pair is not supported.' }, 400);
+    try {
+      const configuredMarkets = await readSpotMarketCatalog(db);
+      if (!configuredMarkets.some(market => market.enabled && market.base_asset === pair[0] && market.quote_asset === pair[1])) {
+        return json({ ok: false, code: 'ASSET_OR_MARKET_DISABLED', msg: 'This asset or spot market is currently disabled.' }, 404);
+      }
+    } catch (_) {
+      return json({ ok: false, code: 'MARKET_CATALOG_UNAVAILABLE', msg: 'Spot market configuration is temporarily unavailable. No order was submitted.' }, 503);
+    }
     if (!['buy','sell'].includes(side)) return json({ ok: false, msg: 'Operation failed: invalid trade direction.' }, 400);
     // Market orders are intentionally rejected until a separately bounded market-order policy exists.
     if (type !== 'limit') return json({ ok: false, code: 'ORDER_TYPE_UNSUPPORTED', msg: 'Only limit orders are currently supported.' }, 400);
@@ -2854,7 +2878,8 @@ async function handleRequest(event, context) {
           !Number.isInteger(Number(item.term_days)) || !Number.isFinite(Number(item.early_fee_percent)) ||
           !Number.isInteger(Number(item.amount_scale)) || item.active !== true;
       })) return json({ ok: false, code: 'EARN_CATALOG_INVALID', msg: 'Earn product data is invalid.' }, 503);
-      return json({ ok: true, products: rows, actions_enabled: financialWritesEnabled() && supabaseStorageConfigured() });
+      const availableProducts = rows.filter(item => isAssetModuleEnabled(db, item.asset, 'earn_enabled') && isAssetVisible(db, item.asset));
+      return json({ ok: true, products: availableProducts, actions_enabled: financialWritesEnabled() && supabaseStorageConfigured() && availableProducts.length > 0 });
     } catch (e) {
       return json({ ok: false, code: 'EARN_CATALOG_UNAVAILABLE', msg: 'Earn products are temporarily unavailable.' }, 503);
     }
@@ -2881,6 +2906,7 @@ async function handleRequest(event, context) {
       if (!products.has(productId)) return json({ ok: false, msg: 'This earn product is not supported.' }, 400);
       { const rl = await rateCheckShared('earn_subscribe', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
       const asset = productId.endsWith('_BTC') ? 'BTC' : productId.endsWith('_ETH') ? 'ETH' : 'USDT';
+      if (!isAssetModuleEnabled(db, asset, 'earn_enabled')) return json({ ok: false, code: 'ASSET_MODULE_DISABLED', msg: 'Earn subscriptions are not enabled for this asset. Existing positions can still be redeemed.' }, 403);
       const positionId = 'EP' + crypto.createHash('sha256').update(String(user.uid) + '|' + requestId).digest('hex').slice(0, 32);
       const requestHash = crypto.createHash('sha256').update(JSON.stringify({ user_id: String(user.uid), product_id: productId, asset, amount: String(amount), request_id: requestId })).digest('hex');
       try {
@@ -2936,7 +2962,9 @@ async function handleRequest(event, context) {
       if (!rpc.ok || !result || result.ok !== true || !validPolicy) {
         return json({ ok: false, code: 'SECONDS_POLICY_UNAVAILABLE', msg: 'Short-term contract policy is not configured or is invalid.' }, 503);
       }
-      return json({ ok: true, policy, actions_enabled: financialWritesEnabled() });
+      const activeSymbols = policy.symbols.filter(symbol => isAssetModuleEnabled(db, symbol, 'seconds_enabled') && isAssetVisible(db, symbol));
+      if (!activeSymbols.length) return json({ ok: false, code: 'SECONDS_ASSETS_DISABLED', msg: 'No assets are currently enabled for short-term contracts.' }, 403);
+      return json({ ok: true, policy: { ...policy, symbols: activeSymbols }, actions_enabled: financialWritesEnabled() });
     } catch (_) {
       return json({ ok: false, code: 'SECONDS_POLICY_UNAVAILABLE', msg: 'Short-term contract policy is temporarily unavailable.' }, 503);
     }
@@ -2961,6 +2989,7 @@ async function handleRequest(event, context) {
     const amount = parseMoneyInput(body.amount);
     const requestId = String(body.request_id || '').trim();
     if (!SECONDS_ALLOWED_SYMBOLS.has(symbol)) return json({ ok: false, msg: 'This trading pair is not supported for short-term contracts.' }, 400);
+    if (!isAssetModuleEnabled(db, symbol, 'seconds_enabled')) return json({ ok: false, code: 'ASSET_MODULE_DISABLED', msg: 'Short-term contracts are not enabled for this asset.' }, 403);
     if (!['up', 'down'].includes(direction)) return json({ ok: false, msg: 'Invalid trade direction.' }, 400);
     if (!Number.isSafeInteger(durationSec) || durationSec <= 0) return json({ ok: false, msg: 'Invalid contract duration.' }, 400);
     if (amount === null || compareMoney(amount, '0') <= 0) return json({ ok: false, msg: 'Invalid investment amount.' }, 400);
@@ -3051,41 +3080,13 @@ async function handleRequest(event, context) {
   // ---------- GET /api/perpetual/markets (public) ----------
   if (path === 'perpetual/markets' && method === 'GET') {
     if (!perpetualEngineRequested() || !supabaseStorageConfigured()) {
-      return json({ ok: false, code: 'PERPETUAL_MARKETS_DISABLED', perpetual_enabled: false, markets: [],
-        msg: 'Perpetual markets are not enabled. No contract market is currently available.' }, 503);
+      return json({ ok: true, perpetual_enabled: false, markets: [], msg: 'Perpetual trading is not enabled yet.' });
     }
     try {
-      const markets = await perpRestGet('perpetual_markets?select=symbol,base_asset,quote_asset,enabled,status,price_tick,quantity_step,min_quantity,min_notional,market_quantity_step,market_min_quantity,market_max_quantity,max_quantity,max_position_notional,max_leverage,maintenance_margin_rate,maker_fee_rate,taker_fee_rate,funding_interval_sec,funding_rate_cap,next_funding_at,mark_price_stale_sec&enabled=eq.true&order=symbol.asc');
-      const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
-      const withPrices = await Promise.all(markets.map(async (market) => {
-        try {
-          const response = await fetch(base + '/rest/v1/rpc/perp_latest_mark_price', {
-            method: 'POST', headers: supabaseHeaders(),
-            body: JSON.stringify({ p_symbol: market.symbol, p_max_age_sec: market.mark_price_stale_sec })
-          });
-          const rows = await response.json().catch(() => []);
-          const row = Array.isArray(rows) ? rows[0] : null;
-          const age = Number(row && row.age_sec);
-          const fresh = response.ok && row && ['ok', 'degraded'].includes(row.status) &&
-            Number.isFinite(age) && age >= 0 && age <= Number(market.mark_price_stale_sec) &&
-            Number(row.mark_price) > 0 && Number(row.index_price) > 0;
-          // Bootstrap is a validated external index anchor only. Expose that
-          // Index Price while keeping Mark Price unavailable until BTCBOX has
-          // a sufficiently deep, executable two-sided book.
-          const freshIndex = response.ok && row && ['ok', 'degraded', 'bootstrap'].includes(row.status) &&
-            Number.isFinite(age) && age >= 0 && age <= Number(market.mark_price_stale_sec) &&
-            Number(row.index_price) > 0;
-          return { ...market, mark_price: fresh ? String(row.mark_price) : null, index_price: freshIndex ? String(row.index_price) : null,
-            mark_price_status: fresh ? row.status : freshIndex ? row.status : 'stale' };
-        } catch (_) {
-          return { ...market, mark_price: null, index_price: null, mark_price_status: 'unavailable' };
-        }
-      }));
-      return json({ ok: true, perpetual_enabled: perpetualEngineEnabled(), markets: withPrices });
-    } catch (e) {
-      return json({ ok: false, code: 'PERPETUAL_MARKETS_UNAVAILABLE', perpetual_enabled: false, markets: [],
-        msg: 'Perpetual market configuration or price feed is unavailable. No contract market can be used.' }, 503);
-    }
+      const markets = await perpRestGet('perpetual_markets?select=symbol,base_asset,quote_asset,enabled,status,price_tick,quantity_step,min_quantity,max_quantity,max_position_notional,max_leverage,maintenance_margin_rate,maker_fee_rate,taker_fee_rate,funding_interval_sec,funding_rate_cap,next_funding_at,mark_price_stale_sec&enabled=eq.true&order=symbol.asc');
+      const availableMarkets = markets.filter(market => isAssetModuleEnabled(db, market.base_asset, 'perpetual_enabled') && isAssetModuleEnabled(db, market.quote_asset, 'perpetual_enabled') && isAssetVisible(db, market.base_asset) && isAssetVisible(db, market.quote_asset));
+      return json({ ok: true, perpetual_enabled: perpetualEngineEnabled() && availableMarkets.length > 0, markets: availableMarkets });
+    } catch (e) { return json({ ok: true, perpetual_enabled: false, markets: [] }, 200); }
   }
   // ---------- POST /api/perpetual/order (auth) ----------
   if (path === 'perpetual/order' && method === 'POST') {
@@ -3103,6 +3104,12 @@ async function handleRequest(event, context) {
     const closePosition = body.close_position === true;
     const clientOrderId = String(body.client_order_id || (event.headers && (event.headers['x-idempotency-key'] || event.headers['X-Idempotency-Key'])) || '').trim();
     if (!/^[A-Z0-9]{3,20}$/.test(symbol)) return json({ ok: false, msg: 'Invalid trading pair.', code: 'INVALID_SYMBOL' }, 400);
+    if (!reduceOnly) {
+      const baseAsset = ASSET_CATALOG_DEFAULTS.map(asset => asset.code).find(code => symbol === code + 'USDT' || symbol === code + '-USDT');
+      if (!baseAsset || !isAssetModuleEnabled(db, baseAsset, 'perpetual_enabled') || !isAssetModuleEnabled(db, 'USDT', 'perpetual_enabled')) {
+        return json({ ok: false, code: 'ASSET_MODULE_DISABLED', msg: 'New perpetual positions are not enabled for this asset. Existing positions can still be reduced or closed.' }, 403);
+      }
+    }
     if (!['limit','market'].includes(type)) return json({ ok: false, msg: 'Only limit or market orders are supported.', code: 'INVALID_ORDER_TYPE' }, 400);
     if (!['buy','sell'].includes(side)) return json({ ok: false, msg: 'Invalid trade direction.', code: 'INVALID_SIDE' }, 400);
     if (type === 'limit' && (price === null || compareMoney(price, '0') <= 0)) return json({ ok: false, msg: 'Invalid limit price.', code: 'INVALID_PRICE' }, 400);
@@ -3182,7 +3189,7 @@ async function handleRequest(event, context) {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
     if (!perpetualEngineRequested()) return json({ ok: true, positions: [], perpetual_enabled: false });
     try {
-      const positions = await perpRestGet('perpetual_positions?select=id,symbol,side,quantity,entry_price,isolated_margin,realized_pnl,funding_paid,last_mark_price,created_at&user_id=eq.' + encodeURIComponent(String(user.uid)) + '&closed_at=is.null&order=symbol.asc');
+      const positions = await perpRestGet('perpetual_positions?select=symbol,side,quantity,entry_price,isolated_margin,realized_pnl,funding_paid,last_mark_price,created_at&user_id=eq.' + encodeURIComponent(String(user.uid)) + '&closed_at=is.null&order=symbol.asc');
       const out = [];
       for (const p of positions) {
         let mark = null, unrealized = null, estLiqPrice = null, roePct = null;
@@ -3201,7 +3208,7 @@ async function handleRequest(event, context) {
             estLiqPrice = p.side === 'long' ? entry * (1 - margin / notional) : entry * (1 + margin / notional);
           }
         } catch (_) { /* mark unavailable; return position without estimate */ }
-        out.push({ position_id: p.id, symbol: p.symbol, side: p.side, quantity: p.quantity, entry_price: p.entry_price,
+        out.push({ symbol: p.symbol, side: p.side, quantity: p.quantity, entry_price: p.entry_price,
           isolated_margin: p.isolated_margin, realized_pnl: p.realized_pnl, funding_paid: p.funding_paid,
           mark_price: mark, unrealized_pnl_est: unrealized, roe_pct_est: roePct, liquidation_price_est: estLiqPrice,
           created_at: p.created_at });
@@ -3217,21 +3224,7 @@ async function handleRequest(event, context) {
       const uid = encodeURIComponent(String(user.uid));
       const asMaker = await perpRestGet('perpetual_trades?select=id,symbol,maker_order_id,taker_order_id,price,quantity,quote_amount,maker_fee,taker_fee,created_at&maker_user_id=eq.' + uid + '&order=created_at.desc&limit=100');
       const asTaker = await perpRestGet('perpetual_trades?select=id,symbol,maker_order_id,taker_order_id,price,quantity,quote_amount,maker_fee,taker_fee,created_at&taker_user_id=eq.' + uid + '&order=created_at.desc&limit=100');
-      const combined = [...asMaker.map(t => ({ ...t, role: 'maker' })), ...asTaker.map(t => ({ ...t, role: 'taker' }))];
-      const orderIds = [...new Set(combined.flatMap(t => [t.maker_order_id, t.taker_order_id]).filter(Boolean))];
-      const orderRows = orderIds.length
-        ? await perpRestGet('perpetual_orders?select=id,side&id=in.(' + orderIds.map(id => encodeURIComponent(String(id))).join(',') + ')')
-        : [];
-      const orderSides = new Map(orderRows.map(order => [order.id, order.side]));
-      const trades = combined.map(t => {
-        const maker = t.role === 'maker';
-        const orderId = maker ? t.maker_order_id : t.taker_order_id;
-        return {
-          trade_id: t.id, symbol: t.symbol, side: orderSides.get(orderId),
-          price: t.price, quantity: t.quantity,
-          fee: maker ? t.maker_fee : t.taker_fee, role: t.role, created_at: t.created_at
-        };
-      }).filter(t => t.side === 'buy' || t.side === 'sell')
+      const trades = [...asMaker.map(t => ({ ...t, role: 'maker' })), ...asTaker.map(t => ({ ...t, role: 'taker' }))]
         .sort((a, b) => (a.created_at < b.created_at ? 1 : -1)).slice(0, 100);
       return json({ ok: true, trades: trades });
     } catch (e) { return json({ ok: false, code: 'PERPETUAL_READ_UNAVAILABLE' }, 503); }
@@ -3553,6 +3546,7 @@ async function handleRequest(event, context) {
       if ((route === 'user/reset-pwd' || route === 'user/reset-email') && verb === 'POST') return 'users.manage';
       if (route === 'kyc' && verb === 'GET') return 'kyc.read';
       if ((route === 'kyc/approve' || route === 'kyc/reject') && verb === 'POST') return 'kyc.review';
+      if (route === 'deposits' && verb === 'GET') return 'deposits.read';
       if (route === 'deposit/confirm' && verb === 'POST') return 'deposits.review';
       if (route === 'addresses' && verb === 'GET') return 'payout_addresses.read_sensitive';
       if (route === 'address/manage' && verb === 'POST') return 'payout_addresses.manage';
@@ -3566,6 +3560,8 @@ async function handleRequest(event, context) {
       if ((route === 'support/faq' || route === 'support/faq/delete') && verb === 'POST') return 'support.manage';
       if (route === 'push' && verb === 'POST') return 'announcements.manage';
       if (route === 'audit-logs' && verb === 'GET') return 'financial_audit.read';
+      if (route === 'assets' && verb === 'GET') return 'system_config.read';
+      if (route === 'assets' && verb === 'POST') return 'system_config.write';
       if (route === 'spot-markets' && verb === 'GET') return 'system_config.read';
       if (route === 'spot-markets' && verb === 'POST') return 'system_config.write';
       if (route === 'perpetual/markets' && verb === 'GET') return 'system_config.read';
@@ -3685,6 +3681,45 @@ async function handleRequest(event, context) {
       }
     }
 
+    // Asset catalogue is independent from spot pairs, deposit addresses and withdrawal networks.
+    if (sub === 'assets' && method === 'GET') {
+      return json({ ok: true, assets: normalizeAdminAssetCatalog(db.asset_catalog) });
+    }
+    if (sub === 'assets' && method === 'POST') {
+      if (!Array.isArray(body.assets) || body.assets.length !== ASSET_CATALOG_DEFAULTS.length) {
+        return json({ ok: false, code: 'ASSET_CATALOG_INVALID', msg: 'The asset catalogue must contain the complete supported asset set.' }, 400);
+      }
+      const seen = new Set();
+      const normalized = [];
+      for (const item of body.assets) {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) return json({ ok: false, code: 'ASSET_CONFIG_INVALID', msg: 'Invalid asset configuration.' }, 400);
+        const code = String(item.code || '').trim().toUpperCase();
+        const canonical = ASSET_CATALOG_DEFAULTS.find(function (asset) { return asset.code === code; });
+        const name = typeof item.name === 'string' ? item.name.trim() : '';
+        const displayName = typeof item.display_name === 'string' ? item.display_name.trim() : '';
+        const precision = item.display_precision;
+        const sortOrder = item.sort_order;
+        if (!canonical || seen.has(code) || !name || name.length > 64 || !displayName || displayName.length > 64 ||
+            !Number.isInteger(precision) || precision < 0 || precision > 18 ||
+            typeof item.enabled !== 'boolean' || typeof item.visible !== 'boolean' ||
+            typeof item.spot_enabled !== 'boolean' || typeof item.perpetual_enabled !== 'boolean' ||
+            typeof item.seconds_enabled !== 'boolean' || typeof item.earn_enabled !== 'boolean' ||
+            !Number.isInteger(sortOrder) || sortOrder < 0 || sortOrder > 9999) {
+          return json({ ok: false, code: 'ASSET_CONFIG_INVALID', msg: 'Asset fields are invalid or contain an unsupported asset.' }, 400);
+        }
+        seen.add(code);
+        normalized.push({ code: code, name: name, display_name: displayName, display_precision: precision, enabled: item.enabled, visible: item.visible, spot_enabled: item.spot_enabled, perpetual_enabled: item.perpetual_enabled,
+          seconds_enabled: item.seconds_enabled, earn_enabled: item.earn_enabled, sort_order: sortOrder });
+      }
+      if (seen.size !== ASSET_CATALOG_DEFAULTS.length) return json({ ok: false, code: 'ASSET_CATALOG_INCOMPLETE', msg: 'All 26 supported assets must be retained.' }, 400);
+      normalized.sort(function (a, b) { return a.sort_order - b.sort_order || a.code.localeCompare(b.code); });
+      db.asset_catalog = normalized;
+      await auditAdmin('asset_catalog_update', 'asset_catalog', JSON.stringify({ asset_count: normalized.length, enabled_count: normalized.filter(function (asset) { return asset.enabled; }).length, visible_count: normalized.filter(function (asset) { return asset.visible; }).length }), adminUserId);
+      await saveDB(db);
+      const auditFlush = await flushAdminAuditOutbox();
+      return json({ ok: true, assets: normalized, audit_sync_pending: auditFlush.pending });
+    }
+
     // Spot-market controls are permissioned, audited and persisted through PostgreSQL RPCs.
     if (sub === 'spot-markets' && method === 'GET') {
       try {
@@ -3728,6 +3763,12 @@ async function handleRequest(event, context) {
           (maxLimitPrice !== null && (!decimal.test(maxLimitPrice) || Number(maxLimitPrice) <= 0)) ||
           !reason || reason.length > 500 || !/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) {
         return json({ ok: false, code: 'SPOT_MARKET_CONFIG_INVALID', msg: 'Spot market parameters are invalid.' }, 400);
+      }
+      // A market may be prepared while disabled, but it cannot be activated
+      // unless its base asset is enabled, visible and explicitly allowed for Spot.
+      // This keeps direct API calls aligned with the live asset catalogue UI.
+      if (enabled && (!isAssetModuleEnabled(db, baseAsset, 'spot_enabled') || !isAssetVisible(db, baseAsset))) {
+        return json({ ok: false, code: 'SPOT_ASSET_NOT_AVAILABLE', msg: 'Enable and make this asset visible for Spot before activating its market.' }, 409);
       }
       const normalized = {
         base_asset: baseAsset, quote_asset: quoteAsset, enabled,
@@ -3782,12 +3823,23 @@ async function handleRequest(event, context) {
     // GET /api/admin/users?search=
     if (sub === 'users' && method === 'GET') {
       const q = ((event.queryStringParameters && event.queryStringParameters.search) || '').toLowerCase();
-      let list = Object.values(db.users);
+      const allUsers = Object.values(db.users || {});
+      const identityOwnerCounts = new Map();
+      allUsers.forEach(function (candidate) {
+        const normalizedIds = new Set(getUserLinkedIdentityIds(candidate)
+          .filter(isSupabaseUserId).map(function (identityId) { return identityId.toLowerCase(); }));
+        normalizedIds.forEach(function (normalizedId) {
+          identityOwnerCounts.set(normalizedId, (identityOwnerCounts.get(normalizedId) || 0) + 1);
+        });
+      });
+      let list = allUsers;
       if (q) list = list.filter(function (u) { return String(u.email || '').toLowerCase().indexOf(q) > -1 || String(u.uid || '').toLowerCase().indexOf(q) > -1; });
+      const matchedCount = list.length;
       list = list.slice(0, 200);
       const canReadFinancialAudit = hasAdminPermission(adminMembership, 'financial_audit.read');
+      const useCanonicalFinancialReads = financialPostgresReadsEnabled();
       let normalizedBalances = null;
-      if (canReadFinancialAudit && financialPostgresReadsEnabled()) {
+      if (canReadFinancialAudit && useCanonicalFinancialReads) {
         try { normalizedBalances = await readAdminAccountBalances(list.map(function (u) { return String(u.uid); })); }
         catch (e) { return json({ ok: false, msg: 'Financial data temporarily unavailable. Please try again later.', code: 'FINANCIAL_READ_UNAVAILABLE' }, 503); }
       }
@@ -3799,11 +3851,22 @@ async function handleRequest(event, context) {
         });
         try { await getLiveUsdtPrices(priceBases); } catch (_) {}
       }
-      return json({ ok: true, users: list.map(function (u) {
-        const record = { uid: u.uid, email: u.email || '', admin_auth_user_id: adminMembership.is_super_admin === true ? String(u.supabase_user_id || (Array.isArray(u.supabase_user_ids) ? u.supabase_user_ids[0] : '') || '') : '', kyc_status: (u.kyc && u.kyc.status) || 'unverified', created_at: u.created_at || '', frozen: !!u.frozen, twofa: !!u.twofa_enabled };
+      return json({ ok: true, source: 'btcbox_state_user_directory', completeness: matchedCount > list.length ? 'limit_reached' : 'snapshot', matched_count: matchedCount, returned_count: list.length, users: list.map(function (u) {
+        const rawIdentityIds = getUserLinkedIdentityIds(u);
+        const linkedIdentityIds = Array.from(new Set(rawIdentityIds.filter(isSupabaseUserId)
+          .map(function (identityId) { return identityId.toLowerCase(); })));
+        const hasInvalidIdentity = rawIdentityIds.some(function (identityId) { return !isSupabaseUserId(identityId); });
+        const hasDuplicateIdentity = linkedIdentityIds.some(function (identityId) {
+          return (identityOwnerCounts.get(identityId) || 0) > 1;
+        });
+        const identityLinkStatus = hasDuplicateIdentity ? 'duplicate_mapping' :
+          hasInvalidIdentity ? 'invalid_mapping' : linkedIdentityIds.length ? 'linked' : 'missing';
+        const record = { uid: u.uid, email: u.email || '', auth_identity_link_status: identityLinkStatus, auth_identity_count: linkedIdentityIds.length, admin_auth_user_id: adminMembership.is_super_admin === true ? String(u.supabase_user_id || (Array.isArray(u.supabase_user_ids) ? u.supabase_user_ids[0] : '') || '') : '', kyc_status: (u.kyc && u.kyc.status) || 'unverified', created_at: u.created_at || '', frozen: !!u.frozen, twofa: !!u.twofa_enabled };
         if (canReadFinancialAudit) {
           const balances = normalizedBalances ? (normalizedBalances[String(u.uid)] || {}) : (u.balances || {});
           record.total_usdt = totalUsdt(balances, livePriceCache.prices);
+          record.financial_summary_source = useCanonicalFinancialReads ? 'postgres_financial_ledger' : 'legacy_state_retention_limited';
+          record.financial_summary_completeness = useCanonicalFinancialReads ? 'canonical_snapshot' : 'retention_limited';
         }
         return record;
       }) });
@@ -3845,8 +3908,8 @@ async function handleRequest(event, context) {
       const uid = (event.queryStringParameters && event.queryStringParameters.uid) || '';
       const u = db.users[uid];
       if (!u) return json({ ok: false, msg: 'User not found.' }, 404);
-      // Financial snapshot availability must not block non-financial user profile actions.
-      // Manual balance writes remain fail-closed in the dedicated ledger RPC below.
+      // Basic user identity and verification details remain available under users.read.
+      // Financial projections below are independently permission-scoped and fail closed when canonical reads are enabled.
       // Never expose password hashes, salts, or session tokens through admin user detail APIs.
       const safeUser = JSON.parse(JSON.stringify(u));
       delete safeUser.password_hash;
@@ -3894,10 +3957,7 @@ async function handleRequest(event, context) {
             safeUser.withdrawal_history_source = 'postgres_financial_ledger';
           }
         } catch (e) {
-          // Keep the non-financial profile usable, but expose no stale or legacy
-          // financial values. The UI disables manual credit unless the canonical
-          // PostgreSQL ledger snapshot is positively confirmed.
-          if (canReadDeposits) safeUser.financial_balance_source = 'unverified';
+          return json({ ok: false, msg: 'Financial data temporarily unavailable. Please try again later.', code: 'FINANCIAL_READ_UNAVAILABLE' }, 503);
         }
       } else {
         if (canReadDeposits) {
@@ -3968,14 +4028,13 @@ async function handleRequest(event, context) {
         const amountText = parseMoneyInput(deltaNegative ? deltaInput.slice(1) : deltaInput);
         const mode = String(body.mode || 'adjust').trim().toLowerCase();
         const requestId = String(body.request_id || '').trim();
-        const suppliedReason = String(body.reason || '').trim().slice(0, 500);
-        // Keep database audit metadata mandatory without asking staff to type a reason.
-        const reason = suppliedReason || (mode === 'freeze' ? '管理员后台冻结资金' : mode === 'unfreeze' ? '管理员后台解冻资金' : deltaNegative ? '管理员后台下分' : '管理员后台上分');
+        const isManualDebit = mode === 'adjust' && deltaNegative;
+        const reason = isManualDebit ? 'admin_manual_debit' : String(body.reason || '').trim().slice(0, 500);
         if (!allowedCoins.includes(coin)) return json({ ok: false, msg: 'Operation failed: coin not supported.' }, 400);
         if (!['adjust', 'freeze', 'unfreeze'].includes(mode)) return json({ ok: false, msg: 'Invalid fund operation type.' }, 400);
         if (!amountText || compareMoney(amountText, '0') <= 0 || compareMoney(amountText, '1000000000000') > 0 || (mode !== 'adjust' && deltaNegative)) return json({ ok: false, msg: 'Invalid operation amount. Freeze/unfreeze amounts must be positive.' }, 400);
         if (!/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) return json({ ok: false, code: 'IDEMPOTENCY_KEY_REQUIRED', msg: 'A valid operation ID is required. Balance was unchanged.' }, 400);
-        if (reason.length < 5) return json({ ok: false, msg: 'Please provide an adjustment reason of at least 5 characters. Balance was unchanged.' }, 400);
+        if (!isManualDebit && reason.length < 5) return json({ ok: false, msg: 'Please provide an adjustment reason of at least 5 characters. Balance was unchanged.' }, 400);
         const adminId = adminUserId;
         if (!adminId) return json({ ok: false, code: 'ADMIN_ACTOR_NOT_CONFIGURED', msg: 'Administrator audit identity not configured. Balance was unchanged.' }, 503);
         // PostgreSQL numeric::text preserves canonical decimal notation. Build
@@ -4189,13 +4248,9 @@ async function handleRequest(event, context) {
       const status = normalizeKycStatus(u.kyc.status);
       const override = body.admin_override === true;
       const reason = String(body.reason || '').trim().slice(0, 300);
-      // A response-lost retry after a successful normal approval is safe to
-      // acknowledge as a duplicate; it must not create another audit event.
-      if (status === 'approved' && !override) {
-        return json({ ok: true, duplicate: true, audit_sync_pending: false, msg: 'KYC application was already approved.' });
-      }
       // Accept every in-review alias (pending / processing / under_review) as a
-      // normal approval target. Other states require the admin exception flow.
+      // normal approval target. Only non-in-review states (already approved,
+      // rejected, etc.) require the admin exception flow with a reason.
       if (!isKycInReview(status) && !override) return json({ ok: false, code: 'KYC_EXCEPTION_REQUIRED', msg: 'Only applications awaiting review can be approved directly. Other states require the admin exception flow with a reason.' }, 409);
       if (isKycInReview(status) && !u.kyc.document_path && !override) return json({ ok: false, code: 'KYC_DOCUMENT_REQUIRED', msg: 'A stored identity document image is required before approval.' }, 409);
       if (override && !reason) return json({ ok: false, code: 'ADMIN_REASON_REQUIRED', msg: 'A reason is required for admin exception approval.' }, 400);
@@ -4324,6 +4379,24 @@ async function handleRequest(event, context) {
       const auditFlush = await flushAdminAuditOutbox();
       return json({ok:true,audit_sync_pending:auditFlush.pending,msg:'Submitted successfully.'});
     }
+    function resolveAuditIdentity(uidValue, actorValue) {
+      const subjectUid = String(uidValue || '').slice(0, 100);
+      const actorId = String(actorValue || '').slice(0, 80);
+      const subject = subjectUid && db.users && db.users[subjectUid] ? db.users[subjectUid] : null;
+      const actorMatches = isSupabaseUserId(actorId) ? Object.values(db.users || {}).filter(function (candidate) {
+        return getUserLinkedIdentityIds(candidate).some(function (identityId) {
+          return isSupabaseUserId(identityId) && identityId.toLowerCase() === actorId.toLowerCase();
+        });
+      }) : [];
+      const uniqueActorUids = Array.from(new Set(actorMatches.map(function (candidate) { return String(candidate.uid || ''); }).filter(Boolean)));
+      return {
+        operator_uid: uniqueActorUids.length === 1 ? uniqueActorUids[0] : '',
+        operator_email: uniqueActorUids.length === 1 ? String(actorMatches[0].email || '').slice(0, 254) : '',
+        operator_identity_status: !isSupabaseUserId(actorId) ? 'non_uuid_actor' : uniqueActorUids.length === 1 ? 'linked' : uniqueActorUids.length > 1 ? 'ambiguous' : 'unmatched',
+        subject_email: subject ? String(subject.email || '').slice(0, 254) : ''
+      };
+    }
+
     if (sub === 'audit-logs' && method === 'GET') {
       const params = event.queryStringParameters || {};
       const limitValue = Number(params.limit || 100);
@@ -4346,13 +4419,8 @@ async function handleRequest(event, context) {
       if (postgresAuditReadsRequired) {
         try {
           const result = await readAdminAuditLogPage({ limit, action: actionFilter, uid: uidFilter, before });
-          return json({
-            ok: true,
-            source: 'postgres_financial_audit_log',
-            completeness: 'postgres_canonical',
-            logs: result.logs,
-            next_before: result.next_before
-          });
+          const logs = result.logs.map(function (entry) { return Object.assign(entry, resolveAuditIdentity(entry.uid, entry.by)); });
+          return json({ ok: true, source: 'postgres_financial_audit_log', completeness: 'postgres_canonical', logs: logs, next_before: result.next_before });
         } catch (e) {
           return json({ ok: false, code: 'ADMIN_AUDIT_READ_UNAVAILABLE', msg: 'Canonical administrator audit history is temporarily unavailable. No incomplete fallback was shown.' }, 503);
         }
@@ -4376,7 +4444,8 @@ async function handleRequest(event, context) {
           by: String(entry.by || 'admin').slice(0, 80),
           time: String(entry.time || '').slice(0, 40),
           detail: safeDetail,
-          postgres_sync_status: ['synced', 'pending', 'local_only'].includes(entry.postgres_sync_status) ? entry.postgres_sync_status : 'unknown'
+          postgres_sync_status: ['synced', 'pending', 'local_only'].includes(entry.postgres_sync_status) ? entry.postgres_sync_status : 'unknown',
+          ...resolveAuditIdentity(entry.uid, entry.by)
         };
       });
       return json({
@@ -4450,6 +4519,53 @@ async function handleRequest(event, context) {
     }
 
 
+    // GET /api/admin/deposits — read-only, latest 200 canonical PostgreSQL deposit records.
+    // Do not fall back to legacy JSON: the workbench must never imply completeness from stale state.
+    if (sub === 'deposits' && method === 'GET') {
+      if (!financialPostgresReadsEnabled()) {
+        return json({ ok: false, code: 'FINANCIAL_READ_UNAVAILABLE', msg: 'Canonical deposit records are unavailable until PostgreSQL financial reads are enabled.' }, 503);
+      }
+      try {
+        const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+        if (!base || !supabaseStorageConfigured()) throw new Error('PostgreSQL financial store unavailable');
+        const query = new URLSearchParams({
+          select: 'id,user_id,asset,network,amount,txid,status,created_at',
+          order: 'created_at.desc',
+          limit: '200'
+        });
+        const response = await fetch(base + '/rest/v1/deposit_records?' + query.toString(), {
+          method: 'GET',
+          headers: supabaseHeaders(),
+          signal: AbortSignal.timeout(5000)
+        });
+        const rows = await response.json().catch(() => null);
+        if (!response.ok || !Array.isArray(rows)) {
+          return json({ ok: false, code: 'DEPOSIT_READ_UNAVAILABLE', msg: 'Deposit records are temporarily unavailable. Please try again later.' }, 503);
+        }
+        const usersById = db.users || {};
+        const deposits = rows.map(function (record) {
+          const uid = String(record.user_id || '');
+          const user = usersById[uid] || Object.values(usersById).find(function (candidate) {
+            return String(candidate.uid || '') === uid;
+          });
+          return {
+            id: String(record.id || ''),
+            uid: uid,
+            email: user ? String(user.email || '') : '',
+            coin: String(record.asset || ''),
+            network: String(record.network || ''),
+            amount: String(record.amount ?? ''),
+            txid: String(record.txid || ''),
+            status: String(record.status || ''),
+            time: record.created_at || null
+          };
+        });
+        return json({ ok: true, deposits: deposits, source: 'postgres_financial_ledger', completeness: 'latest_200' });
+      } catch (_) {
+        return json({ ok: false, code: 'DEPOSIT_READ_UNAVAILABLE', msg: 'Deposit records are temporarily unavailable. Please try again later.' }, 503);
+      }
+    }
+
     // GET /api/admin/withdrawals 待审核提现列表
     if (sub === 'withdrawals' && method === 'GET') {
       if (financialPostgresReadsEnabled()) {
@@ -4460,7 +4576,7 @@ async function handleRequest(event, context) {
             const legacyUser = Object.values(usersById).find(function (u) { return String(u.uid) === String(w.uid); });
             return Object.assign({}, w, { email: legacyUser ? (legacyUser.email || '') : '' });
           });
-          return json({ ok: true, withdrawals: list, source: 'postgres_financial_ledger' });
+          return json({ ok: true, withdrawals: list, source: 'postgres_financial_ledger', completeness: 'pending_queue' });
         } catch (e) {
           return json({ ok: false, msg: 'Financial data temporarily unavailable. Please try again later.', code: 'FINANCIAL_READ_UNAVAILABLE' }, 503);
         }
@@ -4472,7 +4588,7 @@ async function handleRequest(event, context) {
         });
       });
       list.sort(function (a, b) { return (a.time < b.time) ? 1 : -1; });
-      return json({ ok: true, withdrawals: list });
+      return json({ ok: true, withdrawals: list, source: 'legacy_state_snapshot', completeness: 'partial' });
     }
     // GET /api/admin/orders 全部订单。When the matching engine is requested,
     // never silently show legacy JSON orders: they would omit orders written to PostgreSQL.
@@ -4595,9 +4711,13 @@ async function handleRequest(event, context) {
     // window prevents one busy thread from hiding other customers in the inbox.
     if (sub === 'support/messages' && method === 'GET') {
       const list = [];
+      const params = event.queryStringParameters || {};
+      const searchQuery = String(params.search || '').trim().slice(0, 128).toLowerCase();
       const readReceipts = db.admin_support_read_receipts && typeof db.admin_support_read_receipts === 'object' ? db.admin_support_read_receipts : {};
       Object.values(db.users).forEach(function (u) {
         const uid = String(u.uid || '');
+        const email = String(u.email || '');
+        const username = String(u.username || '');
         const conversation = Array.isArray(u.support_messages) ? u.support_messages : [];
         const receiptKey = String(adminUserId) + ':' + uid;
         const receipt = readReceipts[receiptKey];
@@ -4606,37 +4726,50 @@ async function handleRequest(event, context) {
         const readCursorIndex = lastReadMessageId
           ? conversation.findIndex(function(m) { return m && String(m.id || '') === lastReadMessageId; })
           : -1;
-        // Count unread customer messages across the full retained conversation,
-        // using the exact message cursor so same-second arrivals stay unread.
         const unreadCount = conversation.filter(function(m, index) {
           if (!m || m.from !== 'user') return false;
           if (readCursorIndex >= 0) return index > readCursorIndex;
           if (lastReadMessageId) return String(m.id || '') > lastReadMessageId;
           return !lastReadAt || String(m.time || '') > lastReadAt;
         }).length;
-        // Count consecutive unanswered customer messages across the full retained
-        // conversation; the UI window is capped at 100 messages per customer.
-        let unansweredCount = 0;
+
+        const identityMatches = !!searchQuery && [uid, email, username].some(function(value) {
+          return value.toLowerCase().includes(searchQuery);
+        });
+        const exactMessageIndex = searchQuery ? conversation.findIndex(function(m) {
+          return m && String(m.id || '').toLowerCase() === searchQuery;
+        }) : -1;
+        const exactMessageMatches = exactMessageIndex >= 0
+          ? conversation.slice(Math.max(0, exactMessageIndex - 10), Math.min(conversation.length, exactMessageIndex + 11))
+          : [];
+        const selectedMessages = !searchQuery
+          ? conversation.slice(-100)
+          : exactMessageMatches.length
+            ? exactMessageMatches
+            : identityMatches
+              ? conversation.slice(-100)
+              : conversation.filter(function(m) {
+                  return m && String(m.id || '').toLowerCase().includes(searchQuery);
+                });
+        let threadUnansweredCount = 0;
         for (let index = conversation.length - 1; index >= 0; index -= 1) {
-          const message = conversation[index];
-          if (!message) continue;
-          if (message.from === 'admin') break;
-          if (message.from === 'user') unansweredCount += 1;
+          if (conversation[index] && conversation[index].from === 'admin') break;
+          if (conversation[index] && conversation[index].from === 'user') threadUnansweredCount += 1;
         }
-        // Bound each customer's response independently. A busy customer's
-        // history must never consume the shared response window and hide other
-        // customers from the support inbox.
-        conversation.slice(-100).forEach(function (m) {
+        if (searchQuery && selectedMessages.length === 0) return;
+
+        selectedMessages.slice(-100).forEach(function (m) {
           if (!m || (m.from !== 'user' && m.from !== 'admin')) return;
           list.push({
             id: String(m.id || ''),
             uid: uid,
-            email: String(u.email || ''),
+            email: email,
+            username: username,
             from: m.from,
             content: String(m.content || ''),
             time: String(m.time || ''),
             admin_unread_count: unreadCount,
-            unanswered_count: unansweredCount
+            thread_unanswered_count: threadUnansweredCount
           });
         });
       });
@@ -4644,7 +4777,10 @@ async function handleRequest(event, context) {
         if (a.time === b.time) return a.id < b.id ? -1 : 1;
         return a.time < b.time ? -1 : 1;
       });
-      return json({ ok: true, messages: list });
+      // Search results are server-filtered and bounded; the browser never loads
+      // every retained conversation just to locate a message or customer.
+      const boundedList = searchQuery ? list.slice(-500) : list;
+      return json({ ok: true, messages: boundedList, search: searchQuery || null });
     }
 
     // ---------- Admin: help centre (FAQ) ----------
@@ -4687,15 +4823,16 @@ async function handleRequest(event, context) {
         return json({ ok: false, code: 'INVALID_FAQ_ID', msg: 'FAQ identifiers may only contain letters, numbers, hyphens and underscores.' }, 400);
       }
       const entries = normalizeSupportFaq(db);
-      if (entries.length > 200) {
-        return json({ ok: false, code: 'FAQ_LIMIT_REACHED', msg: 'The help centre already contains the maximum number of entries.' }, 409);
-      }
       const enabled = body.enabled === undefined ? true : body.enabled === true || body.enabled === 'true';
       const clash = requestedId ? entries.filter(function (entry) { return entry && entry.id !== requestedId && String(entry.question).trim() === question; }) : entries.filter(function (entry) { return entry && String(entry.question).trim() === question; });
       if (clash.length) {
         return json({ ok: false, code: 'FAQ_DUPLICATE_QUESTION', msg: 'Another help-centre entry already uses this question.' }, 409);
       }
       const existing = requestedId ? entries.find(function (entry) { return entry && entry.id === requestedId; }) : null;
+      // Updates remain allowed at capacity; only a genuinely new entry is blocked.
+      if (!existing && entries.length >= 200) {
+        return json({ ok: false, code: 'FAQ_LIMIT_REACHED', msg: 'The help centre already contains the maximum number of entries.' }, 409);
+      }
       let entry;
       if (existing) {
         existing.question = question;
@@ -4741,63 +4878,89 @@ async function handleRequest(event, context) {
         if (!hasAdminPermission(adminMembership, 'system_config.read')) return json({ ok: false, code: 'ADMIN_PERMISSION_DENIED', permission: 'system_config.read' }, 403);
         if (!supabaseStorageConfigured()) return json({ ok: false, code: 'PERPETUAL_RPC_NOT_CONFIGURED' }, 503);
         try {
-          const markets = await perpRestGet('perpetual_markets?select=symbol,base_asset,quote_asset,enabled,status,price_tick,quantity_step,min_quantity,min_notional,market_quantity_step,market_min_quantity,market_max_quantity,max_quantity,max_position_notional,max_leverage,maintenance_margin_rate,maker_fee_rate,taker_fee_rate,funding_interval_sec,funding_rate_cap,mark_price_stale_sec,circuit_breaker_deviation_pct,updated_at&order=symbol.asc');
+          const markets = await perpRestGet('perpetual_markets?select=symbol,base_asset,quote_asset,enabled,status,price_tick,quantity_step,min_quantity,max_quantity,max_position_notional,max_leverage,maintenance_margin_rate,maker_fee_rate,taker_fee_rate,funding_interval_sec,funding_rate_cap,mark_price_stale_sec,circuit_breaker_deviation_pct,updated_at&order=symbol.asc');
           return json({ ok: true, markets: markets });
-        } catch (e) { return json({ ok: false, code: 'PERPETUAL_READ_UNAVAILABLE' }, 503); }
+        } catch (_) { return json({ ok: false, code: 'PERPETUAL_READ_UNAVAILABLE' }, 503); }
       }
       if (perpSub === 'market' && method === 'POST') {
         if (!hasAdminPermission(adminMembership, 'system_config.write')) return json({ ok: false, code: 'ADMIN_PERMISSION_DENIED', permission: 'system_config.write' }, 403);
         if (!supabaseStorageConfigured()) return json({ ok: false, code: 'PERPETUAL_RPC_NOT_CONFIGURED' }, 503);
-        const symbol = String(body.symbol || '').trim().toUpperCase();
-        const baseAsset = String(body.base_asset || symbol.replace('USDT','')).trim().toUpperCase();
+
+        const baseAsset = String(body.base_asset || '').trim().toUpperCase();
+        const requestedSymbol = String(body.symbol || '').trim().toUpperCase();
+        const symbol = requestedSymbol || (baseAsset ? baseAsset + 'USDT' : '');
         const priceTick = parseMoneyInput(body.price_tick);
         const quantityStep = parseMoneyInput(body.quantity_step);
         const minQuantity = parseMoneyInput(body.min_quantity);
-        const minNotional = parseMoneyInput(body.min_notional);
-        const marketQuantityStep = parseMoneyInput(body.market_quantity_step);
-        const marketMinQuantity = parseMoneyInput(body.market_min_quantity);
-        const marketMaxQuantity = body.market_max_quantity ? parseMoneyInput(body.market_max_quantity) : null;
-        const maxQuantity = body.max_quantity ? parseMoneyInput(body.max_quantity) : null;
-        const maxPositionNotional = parseMoneyInput(body.max_position_notional);
-        const invalidOptionalLimits = (body.max_quantity && !maxQuantity);
-        const invalidMarketMax = body.market_max_quantity && !marketMaxQuantity;
+        const maxQuantity = body.max_quantity === null || body.max_quantity === undefined || body.max_quantity === '' ? null : parseMoneyInput(body.max_quantity);
+        const maxPositionNotional = body.max_position_notional === null || body.max_position_notional === undefined || body.max_position_notional === '' ? null : parseMoneyInput(body.max_position_notional);
         const maxLeverage = Number(body.max_leverage);
-        const mmr = body.maintenance_margin_rate === undefined ? null : Number(body.maintenance_margin_rate);
-        const makerFee = body.maker_fee_rate === undefined ? 0 : Number(body.maker_fee_rate);
-        const takerFee = body.taker_fee_rate === undefined ? 0 : Number(body.taker_fee_rate);
-        const fundingInterval = Number(body.funding_interval_sec || 28800);
-        const fundingCap = body.funding_rate_cap === undefined ? 0.0075 : Number(body.funding_rate_cap);
-        const status = 'paused'; // This endpoint configures/prewarms markets only; trading activation is a separate release gate.
-        const enabled = body.enabled === true;
-        const reason = String(body.reason || '').trim();
-        if (!/^[A-Z0-9]{3,20}$/.test(symbol) || !/^[A-Z0-9]{2,16}$/.test(baseAsset)
-            || symbol !== baseAsset + 'USDT'
-            || !priceTick || compareMoney(priceTick,'0')<=0 || !quantityStep || compareMoney(quantityStep,'0')<=0
-            || !minQuantity || compareMoney(minQuantity,'0')<=0 || !minNotional || compareMoney(minNotional,'0')<=0
-            || !marketQuantityStep || compareMoney(marketQuantityStep,'0')<=0 || !marketMinQuantity || compareMoney(marketMinQuantity,'0')<=0
-            || (marketMaxQuantity && compareMoney(marketMaxQuantity,marketMinQuantity)<0) || !maxPositionNotional || compareMoney(maxPositionNotional,'0')<=0 || compareMoney(maxPositionNotional,minNotional)<0 || !Number.isInteger(maxLeverage) || maxLeverage < 1 || maxLeverage > 100
-            || !['trading','paused','open_only','liquidation_only'].includes(status)
-            || mmr === null || mmr < 0 || mmr > 0.5 || makerFee < 0 || takerFee < 0 || fundingInterval !== 28800 || fundingCap <= 0 || fundingCap > 0.0075
-            || invalidOptionalLimits || invalidMarketMax || !Number.isFinite(makerFee) || makerFee < 0 || makerFee > 0.1 || !Number.isFinite(takerFee) || takerFee < 0 || takerFee > 0.1
-            || !Number.isFinite(fundingCap) || reason.length < 5 || reason.length > 500 || /[\u0000-\u001f\u007f]/.test(reason)) {
-          return json({ ok: false, code: 'INVALID_MARKET_CONFIG', msg: 'Invalid perpetual market configuration (max_leverage must be 1-100, mmr 0-0.5).' }, 400);
+        const mmr = Number(body.maintenance_margin_rate);
+        const makerFee = Number(body.maker_fee_rate);
+        const takerFee = Number(body.taker_fee_rate);
+        const fundingInterval = Number(body.funding_interval_sec);
+        const fundingCap = Number(body.funding_rate_cap);
+        const staleSec = Number(body.mark_price_stale_sec);
+        const breaker = Number(body.circuit_breaker_deviation_pct);
+        const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
+        const supportedBaseAsset = ASSET_CATALOG_DEFAULTS.some(asset => asset.code === baseAsset) && !['USDT', 'USDC'].includes(baseAsset);
+        const invalidOptionalLimits =
+          (body.max_quantity !== null && body.max_quantity !== undefined && body.max_quantity !== '' && !maxQuantity) ||
+          (body.max_position_notional !== null && body.max_position_notional !== undefined && body.max_position_notional !== '' && !maxPositionNotional);
+
+        if (!/^[A-Z0-9]{3,20}$/.test(symbol) || !supportedBaseAsset || symbol !== baseAsset + 'USDT' ||
+            !priceTick || compareMoney(priceTick, '0') <= 0 ||
+            !quantityStep || compareMoney(quantityStep, '0') <= 0 ||
+            !minQuantity || compareMoney(minQuantity, '0') <= 0 ||
+            (maxQuantity !== null && (compareMoney(maxQuantity, '0') <= 0 || compareMoney(maxQuantity, minQuantity) < 0)) ||
+            (!maxPositionNotional || compareMoney(maxPositionNotional, '0') <= 0) ||
+            invalidOptionalLimits ||
+            !Number.isInteger(maxLeverage) || maxLeverage < 1 || maxLeverage > 100 ||
+            !Number.isFinite(mmr) || mmr < 0 || mmr > 0.5 ||
+            !Number.isFinite(makerFee) || makerFee < 0 || makerFee > 0.1 ||
+            !Number.isFinite(takerFee) || takerFee < 0 || takerFee > 0.1 ||
+            !Number.isInteger(fundingInterval) || fundingInterval !== 28800 ||
+            !Number.isFinite(fundingCap) || fundingCap <= 0 || fundingCap > 0.0075 ||
+            !Number.isInteger(staleSec) || staleSec < 15 || staleSec > 300 ||
+            !Number.isFinite(breaker) || breaker <= 0 || breaker > 20 ||
+            reason.length < 5 || reason.length > 500 || /[\u0000-\u001f\u007f]/.test(reason)) {
+          return json({ ok: false, code: 'INVALID_MARKET_CONFIG', msg: 'Invalid perpetual market configuration. Check asset, precision, positive maximum exposure cap, risk limits and required reason.' }, 400);
         }
+
+        // Configuration writes never activate trading. Activation requires a separate release gate.
+        const payload = {
+          symbol: symbol, base_asset: baseAsset, quote_asset: 'USDT',
+          enabled: false, status: 'paused',
+          price_tick: priceTick, quantity_step: quantityStep, min_quantity: minQuantity,
+          max_quantity: maxQuantity, max_position_notional: maxPositionNotional,
+          max_leverage: maxLeverage, maintenance_margin_rate: mmr,
+          maker_fee_rate: makerFee, taker_fee_rate: takerFee,
+          funding_interval_sec: fundingInterval, funding_rate_cap: fundingCap,
+          mark_price_stale_sec: staleSec, circuit_breaker_deviation_pct: breaker,
+          updated_at: new Date().toISOString()
+        };
         try {
-          const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
-          const payload = { symbol: symbol, base_asset: baseAsset, quote_asset: 'USDT', enabled: enabled, status: status,
-            price_tick: priceTick, quantity_step: quantityStep, min_quantity: minQuantity, min_notional: minNotional,
-            market_quantity_step: marketQuantityStep, market_min_quantity: marketMinQuantity, market_max_quantity: marketMaxQuantity, max_quantity: maxQuantity,
-            max_position_notional: maxPositionNotional, max_leverage: maxLeverage, maintenance_margin_rate: mmr,
-            maker_fee_rate: makerFee, taker_fee_rate: takerFee, funding_interval_sec: fundingInterval, funding_rate_cap: fundingCap,
-            updated_at: new Date().toISOString() };
-          await auditAdmin('perpetual_market_upsert', symbol, JSON.stringify({ ...payload, reason: reason }), adminUserId);
+          const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+          const beforeRows = await perpRestGet('perpetual_markets?select=symbol,base_asset,quote_asset,enabled,status,price_tick,quantity_step,min_quantity,max_quantity,max_position_notional,max_leverage,maintenance_margin_rate,maker_fee_rate,taker_fee_rate,funding_interval_sec,funding_rate_cap,mark_price_stale_sec,circuit_breaker_deviation_pct,updated_at&symbol=eq.' + encodeURIComponent(symbol) + '&limit=1');
+          const response = await fetch(base + '/rest/v1/perpetual_markets?on_conflict=symbol', {
+            method: 'POST',
+            headers: { ...supabaseHeaders(), 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+            body: JSON.stringify(payload),
+            signal: AbortSignal.timeout(5000)
+          });
+          if (!response.ok) return json({ ok: false, code: 'PERPETUAL_MARKET_UPSERT_FAILED' }, 503);
+
+          await auditAdmin('perpetual_market_upsert', symbol, JSON.stringify({
+            before: Array.isArray(beforeRows) ? (beforeRows[0] || null) : null,
+            after: payload,
+            reason: reason
+          }), adminUserId);
           await saveDB(db);
           const auditFlush = await flushAdminAuditOutbox();
-          if (auditFlush.persistenceUnavailable) return json({ ok: false, code: 'AUDIT_OUTBOX_STATE_UNAVAILABLE' }, 503);
-          const resp = await fetch(base + '/rest/v1/perpetual_markets?on_conflict=symbol', { method: 'POST', headers: { ...supabaseHeaders(), 'Prefer': 'resolution=merge-duplicates' }, body: JSON.stringify(payload) });
-          if (!resp.ok) { const err = await resp.text().catch(()=>''); return json({ ok: false, code: 'PERPETUAL_MARKET_UPSERT_FAILED', detail: String(resp.status) }, 503); }
-          return json({ ok: true, symbol: symbol, enabled: enabled, status: status, audit_sync_pending: auditFlush.pending });
-        } catch (e) { return json({ ok: false, code: e && e.code === 'ADMIN_AUDIT_OUTBOX_FULL' ? 'AUDIT_OUTBOX_FULL' : 'PERPETUAL_RPC_UNAVAILABLE' }, 503); }
+          return json({ ok: true, symbol: symbol, enabled: false, status: 'paused', audit_sync_pending: auditFlush.pending });
+        } catch (e) {
+          return json({ ok: false, code: e && e.code === 'ADMIN_AUDIT_OUTBOX_FULL' ? 'AUDIT_OUTBOX_FULL' : 'PERPETUAL_RPC_UNAVAILABLE' }, 503);
+        }
       }
       if (perpSub === 'liquidations' && method === 'GET') {
         if (!hasAdminPermission(adminMembership, 'financial_audit.read')) return json({ ok: false, code: 'ADMIN_PERMISSION_DENIED', permission: 'financial_audit.read' }, 403);
