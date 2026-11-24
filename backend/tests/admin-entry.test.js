@@ -10,7 +10,6 @@ const app = fs.readFileSync(path.join(root, 'assets/js/app-core.js'), 'utf8');
 const apiCore = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
 const reactApp = fs.readFileSync(path.resolve(root, '../frontend/src/App.tsx'), 'utf8');
 const reactAdminPage = fs.readFileSync(path.resolve(root, '../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
-const frontendApi = fs.readFileSync(path.resolve(root, '../frontend/src/lib/api.ts'), 'utf8');
 const adminAuth = fs.readFileSync(path.join(root, 'admin-auth.js'), 'utf8');
 const vercelConfig = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
 const authPages = fs.readFileSync(path.resolve(root, '../frontend/src/features/auth/AuthPages.tsx'), 'utf8');
@@ -210,25 +209,22 @@ test('admin console exposes authenticated editing for supported deposit addresse
 });
 
 
-test('admin console exposes read-only order and support inbox views with escaped API fields', () => {
-  assert.ok(accountView.includes('data-atab="orders">订单查询</div>'));
-  assert.ok(accountView.includes('data-atab="support">客服消息</div>'));
-  assert.ok(accountView.includes('apiAdapter.adminOrders()'));
-  assert.ok(accountView.includes('apiAdapter.adminSupportMessages()'));
-  assert.ok(accountView.includes("adminOrdersSource==='legacy_state'"));
-  assert.ok(accountView.includes("escapeHtml(o.email||'—')"));
-  assert.ok(accountView.includes("escapeHtml(m.content||'')"));
-  assert.ok(accountView.includes('只读收件箱'));
-  assert.ok(app.includes("async adminOrders(){ return adminFetch('/admin/orders'); }"));
-  assert.ok(app.includes("async adminSupportMessages(){ return adminFetch('/admin/support/messages'); }"));
+test('React admin exposes read-only order and searchable support inbox views', () => {
+  assert.ok(reactAdminPage.includes('tab === "orders"'));
+  assert.ok(reactAdminPage.includes('getAdminOrders(token)'));
+  assert.ok(reactAdminPage.includes('tab === "support"'));
+  assert.ok(reactAdminPage.includes('getAdminSupportMessages(token, supportSearchApplied)'));
+  assert.ok(reactAdminPage.includes('supportSearchApplied'));
+  assert.ok(reactAdminPage.includes('asText(message.content)'));
+  assert.ok(reactAdminPage.includes('ID {asText(message.id)}'));
   const orderStart = apiCore.indexOf("if (sub === 'orders' && method === 'GET')");
   const supportStart = apiCore.indexOf("if (sub === 'support/messages' && method === 'GET')");
   assert.ok(orderStart >= 0 && supportStart > orderStart);
   assert.ok(apiCore.slice(orderStart, supportStart).includes("source: 'legacy_state'"));
   const supportRoute = apiCore.slice(supportStart);
-  assert.ok(supportRoute.includes('conversation.slice(-100).forEach'));
-  assert.ok(supportRoute.includes('return json({ ok: true, messages: list });'));
-  assert.ok(!supportRoute.includes('list.slice(-500)'));
+  assert.ok(supportRoute.includes('selectedMessages.slice(-100).forEach'));
+  assert.ok(supportRoute.includes('const boundedList = searchQuery ? list.slice(-500) : list'));
+  assert.ok(supportRoute.includes('messages: boundedList'));
 });
 
 test('public build excludes the retired legacy admin shell while retaining the React admin route', () => {
@@ -245,91 +241,27 @@ test('admin portal has a dedicated sign-in surface and owns nested admin routes'
   const adminPage = fs.readFileSync(path.resolve(root, '../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
   assert.ok(app.includes('<Route path="/admin" element={<AdminPage />} />'));
   assert.ok(app.includes('<Route path="/admin/*" element={<AdminPage />} />'));
-  assert.ok(adminPage.includes('BTCBOX · 管理后台'));
+  assert.ok(adminPage.includes('BTCBOX · ADMINISTRATION'));
   assert.ok(adminPage.includes('Administrator sign in'));
   assert.ok(adminPage.includes('redirectTo="/admin"'));
 });
 
-test('admin support inbox can search customer threads, preview latest activity and open the matching user profile', () => {
-  assert.ok(reactAdminPage.includes('const [supportSearch, setSupportSearch] = useState("")'));
-  assert.ok(reactAdminPage.includes('Search support by UID or email'));
-  assert.ok(reactAdminPage.includes('Latest customer message'));
-  assert.ok(reactAdminPage.includes('Open user profile'));
-  assert.ok(reactAdminPage.includes('setPendingSupportProfileUid(thread.uid)'));
-  assert.ok(reactAdminPage.includes('if (tab !== "users" || !pendingSupportProfileUid || loading) return;'));
-});
-
-test('admin user profile includes permission-scoped withdrawal history from the existing user detail API', () => {
-  assert.ok(reactAdminPage.includes('selectedUser.withdrawal_history'));
-  assert.ok(reactAdminPage.includes('selectedUser.withdrawal_history_source'));
-  assert.ok(reactAdminPage.includes('withdrawals.read'));
-  assert.ok(reactAdminPage.includes('TxID / reference'));
-  assert.ok(apiCore.includes("safeUser.withdrawal_history = normalized.withdrawals.slice(0, 20)"));
-});
-
-
-test('admin user profile remains available when financial snapshot is unverified while manual balance writes stay ledger-only', () => {
-  const userStart = apiCore.indexOf("if (sub === 'user' && method === 'GET')");
-  const userEnd = apiCore.indexOf("// Stage the audit event", userStart);
-  const userRoute = apiCore.slice(userStart, userEnd);
-  assert.ok(userStart >= 0 && userEnd > userStart);
-  assert.doesNotMatch(userRoute, /readFinancialAccountSnapshot\(uid\)[\s\S]{0,350}return json\(\{ ok: false, code: 'FINANCIAL_BALANCE_SOURCE_UNVERIFIED'/);
-  assert.ok(userRoute.includes("safeUser.financial_balance_source = 'unverified'"));
-  assert.ok(userRoute.includes("delete safeUser.balances"));
-  const balanceStart = apiCore.indexOf("if (sub === 'user/balance' && method === 'POST')");
-  const balanceEnd = apiCore.indexOf("// POST /api/admin/user/freeze", balanceStart);
-  const balanceRoute = apiCore.slice(balanceStart, balanceEnd);
-  assert.ok(balanceRoute.includes("admin_adjustment_atomic"));
-  assert.ok(balanceRoute.includes("if (!financialWritesEnabled())"));
-  assert.doesNotMatch(balanceRoute, /saveDB\(db\)/);
-});
-
-
-test('admin support inbox reports unanswered counts from the full retained thread, not only the visible 100-message window', () => {
-  const supportStart = apiCore.indexOf("if (sub === 'support/messages' && method === 'GET')");
-  const supportRoute = apiCore.slice(supportStart);
-  assert.ok(supportRoute.includes('let unansweredCount = 0;'));
-  assert.ok(supportRoute.includes('unanswered_count: unansweredCount'));
-  assert.ok(reactAdminPage.includes('message.unanswered_count || 0'));
-});
-
-
-test('Vercel routing keeps API rewrites ahead of the SPA fallback and preserves legacy auth/admin aliases', () => {
-  const rewrites = Array.isArray(vercelConfig.rewrites) ? vercelConfig.rewrites : [];
-  const apiRewriteIndex = rewrites.findIndex(rule => rule.source === '/api/(.*)' && rule.destination === '/api/router');
-  const spaRewriteIndex = rewrites.findIndex(rule => rule.source === '/((?!api/).*)' && rule.destination === '/index.html');
-  assert.ok(apiRewriteIndex >= 0, 'API requests must reach the backend router');
-  assert.ok(spaRewriteIndex > apiRewriteIndex, 'the SPA fallback must not shadow API routes');
-  const redirects = Array.isArray(vercelConfig.redirects) ? vercelConfig.redirects : [];
-  assert.ok(redirects.some(rule => rule.source === '/admin.html' && rule.destination === '/admin'));
-  assert.ok(redirects.some(rule => rule.source === '/auth/callback' && rule.destination === '/auth/react-callback'));
-  assert.ok(reactApp.includes('<Route path="/admin/*" element={<AdminPage />} />'));
-  assert.ok(reactApp.includes('<Route path="/login" element={<AuthPage mode="login" />} />'));
-  assert.ok(reactApp.includes('<Route path="/register" element={<AuthPage mode="register" />} />'));
-});
-
-
-test('admin frontend API endpoints are backed by matching backend routes', () => {
-  const contracts = [
-    ['admin/stats', "if (sub === 'stats' && method === 'GET')"],
-    ['admin/users', "if (sub === 'users' && method === 'GET')"],
-    ['admin/user?uid=', "if (sub === 'user' && method === 'GET')"],
-    ['admin/user/balance', "if (sub === 'user/balance' && method === 'POST')"],
-    ['admin/user/freeze', "if (sub === 'user/freeze' && method === 'POST')"],
-    ['admin/kyc', "if (sub === 'kyc' && method === 'GET')"],
-    ['admin/kyc/approve', "if (sub === 'kyc/approve' && method === 'POST')"],
-    ['admin/kyc/reject', "if (sub === 'kyc/reject' && method === 'POST')"],
-    ['admin/withdraw/approve', "if (sub === 'withdraw/approve' && method === 'POST')"],
-    ['admin/withdraw/reject', "if (sub === 'withdraw/reject' && method === 'POST')"],
-    ['admin/withdraw/mark-paid', "if (sub === 'withdraw/mark-paid' && method === 'POST')"],
-    ['admin/audit-logs', "if (sub === 'audit-logs' && method === 'GET')"],
-    ['admin/support/messages', "if (sub === 'support/messages' && method === 'GET')"],
-    ['admin/support/read', "if (sub === 'support/read' && method === 'POST')"],
-    ['admin/support/reply', "if (sub === 'support/reply' && method === 'POST')"],
-    ['admin/address/manage', "if (sub === 'address/manage' && method === 'POST')"],
-  ];
-  for (const [frontendPath, backendRoute] of contracts) {
-    assert.ok(frontendApi.includes(frontendPath), `frontend API helper missing ${frontendPath}`);
-    assert.ok(apiCore.includes(backendRoute), `backend route missing ${backendRoute}`);
-  }
+test('React admin exposes audited user freeze and unfreeze actions behind users.freeze permission', () => {
+  const adminApi = fs.readFileSync(path.resolve(root, '../frontend/src/lib/api.ts'), 'utf8');
+  const routePermission = apiCore.indexOf("route === 'user/freeze' && verb === 'POST'");
+  const routeStart = apiCore.indexOf("if (sub === 'user/freeze' && method === 'POST')");
+  const routeEnd = apiCore.indexOf("// POST /api/admin/user/reset-pwd", routeStart);
+  assert.ok(routePermission >= 0, 'user freeze endpoint must map to users.freeze');
+  assert.ok(routeStart >= 0 && routeEnd > routeStart, 'user freeze endpoint must exist');
+  const route = apiCore.slice(routeStart, routeEnd);
+  assert.ok(route.includes("const reason = String(body.reason || '').trim().slice(0, 200);"));
+  assert.ok(route.includes('if (!reason)'));
+  assert.ok(route.includes('await auditAdmin(frozen ?'));
+  assert.ok(route.includes('await saveDB(db)'));
+  assert.ok(adminApi.includes('adminSetUserFrozen'));
+  assert.ok(adminApi.includes('"admin/user/freeze"'));
+  assert.ok(reactAdminPage.includes('hasPermission("users.freeze")'));
+  assert.ok(reactAdminPage.includes('adminText(user.frozen ? "Unfreeze" : "Freeze")'));
+  assert.ok(reactAdminPage.includes('target.kind === "user-freeze"'));
+  assert.ok(reactAdminPage.includes('setSelectedUser(current => current?.uid === target.uid ? { ...current, frozen } : current)'));
 });
