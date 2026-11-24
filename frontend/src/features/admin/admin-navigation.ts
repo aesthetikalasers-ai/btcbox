@@ -12,7 +12,7 @@ export const ADMIN_TABS: Array<{ id: AdminTab; label: string; permission: string
   { id: "support", label: "Support", permission: "support.read" },
   { id: "payout-addresses", label: "Bank payout details", permission: "payout_addresses.read_sensitive" },
   { id: "support-faq", label: "Help centre", permission: "support.manage" },
-  { id: "seconds", label: "Seconds policy", permission: "seconds_policy.read" },
+  { id: "seconds", label: "Seconds contracts", permission: "seconds_policy.read" },
   { id: "markets", label: "Spot markets", permission: "system_config.read" },
 ];
 
