@@ -353,6 +353,21 @@ async function assertPageAtWidth(
     await expect(chartDrawer, "Perpetual chart drawer must remain available below 1024px.").toBeVisible();
     await chartDrawer.getByRole("button", { name: "Expand chart" }).click();
     await expect(chartDrawer.getByRole("button", { name: "Collapse chart" }).first()).toBeVisible();
+    const chartBody = chartDrawer.locator(".trade-drawer-panel > .relative.min-h-0.flex-1");
+    await expect(chartBody, "Expanded perpetual chart body must be visible.").toBeVisible();
+    await expect.poll(async () => {
+      const box = await chartBody.boundingBox();
+      return box ? box.width * box.height : 0;
+    }, { message: "Expanded perpetual chart container must have non-zero width and height." }).toBeGreaterThan(0);
+    const chartCanvas = chartBody.locator("canvas").first();
+    await expect.poll(
+      () => chartBody.locator("canvas").count(),
+      { message: "Perpetual lightweight-charts must mount a canvas inside the expanded drawer." },
+    ).toBeGreaterThan(0);
+    await expect.poll(async () => {
+      const box = await chartCanvas.boundingBox();
+      return box ? box.width * box.height : 0;
+    }, { message: "Perpetual chart canvas must have non-zero rendered dimensions." }).toBeGreaterThan(0);
     await chartDrawer.getByRole("button", { name: "Collapse chart" }).first().click();
     await expect(page.getByRole("alert")).toHaveCount(0);
     await expect(page.getByText("Order book is temporarily unavailable.", { exact: true })).toHaveCount(0);
