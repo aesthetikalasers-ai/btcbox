@@ -763,6 +763,8 @@ declare
   v_max_dev numeric(12,6);
   v_status text;
   v_src jsonb;
+  v_source_name text;
+  v_sources_seen text[] := ARRAY[]::text[];
   i integer;
   v_mean numeric;
 begin
@@ -780,9 +782,16 @@ begin
   v_mean := 0;
   for i in 0..v_count-1 loop
     v_src := p_sources->i;
-    if jsonb_typeof(v_src) <> 'object'
-       or coalesce(v_src->>'source','') = ''
-       or coalesce(v_src->>'price','') !~ '^[0-9]+([.][0-9]+)?$'
+    if jsonb_typeof(v_src) <> 'object' then
+      raise exception 'invalid mark price source object';
+    end if;
+    v_source_name := lower(coalesce(v_src->>'source',''));
+    if v_source_name not in ('binance','okx','coingecko')
+       or v_source_name = any(v_sources_seen) then
+      raise exception 'mark price sources must be unique trusted providers';
+    end if;
+    v_sources_seen := array_append(v_sources_seen,v_source_name);
+    if coalesce(v_src->>'price','') !~ '^[0-9]+([.][0-9]+)?$'
        or (v_src->>'price')::numeric <= 0
        or coalesce(v_src->>'ts','') !~ '^[0-9]+$'
        or abs(extract(epoch from now())*1000 - (v_src->>'ts')::numeric) > p_max_age_sec*1000 then
