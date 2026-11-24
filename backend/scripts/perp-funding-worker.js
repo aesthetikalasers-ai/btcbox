@@ -60,9 +60,11 @@ async function rpc(name, payload) {
     }
     if (Date.now() < fundingAt.getTime()) continue;
     try {
+      // Preserve the exact Postgres timestamptz string, including microseconds.
+      // Date.toISOString() truncates to milliseconds and can make the boundary compare stale.
       const result = await rpc('perp_settle_funding_market', {
         p_symbol: market.symbol,
-        p_funding_at: fundingAt.toISOString()
+        p_funding_at: market.next_funding_at
       });
       if (!result || result.ok !== true) throw new Error('atomic funding RPC returned an unsuccessful payload');
       if (result.stale_boundary) {
