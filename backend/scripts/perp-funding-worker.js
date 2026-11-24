@@ -62,7 +62,8 @@ async function patch(query, payload, label) {
     for (const pos of positions) {
       try {
         const res = await rpc('perp_settle_funding_one', { p_symbol: m.symbol, p_funding_at: fundingAt.toISOString(), p_rate: rate, p_user_id: pos.user_id });
-        if (res && res.duplicate) skipped++; else settled++;
+        if (!res || res.ok !== true) throw new Error('funding settlement returned an unsuccessful payload');
+        if (res.duplicate) skipped++; else settled++;
         console.log('[perp-funding] settled', m.symbol, pos.user_id, 'payment_delta=' + (res?.payment_delta || 0), 'duplicate=' + !!res?.duplicate);
       } catch (e) {
         marketFailed = true; failed++;
