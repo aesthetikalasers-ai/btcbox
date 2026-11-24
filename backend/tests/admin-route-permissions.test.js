@@ -92,3 +92,35 @@ test('manual deposit credit requires both review authority and deposit-history r
   const admin = require('node:fs').readFileSync(require('node:path').resolve(__dirname, '../../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
   assert.ok(admin.includes('!hasPermission("deposits.review") || !hasPermission("deposits.read")'));
 });
+
+
+test('withdrawal actions, support read receipts, and every FAQ method retain explicit route permissions', () => {
+  const start = api.indexOf('const requiredPermission = (function(route, verb)');
+  const end = api.indexOf('if (!requiredPermission)', start);
+  assert.ok(start >= 0 && end > start, 'admin permission resolver must exist');
+  const resolver = api.slice(start, end);
+
+  const requiredMappings = [
+    ["withdraw/approve", "withdrawals.review"],
+    ["withdraw/reject", "withdrawals.review"],
+    ["withdraw/mark-paid", "withdrawals.review"],
+    ["support/read", "support.read"],
+    ["support/faq", "support.read", "GET"],
+    ["support/faq", "support.manage", "POST"],
+    ["support/faq/delete", "support.manage", "POST"],
+  ];
+
+  for (const [route, permission, explicitMethod] of requiredMappings) {
+    if (explicitMethod) {
+      assert.ok(
+        resolver.includes(`if (route === '${route}' && verb === '${explicitMethod}') return '${permission}';`),
+        `Missing permission mapping: ${explicitMethod} admin/${route} -> ${permission}`
+      );
+      continue;
+    }
+    assert.ok(
+      resolver.includes(`if (['withdraw/approve','withdraw/reject','withdraw/mark-paid'].includes(route) && verb === 'POST') return 'withdrawals.review';`),
+      `Missing withdrawal permission mapping: POST admin/${route}`
+    );
+  }
+});
