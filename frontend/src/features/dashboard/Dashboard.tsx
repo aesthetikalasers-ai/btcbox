@@ -79,7 +79,7 @@ interface BannerSlide {
  * Auto-playing promotional banner carousel (Hero area). Soft rounded corners,
  * gradient backgrounds, dot indicators, and prev/next arrows. Fully translated.
  */
-function BannerCarousel({ markets }: { markets: MarketTicker[] }) {
+function BannerCarousel({ markets, hasEarn, hasTrading }: { markets: MarketTicker[]; hasEarn: boolean; hasTrading: boolean }) {
   const { t, language } = useI18n();
   const [index, setIndex] = useState(0);
   // Pick a live BTC ticker for the non-interactive price panel. Falls back to
@@ -90,16 +90,25 @@ function BannerCarousel({ markets }: { markets: MarketTicker[] }) {
     { title: t("Supported markets"), sub: t("Browse supported spot pairs and their live market data."), to: "/markets", gradient: "from-brand-accent/40 via-brand-surface to-brand-surface", glow: "radial-gradient(120% 120% at 100% 100%, color-mix(in srgb, var(--color-brand-accent) 26%, transparent), transparent 60%)", glowTop: "radial-gradient(90% 90% at 0% 0%, color-mix(in srgb, var(--color-brand-accent) 18%, transparent), transparent 55%)" },
     { title: t("Earn products"), sub: t("Review the products and terms currently published in BTCBOX Earn."), to: "/earn", gradient: "from-brand-violet/40 via-brand-surface to-brand-surface", glow: "radial-gradient(120% 120% at 100% 100%, color-mix(in srgb, var(--color-brand-violet) 26%, transparent), transparent 60%)", glowTop: "radial-gradient(90% 90% at 0% 0%, color-mix(in srgb, var(--color-brand-violet) 18%, transparent), transparent 55%)" },
     { title: t("Trading workspace"), sub: t("Open spot, perpetual and seconds trading products from one place."), to: "/trade-hub", gradient: "from-brand-cyan/40 via-brand-surface to-brand-surface", glow: "radial-gradient(120% 120% at 100% 100%, color-mix(in srgb, var(--color-brand-cyan) 26%, transparent), transparent 60%)", glowTop: "radial-gradient(90% 90% at 0% 0%, color-mix(in srgb, var(--color-brand-cyan) 18%, transparent), transparent 55%)" },
-  ];
+  ].filter((slide) => {
+    if (slide.to === "/markets") return markets.length > 0;
+    if (slide.to === "/earn") return hasEarn;
+    if (slide.to === "/trade-hub") return hasTrading;
+    return true;
+  });
 
   useEffect(() => {
+    if (slides.length <= 1) return;
     const id = window.setInterval(() => setIndex((i) => (i + 1) % slides.length), 5000);
     return () => window.clearInterval(id);
   }, [slides.length]);
 
+  if (slides.length === 0) return null;
+  const activeIndex = index % slides.length;
+
   return (
     <section aria-label={t("Trending")} className="relative -mx-4 overflow-hidden rounded-none border-y border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] transition-all duration-300 hover:border-brand-accent/30 sm:-mx-5 md:border-t-0">
-      <div className="relative flex transition-transform duration-500 ease-out" style={{ transform: `translateX(-${index * 100}%)` }}>
+      <div className="relative flex transition-transform duration-500 ease-out" style={{ transform: `translateX(-${activeIndex * 100}%)` }}>
         {slides.map((slide: BannerSlide) => (
           <Link key={slide.title} to={slide.to} className={`relative min-w-full bg-gradient-to-br ${slide.gradient} px-5 py-6 md:px-8 md:py-12`}>
             {/* Multi-layered emerald + teal radial glow (right half) */}
@@ -401,6 +410,11 @@ export function Dashboard() {
 
   const publicMarkets = useMemo(() => filterPublicSpotMarkets(markets, assetCatalog), [markets, assetCatalog]);
   const marketDisplayError = error || assetCatalogError;
+  const hasEarn = !!assetCatalog?.some((asset) => asset.enabled && asset.visible && asset.earn_enabled);
+  const hasPerpetual = !!assetCatalog?.some((asset) => asset.code !== "USDT" && asset.enabled && asset.visible && asset.perpetual_enabled) &&
+    !!assetCatalog?.some((asset) => asset.code === "USDT" && asset.enabled && asset.visible && asset.perpetual_enabled);
+  const hasSeconds = !!assetCatalog?.some((asset) => ["BTC", "ETH", "SOL", "BNB"].includes(asset.code) && asset.enabled && asset.visible && asset.seconds_enabled);
+  const hasTrading = publicMarkets.length > 0 || hasPerpetual || hasSeconds;
 
   return (
     <div className="tone-home relative mx-auto flex w-full min-w-0 flex-col space-y-2 p-4 sm:space-y-3 sm:p-5">
@@ -410,7 +424,7 @@ export function Dashboard() {
       {/* Page-level heading for accessibility and SEO. Visually hidden so the
           hero carousel remains the primary visual anchor on the home screen. */}
       <h1 className="sr-only">{t("Digital asset exchange")}</h1>
-      <BannerCarousel markets={publicMarkets} />
+      <BannerCarousel markets={publicMarkets} hasEarn={hasEarn} hasTrading={hasTrading} />
       <TickerMarquee markets={publicMarkets} locale={locale} />
       <QuickActions />
       <MarketTable markets={publicMarkets} locale={locale} onViewAll={() => navigate("/markets")} loading={loading || assetCatalog === null} error={marketDisplayError} />
