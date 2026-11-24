@@ -2963,7 +2963,8 @@ async function handleRequest(event, context) {
         return json({ ok: false, code: 'SECONDS_POLICY_UNAVAILABLE', msg: 'Short-term contract policy is not configured or is invalid.' }, 503);
       }
       const activeSymbols = policy.symbols.filter(symbol => isAssetModuleEnabled(db, symbol, 'seconds_enabled'));
-      return json({ ok: true, policy: { ...policy, symbols: activeSymbols }, actions_enabled: financialWritesEnabled() && activeSymbols.length > 0 });
+      if (!activeSymbols.length) return json({ ok: false, code: 'SECONDS_ASSETS_DISABLED', msg: 'No assets are currently enabled for short-term contracts.' }, 403);
+      return json({ ok: true, policy: { ...policy, symbols: activeSymbols }, actions_enabled: financialWritesEnabled() });
     } catch (_) {
       return json({ ok: false, code: 'SECONDS_POLICY_UNAVAILABLE', msg: 'Short-term contract policy is temporarily unavailable.' }, 503);
     }
