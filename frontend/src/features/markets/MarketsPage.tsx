@@ -349,6 +349,9 @@ export function MarketsPage() {
   const visibleMarkets = useMemo(() => {
     const needle = query.trim().toUpperCase();
     const rows = markets.filter((market) => {
+      const baseAsset = market.sym.endsWith("USDT") ? market.sym.slice(0, -4) : market.sym;
+      const assetConfig = assetCatalog.find((asset) => asset.code === baseAsset);
+      if (assetCatalog.length > 0 && (!assetConfig || !assetConfig.enabled || !assetConfig.visible || !assetConfig.spot_enabled)) return false;
       const configuredName = assetNames[market.sym] || getAssetName(market.sym);
       if (needle && !market.sym.toUpperCase().includes(needle) && !configuredName.toUpperCase().includes(needle)) return false;
       if (filter === "favorites") return favorites.includes(market.sym);
@@ -361,7 +364,7 @@ export function MarketsPage() {
       if (sort === "price") return b.price - a.price;
       return Number(b.vol) - Number(a.vol);
     });
-  }, [markets, query, filter, favorites, sort, assetNames]);
+  }, [markets, assetCatalog, query, filter, favorites, sort, assetNames]);
 
 
   return (
