@@ -242,10 +242,10 @@ The Admin workspace navigation is now grouped by business ownership rather than 
 
 - Workspace: overview
 - User centre: user directory and KYC
-- Finance centre: deposit configuration, withdrawal queue, bank payout details
+- Finance centre: deposit configuration, withdrawal queue, manual credit / manual debit (separate action views), bank payout details
 - Trading operations: orders, spot markets, Seconds
 - Support centre: support inbox and help centre
 - Audit centre: financial audit log
 - System: administrator membership
 
-Groups are permission-filtered: a group is hidden when the current administrator has no visible tabs in it. This is navigation organization only; it does not grant permissions or expose the unwired Perpetual admin routes. Manual debit and manual credit remain distinct actions and are not re-labelled as deposit review.
+Groups are permission-filtered: a group is hidden when the current administrator has no visible tabs in it. This is navigation organization only; it does not grant permissions or expose the unwired Perpetual admin routes. The User centre now owns the user directory and selection only. Selecting a user opens the dedicated Finance centre module, where manual credit and manual debit are separate action views. Deposit history remains visible alongside the selected user's finance actions. Neither manual action is re-labelled as deposit review.
