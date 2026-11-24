@@ -243,9 +243,9 @@ export function AssetsPage() {
                   </div>
                 </div>
                 <div className="mt-2.5 flex justify-end gap-2">
-                  <Link to="/earn" className="inline-flex items-center rounded-md bg-brand-surface-2 px-3 py-1.5 text-xs font-semibold text-brand-text-secondary transition-colors hover:bg-brand-surface-hover">
+                  {assetConfig?.enabled && assetConfig.earn_enabled ? <Link to="/earn" className="inline-flex items-center rounded-md bg-brand-surface-2 px-3 py-1.5 text-xs font-semibold text-brand-text-secondary transition-colors hover:bg-brand-surface-hover">
                     {t("Earn")}
-                  </Link>
+                  </Link> : null}
                   {hasEnabledSpotPair ? <Link to={`/trade/${coin}USDT`} className="inline-flex items-center rounded-md bg-brand-surface-2 px-3 py-1.5 text-xs font-semibold text-brand-text-secondary transition-colors hover:bg-brand-surface-hover">
                     {t("Trade")}
                   </Link> : null}
