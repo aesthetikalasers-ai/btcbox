@@ -767,8 +767,11 @@ begin
         update public.financial_accounts set available=0, frozen=frozen+v_from_margin, version=version+1, updated_at=now()
          where user_id=p_user_id and asset='USDT' and frozen >= -v_from_margin;
         if not found then raise exception 'funding debit invariant failed'; end if;
-        update public.perpetual_positions set isolated_margin=greatest(isolated_margin + v_from_margin, 0), funding_paid=funding_paid - v_payment, updated_at=now()
-         where id=v_pos.id;
+        -- Never consume collateral belonging to another position or an unrelated open order.
+        update public.perpetual_positions
+           set isolated_margin=isolated_margin + v_from_margin, updated_at=now()
+         where id=v_pos.id and isolated_margin >= -v_from_margin;
+        if not found then raise exception 'funding isolated margin invariant failed'; end if;
         v_avail_delta := v_from_avail; v_frozen_delta := v_from_margin;
       end;
     end if;
