@@ -1831,7 +1831,6 @@
   "Re-enter fund password": "再次输入资金密码",
   "Current login password": "当前登录密码",
   "Enter current login password": "输入当前登录密码",
-  "Authenticator code": "身份验证器代码",
   "6-digit code": "6 位验证码",
   "OAuth accounts must enable two-factor authentication before setting a fund password.": "OAuth 账户必须先启用双重身份验证，才能设置资金密码。",
   "Open security settings": "打开安全设置",
