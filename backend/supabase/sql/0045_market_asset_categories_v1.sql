@@ -20,7 +20,7 @@ create table if not exists public.btcbox_market_categories (
 
 create table if not exists public.btcbox_asset_category_assignments (
   id bigint generated always as identity primary key,
-  asset_code text not null check (asset_code ~ '^[A-Z0-9]{2,16}
+  asset_code text not null check (asset_code ~ '^[A-Z0-9]{2,16}$'),
   category_key text not null references public.btcbox_market_categories(category_key) on update cascade on delete restrict,
   network text,
   contract_address text,
@@ -64,7 +64,8 @@ revoke all on public.btcbox_market_categories, public.btcbox_asset_category_assi
   from public, anon, authenticated;
 grant select on public.btcbox_market_categories, public.btcbox_asset_category_assignments to service_role;
 grant insert, update, delete on public.btcbox_asset_category_assignments to service_role;
-do $
+
+do $$
 declare
   v_sequence text := pg_get_serial_sequence('public.btcbox_asset_category_assignments','id');
 begin
@@ -72,84 +73,14 @@ begin
     execute format('grant usage, select on sequence %s to service_role', v_sequence);
   end if;
 end;
-$;
+$$;
 
 -- Verify seeded taxonomy keys without requiring or mutating the asset catalogue.
-do $
+do $$
 begin
   if (select count(*) from public.btcbox_market_categories
       where category_key in ('meme','ai','erc404','inscription')) <> 4 then
     raise exception 'market category seed verification failed';
-  end if;
-end;
-$;
-),
-  category_key text not null references public.btcbox_market_categories(category_key) on update cascade on delete restrict,
-  network text,
-  contract_address text,
-  source text not null default 'admin'
-    check (source in ('admin','provider','verified_import')),
-  source_reference text,
-  active boolean not null default true,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  check (network is null or (length(btrim(network)) between 1 and 64)),
-  check (contract_address is null or (length(btrim(contract_address)) between 1 and 160)),
-  check (contract_address is null or network is not null)
-);
-
--- One category may be assigned to an asset globally, or to a specific network contract.
-create unique index if not exists btcbox_asset_category_identity_uidx
-  on public.btcbox_asset_category_assignments (
-    asset_code,
-    category_key,
-    coalesce(lower(network), ''),
-    coalesce(lower(contract_address), '')
-  );
-
-create index if not exists btcbox_asset_category_lookup_idx
-  on public.btcbox_asset_category_assignments(asset_code, active, category_key);
-
--- Seed taxonomy only. Do not infer or insert assignments from ticker names.
-insert into public.btcbox_market_categories
-  (category_key, name_zh, name_en, description_zh, description_en, enabled, sort_order)
-values
-  ('meme', 'Meme', 'Meme', '社区文化与迷因类资产；需经人工或可信数据源确认。', 'Community and meme-driven assets; requires manual or trusted-source classification.', true, 10),
-  ('ai', 'AI', 'AI', '人工智能相关资产；需经人工或可信数据源确认。', 'Artificial-intelligence related assets; requires manual or trusted-source classification.', true, 20),
-  ('erc404', 'ERC-404', 'ERC-404', 'ERC-404 标准或兼容资产；需核验链与合约地址。', 'ERC-404 standard or compatible assets; verify chain and contract address.', true, 30),
-  ('inscription', '铭文', 'Inscription', '铭文及相关协议资产；需核验协议与数据来源。', 'Inscription and related protocol assets; verify protocol and data source.', true, 40)
-on conflict (category_key) do nothing;
-
-alter table public.btcbox_market_categories enable row level security;
-alter table public.btcbox_asset_category_assignments enable row level security;
-
-revoke all on public.btcbox_market_categories, public.btcbox_asset_category_assignments
-  from public, anon, authenticated;
-grant select on public.btcbox_market_categories, public.btcbox_asset_category_assignments to service_role;
-grant insert, update, delete on public.btcbox_asset_category_assignments to service_role;
-do $
-declare
-  v_sequence text := pg_get_serial_sequence('public.btcbox_asset_category_assignments','id');
-begin
-  if v_sequence is not null then
-    execute format('grant usage, select on sequence %s to service_role', v_sequence);
-  end if;
-end;
-$;
-
--- Fail closed if the migration was run against a schema without the canonical asset catalogue.
-do $$
-begin
-  if to_regclass('public.btcbox_assets') is null then
-    raise exception 'btcbox_assets is required before market category migration';
-  end if;
-  if exists (
-    select 1
-    from public.btcbox_asset_category_assignments a
-    left join public.btcbox_market_categories c on c.category_key=a.category_key
-    where c.category_key is null
-  ) then
-    raise exception 'market category assignment integrity verification failed';
   end if;
 end;
 $$;
