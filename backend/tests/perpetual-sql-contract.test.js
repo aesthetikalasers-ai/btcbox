@@ -156,3 +156,31 @@ test('no check constraint weakened: max_leverage bounded 1-100, mmr bounded, fee
   assert.ok(sql.includes('maker_fee_rate >= 0'));
   assert.ok(sql.includes('taker_fee_rate >= 0'));
 });
+
+test('financial operation type expansion is additive, atomic, and preserves legacy operation types', () => {
+  assert.ok(sql.includes('financial_operations_operation_type_check_v2'));
+  assert.ok(sql.includes('not valid'));
+  assert.ok(sql.includes('validate constraint financial_operations_operation_type_check'));
+  assert.ok(sql.includes("'withdraw_paid'"));
+  assert.ok(sql.includes("'migration_opening_balance'"));
+  assert.ok(!sql.includes('drop constraint if exists financial_operations_operation_type_check;\nalter table public.financial_operations add constraint'));
+});
+
+test('position fill helper validates direct service-role inputs before changing positions', () => {
+  assert.ok(sql.includes("raise exception 'invalid perpetual position fill'"));
+  assert.ok(sql.includes("p_fill_direction not in ('buy','sell')"));
+  assert.ok(sql.includes('p_fill_qty is null or p_fill_qty <= 0'));
+  assert.ok(sql.includes('p_fill_price is null or p_fill_price <= 0'));
+  assert.ok(sql.includes('p_leverage > 100'));
+});
+
+test('liquidation fails closed when market configuration is missing', () => {
+  assert.ok(sql.includes("raise exception 'invalid perpetual liquidation identity'"));
+  assert.ok(sql.includes("raise exception 'perpetual market configuration missing'"));
+});
+
+test('bad debt operation has an explicit zero-delta ledger audit marker without debiting user funds', () => {
+  assert.ok(sql.includes('bad-debt ledger audit marker account missing'));
+  assert.ok(sql.includes('select v_bad_debt_op,p_user_id,\'USDT\',0,0,available,frozen'));
+  assert.ok(sql.includes('platform receivable'));
+});
