@@ -210,9 +210,18 @@ test("public market provenance keeps server and provider timestamps separate", (
   const spotPage = fs.readFileSync(path.join(root, "features/pages/Pages.tsx"), "utf8");
   assert.ok(spotPage.includes('ticker.source==="demo-preview"'));
   assert.ok(spotPage.includes('selected.source && selected.source!=="demo-preview"'));
-  // Ticker and depth sources remain visible for feed traceability.
-  assert.ok(spotPage.includes("displayTicker?.source"));
-  assert.ok(spotPage.includes("displayBook?.source"));
+  // Provider provenance remains available internally, but is not rendered in the customer spot UI.
+  assert.ok(spotPage.includes('ticker.source==="demo-preview"'));
+  assert.ok(spotPage.includes('selected.source && selected.source!=="demo-preview"'));
+  assert.ok(!spotPage.includes("displayTicker?.source"));
+  assert.ok(!spotPage.includes("displayBook?.source"));
+  assert.ok(!spotPage.includes('candles[candles.length-1]?.source'));
+  assert.ok(!spotPage.includes('t("Source")'));
+  assert.ok(!spotPage.includes('t("Provider updated")'));
+  assert.ok(!spotPage.includes('t("Snapshot checked")'));
+  for (const label of ['Tick size', 'Quantity step', 'Minimum quantity', 'Minimum notional']) {
+    assert.ok(!spotPage.includes('t("' + label + '")'), label + ' must stay internal');
+  }
   const normalizer = fs.readFileSync(path.join(root, "lib/klineData.ts"), "utf8");
   assert.ok(normalizer.includes('source: typeof candle.source === "string" ? candle.source : fallbackSource'));
   const api = fs.readFileSync(path.join(root, "lib/api.ts"), "utf8");
@@ -240,12 +249,14 @@ test("the live app routes seconds trading through the policy-backed page", () =>
   assert.ok(!app.includes('SecondsPage } from "./features/pages/Pages"'));
 });
 
-test("spot trading provenance shows the actual source for each feed", () => {
+test("spot trading keeps provider provenance internally without exposing feed diagnostics", () => {
   const page = fs.readFileSync(path.join(root, "features/pages/Pages.tsx"), "utf8");
   assert.ok(page.includes('tickerIsFallback=!ticker?.source||ticker.source==="demo-preview"'));
   assert.ok(page.includes('selected.source && selected.source!=="demo-preview"'));
-  assert.ok(page.includes("displayTicker?.source"));
-  assert.ok(page.includes("displayBook?.source"));
+  assert.ok(!page.includes("displayTicker?.source"));
+  assert.ok(!page.includes("displayBook?.source"));
+  assert.ok(!page.includes('candles[candles.length-1]?.source'));
+  assert.ok(!page.includes('t("Source")'));
 });
 
 test("market ticker rows require real price, change, high, low and volume values", () => {
