@@ -500,7 +500,7 @@ export function ContractPage() {
     }
     const minNotional = Number(selectedMarket.min_notional);
     const referencePrice = orderType === "limit" ? Number(price) : Number(selectedMarket.mark_price);
-    if (!reduceOnly && Number.isFinite(minNotional) && minNotional > 0 &&
+    if (!reduceOnly && !closePosition && Number.isFinite(minNotional) && minNotional > 0 &&
         Number.isFinite(referencePrice) && referencePrice > 0 &&
         referencePrice * Number(quantity) < minNotional) {
       setSubmitError(t("Order notional is below the market minimum."));
