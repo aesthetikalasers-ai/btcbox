@@ -1,0 +1,59 @@
+name: Sync mirror from btcboxcdt
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 * * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: source-mirror-sync
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out mirror controller
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Mirror non-main source branches and tags
+        env:
+          SOURCE_URL: https://github.com/avali9308-code/btcboxcdt.git
+          TARGET_URL: https://github.com/aesthetikalasers-ai/btcbox.git
+          MIRROR_TOKEN: ${{ secrets.MIRROR_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TOKEN_USER="$(curl -fsS -H "Authorization: Bearer $MIRROR_TOKEN" -H "Accept: application/vnd.github+json" https://api.github.com/user | jq -r '.login')"
+          if [ -z "$TOKEN_USER" ] || [ "$TOKEN_USER" = "null" ]; then
+            echo "::error::MIRROR_TOKEN identity could not be verified"
+            exit 1
+          fi
+          echo "Using PAT owned by: $TOKEN_USER"
+          AUTH_HEADER="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$MIRROR_TOKEN" | base64 -w0)"
+          target_git() { git -c http.extraheader="$AUTH_HEADER" "$@"; }
+          echo "Checking token identity and target repository access (never print token)"
+          USER_JSON="$(curl -fsS -H "Authorization: Bearer $MIRROR_TOKEN" -H "Accept: application/vnd.github+json" https://api.github.com/user)"
+          echo "Authenticated GitHub login: $(printf '%s' "$USER_JSON" | jq -r '.login // "unknown"')"
+          REPO_JSON="$(curl -fsS -H "Authorization: Bearer $MIRROR_TOKEN" -H "Accept: application/vnd.github+json" https://api.github.com/repos/aesthetikalasers-ai/btcbox)"
+          echo "Target repository push permission: $(printf '%s' "$REPO_JSON" | jq -r '.permissions.push // "not returned"')"
+          echo "Target repository admin permission: $(printf '%s' "$REPO_JSON" | jq -r '.permissions.admin // "not returned"')"
+          git clone --mirror "$SOURCE_URL" source.git
+
+
+          # main is maintained in this repository by integration PRs.
+          # Keep source branch/tag sync without replacing target main.
+
+          while IFS= read -r branch; do
+            [ "$branch" = "main" ] && continue
+            target_git -C source.git push --force "$TARGET_URL" "refs/heads/$branch:refs/heads/$branch"
+          done < <(git -C source.git for-each-ref --format='%(refname:strip=2)' refs/heads)
+
+          while IFS= read -r tag; do
+            target_git -C source.git push --force "$TARGET_URL" "refs/tags/$tag:refs/tags/$tag"
+          done < <(git -C source.git for-each-ref --format='%(refname:strip=2)' refs/tags)

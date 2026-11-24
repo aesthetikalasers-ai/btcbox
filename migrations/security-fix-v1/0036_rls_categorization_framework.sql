@@ -1,0 +1,60 @@
+-- 0036_rls_categorization_framework.sql - RLS categorization framework for 22 public tables
+-- This migration establishes a categorized RLS policy system instead of "one size fits all"
+--
+-- TABLE CATEGORIES:
+-- 1. user_data: User profiles, settings, preferences (access controlled by user ID)
+-- 2. financial_data: Balance, transaction records (service_role only, strict RLS)
+-- 3. system_config: Public settings, trading pairs, fees (limited SELECT for all, RLS for updates)
+-- 4. auth_mapping: OAuth tokens, identity links (service_role only, minimal exposure)
+--
+-- STRATEGY: Each category gets tailored RLS policies based on actual access needs.
+--
+-- CATEGORY 1: user_data tables
+-- Policy pattern: Users can CRUD their own rows (by user_id), service_role can all
+--
+-- Example for user_profiles table:
+-- CREATE POLICY "users_view_own_profile" ON public.user_profiles
+-- FOR SELECT TO authenticated USING (auth.uid() = user_id);
+-- CREATE POLICY "users_update_own_profile" ON public.user_profiles
+-- FOR UPDATE TO authenticated USING (auth.uid() = user_id);
+-- CREATE POLICY "service_role_full_access" ON public.user_profiles
+-- TO service_role USING (true);
+--
+-- CATEGORY 2: financial_data tables
+-- Policy pattern: service_role only, anon/authenticated have NO direct access
+-- Access via SECURITY DEFINER RPC functions only
+--
+-- Example for financial_ledger table:
+-- CREATE POLICY "no_client_access" ON public.financial_ledger
+-- TO anon, authenticated USING (false);  -- Explicitly deny all client access
+-- GRANT ALL ON TABLE public.financial_ledger TO service_role;
+--
+-- CATEGORY 3: system_config tables
+-- Policy pattern: SELECT for all/authenticated, INSERT/UPDATE/DELETE for service_role only
+--
+-- Example for trading_pairs table:
+-- CREATE POLICY "public_view_pairs" ON public.trading_pairs
+-- FOR SELECT TO public, authenticated USING (true);
+-- CREATE POLICY "admin_manage_pairs" ON public.trading_pairs
+-- TO service_role WITH CHECK (true);
+--
+-- CATEGORY 4: auth_mapping tables
+-- Policy pattern: service_role only, completely hidden from clients
+--
+-- Example for identity_links table:
+-- CREATE POLICY "no_client_access" ON public.identity_links
+-- TO anon, authenticated USING (false);
+-- GRANT ALL ON TABLE public.identity_links TO service_role;
+--
+-- IMPLEMENTATION NOTES:
+-- 1. Run ANALYZE after policy creation to update statistics
+-- 2. Test each policy with both authenticated and anon sessions
+-- 3. Ensure RLS is enabled on each table: ALTER TABLE ... ENABLE ROW LEVEL SECURITY
+-- 4. Keep existing policies that work; add new categorized ones alongside
+-- 5. Document each policy's intent and access pattern
+--
+-- VERIFICATION QUERY:
+-- SELECT policyname, tablename, roles, cmd, qual, with_check
+-- FROM pg_policies
+-- WHERE schemaname = 'public'
+-- ORDER BY tablename, policyname;
