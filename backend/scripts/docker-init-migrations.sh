@@ -63,6 +63,7 @@ FILES=(
   0043_support_read_cursor_v1.sql
   0044_withdrawal_operation_type_compatibility_v1.sql
   0045_market_asset_categories_v1.sql
+  0046_perpetual_funding_atomic_clearing_v1.sql
 )
 
 for file in "${FILES[@]}"; do
