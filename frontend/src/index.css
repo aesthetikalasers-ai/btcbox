@@ -1974,7 +1974,8 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
     color: var(--color-brand-text-secondary);
   }
   .term-pair-option__select:hover { color: var(--color-brand-text); }
-  .term-pair-option__label { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; gap: 3px; text-align: left; }
+  .term-pair-option__label { display: flex; min-width: 0; align-items: center; gap: 7px; text-align: left; }
+  .term-pair-option__details { display: flex; min-width: 0; flex: 1 1 auto; flex-direction: column; gap: 3px; }
   .term-pair-option__symbol { overflow: hidden; max-width: 100%; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 650; }
   .term-pair-option__volume { overflow: hidden; max-width: 100%; text-overflow: ellipsis; white-space: nowrap; font-size: 9px; color: var(--color-brand-text-faint); font-weight: 400; }
   .term-pair-option__price { min-width: 0; font-size: 11.5px; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -2049,6 +2050,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
       grid-template-columns: minmax(0, 1fr) minmax(88px, .8fr);
       column-gap: 8px;
     }
+    .term-pair-option__label .token-icon { width: 24px; height: 24px; }
     .term-pair-option__symbol { font-size: 13px; }
     .term-pair-option__volume { font-size: 9px; }
     .term-pair-option__price {

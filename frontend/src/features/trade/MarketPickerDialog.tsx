@@ -1,6 +1,7 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { Star } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { TokenIcon } from "../../components/ui/TokenIcon";
 import { localeTags, useI18n } from "../../lib/i18n";
 
 /**
@@ -158,8 +159,11 @@ export function MarketPickerDialog({ open, onOpenChange, items, activeId, onSele
                         aria-current={isActive ? "true" : undefined}
                         onClick={() => { onSelect(item.id); onOpenChange(false); }}>
                         <span className="term-pair-option__label">
-                          <span className="term-pair-option__symbol">{item.label}</span>
-                          <small className="term-pair-option__volume">{t("24h volume")} · {formatQuoteVolume(item.quoteVolume, locale)} USDT</small>
+                          <TokenIcon symbol={item.label} className="h-7 w-7" />
+                          <span className="term-pair-option__details">
+                            <span className="term-pair-option__symbol">{item.label}</span>
+                            <small className="term-pair-option__volume">{t("24h volume")} · {formatQuoteVolume(item.quoteVolume, locale)} USDT</small>
+                          </span>
                         </span>
                         <span className="term-pair-option__price">{item.price ?? "—"}</span>
                         <span className={"term-pair-option__chg" + (item.changePct != null ? (item.changePct >= 0 ? " is-up" : " is-down") : "")}>
