@@ -96,7 +96,7 @@ test('manual payout audit binds the verified actor, withdrawal subject and payou
   assert.ok(updateAt >= 0 && auditAt > updateAt && auditEnd > auditAt);
   const auditInsert = sql.slice(auditAt, auditEnd);
   for (const fragment of [
-    'actor_id,subject_user_id,action,object_type,object_id,reason,metadata',
+    'actor_id, subject_user_id, action, object_type, object_id, reason, metadata',
     'p_admin_id, v_w.user_id',
     "'withdrawal_manual_payout_completed'",
     "'withdrawal', v_w.id, v_note",
