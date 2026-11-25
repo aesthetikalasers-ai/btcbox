@@ -1851,5 +1851,9 @@
   "No withdrawal assets and networks are currently configured.": "現在、出金用の資産とネットワークは設定されていません。",
   "Net amount": "受取予定額",
   "Application ID": "申請番号",
-  "Showing the latest 20 requests": "最新20件の申請を表示しています"
+  "Showing the latest 20 requests": "最新20件の申請を表示しています",
+  "Manual payout reference (internal)": "手動出金の内部参照番号",
+  "Enter a valid internal payout reference (1–160 characters).": "有効な手動出金の内部参照番号を入力してください（1～160文字）。",
+  "A saved internal payout reference could not be read. Check the withdrawal status before entering a new reference.": "保存済みの手動出金内部参照番号を読み取れません。新しい番号を入力する前に出金状態を確認してください。",
+  "Approve or reject requests. Approval deducts the frozen amount and fee; record the internal payout reference separately after funds are actually sent.": "出金申請を承認または拒否します。承認時に凍結額と手数料を差し引き、実際の手動送金後に内部参照番号を別途記録します。"
 }
