@@ -1408,7 +1408,10 @@ export function WithdrawPage(){
       if(saved&&saved.version===1&&typeof saved.request_id==="string"&&/^[A-Za-z0-9_-]{16,100}$/.test(saved.request_id)&&typeof saved.amount==="string"&&typeof saved.address==="string"&&savedAddress&&!savedAddress.blocked&&!savedAddress.unbound&&savedAddress.coin===saved.coin&&savedAddress.network===saved.network){
        setPendingIntent(saved);setSelectedId(saved.address_id);setAmount(saved.amount);
       }else{setPendingIntentInvalid(true);setError("We couldn't verify the saved withdrawal destination. Contact support before trying again.");}
-     }else{setPendingIntent(null);setPendingIntentInvalid(false);setSelectedId(current=>usable.some(item=>item.id===current)?current:(usable[0]?.id||""));}
+     }else{
+      const eligible=usable.filter(item=>withdrawalConfig.fees[item.coin]!==undefined&&withdrawalConfig.allowed_networks[item.coin]?.includes(item.network));
+      setPendingIntent(null);setPendingIntentInvalid(false);setSelectedId(current=>eligible.some(item=>item.id===current)?current:(eligible[0]?.id||""));
+     }
     }catch{setPendingIntentInvalid(true);setError("We couldn't verify your saved withdrawal request. Check withdrawal history before trying again.");}
    })
    .catch(reason=>{
@@ -1446,7 +1449,7 @@ export function WithdrawPage(){
   return ()=>controller.abort();
  },[selectedId]);
 
- const usableAddresses=addresses.filter(item=>!item.blocked&&!item.unbound);
+ const usableAddresses=addresses.filter(item=>!item.blocked&&!item.unbound&&config?.fees[item.coin]!==undefined&&config.allowed_networks[item.coin]?.includes(item.network));
  const balance=selectedAddress&&account?.balances?account.balances[selectedAddress.coin]:undefined;
  const feeValue=selectedAddress&&config?config.fees?.[selectedAddress.coin]:undefined;
  const fee=feeValue==null?null:Number(feeValue);
