@@ -1848,5 +1848,6 @@
   "Confirm current login password": "Conferma la password di accesso attuale",
   "Withdrawal request submitted. You can track its progress in withdrawal history.": "Richiesta di prelievo inviata. Puoi seguirne l'avanzamento nella cronologia dei prelievi.",
   "Choose a saved address and enter the amount you want to withdraw. You can track the request status in withdrawal history.": "Scegli un indirizzo salvato e inserisci l'importo da prelevare. Puoi controllare lo stato nella cronologia dei prelievi.",
-  "No withdrawal assets and networks are currently configured.": "Al momento non sono configurati asset o reti di prelievo."
+  "No withdrawal assets and networks are currently configured.": "Al momento non sono configurati asset o reti di prelievo.",
+  "Net amount": "Importo netto"
 }
