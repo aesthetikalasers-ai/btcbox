@@ -388,8 +388,8 @@ test("Google sign-in completes the PKCE callback and provisions one BTCBOX sessi
   await expect(page.getByRole("button", { name: "Google", exact: true })).toBeEnabled();
   await page.getByRole("button", { name: "Google", exact: true }).click();
 
-  await expect(page).toHaveURL(/\\/home$/);
-  expect(authorizationRedirect).toMatch(/\\/auth\\/react-callback\\?intent=login$/);
+  await expect(page).toHaveURL(/\/home$/);
+  expect(authorizationRedirect).toMatch(/\/auth\/react-callback\?intent=login$/);
   expect(tokenExchangeCalls).toBe(1);
   expect(provisioningCalls).toBe(1);
   expect(exchangedAccessToken).toBe("e2e-google-access-token");
@@ -409,7 +409,8 @@ test("Google-linked Supabase identity can add an email password through recovery
     identities: [{ provider: "email" }, { provider: "google" }],
   };
   let updatedPassword = "";
-  let updatedUserId = "";
+  let updateUserCalls = 0;
+  let updateAuthorization = "";
   let signupCalls = 0;
   let provisioningCalls = 0;
   let exchangedAccessToken = "";
@@ -432,8 +433,9 @@ test("Google-linked Supabase identity can add an email password through recovery
   });
   await page.route("**/auth/v1/user**", async route => {
     if (route.request().method() === "PUT") {
+      updateUserCalls += 1;
       updatedPassword = String(route.request().postDataJSON()?.password || "");
-      updatedUserId = linkedUser.id;
+      updateAuthorization = route.request().headers()["authorization"] || "";
     }
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(linkedUser) });
   });
@@ -456,7 +458,8 @@ test("Google-linked Supabase identity can add an email password through recovery
 
   await expect(page).toHaveURL(/\\/home$/);
   expect(updatedPassword).toBe("NewEmailPassphrase123!");
-  expect(updatedUserId).toBe(supabaseUserId);
+  expect(updateUserCalls).toBe(1);
+  expect(updateAuthorization).toBe("Bearer " + accessToken);
   expect(signupCalls).toBe(0);
   expect(provisioningCalls).toBe(1);
   expect(exchangedAccessToken).toBe(accessToken);
