@@ -513,7 +513,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (authError) throw authError;
       if (!data.session?.access_token) throw new Error("Email is not verified yet. Please check your inbox and confirm your email.");
       await acceptSupabaseSession(data.session.access_token);
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Email sign-in failed."); throw cause; }
+    } catch (cause) { setError(friendlyAuthErrorMessage(cause)); throw cause; }
     finally { setBusy(false); }
   }, [acceptSupabaseSession]);
 
@@ -546,7 +546,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setNotice("Registration received. Please check your email and confirm your address before signing in.");
       }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Email registration failed.");
+      setError(friendlyAuthErrorMessage(cause));
       throw cause;
     } finally { setBusy(false); }
   }, [acceptSupabaseSession]);
@@ -560,7 +560,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       if (authError) throw authError;
       setNotice("If an account exists for this email, a password reset message will be sent.");
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Password reset could not be requested."); throw cause; }
+    } catch (cause) { setError(friendlyAuthErrorMessage(cause)); throw cause; }
     finally { setBusy(false); }
   }, []);
 
@@ -575,7 +575,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (sessionError || !data.session?.access_token) throw sessionError || new Error("Password updated. Please sign in again.");
       await acceptSupabaseSession(data.session.access_token);
       setNotice("Your password has been updated.");
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Password could not be updated."); throw cause; }
+    } catch (cause) { setError(friendlyAuthErrorMessage(cause)); throw cause; }
     finally { setBusy(false); }
   }, [acceptSupabaseSession]);
 
