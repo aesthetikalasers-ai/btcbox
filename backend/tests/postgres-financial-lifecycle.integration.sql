@@ -250,33 +250,6 @@ BEGIN
     RAISE EXCEPTION 'rejected withdrawal is not linked to its withdraw_reject operation';
   END IF;
 
-  -- Approved withdrawals must remain in the admin queue until manual payout completion.
-  v_hash := encode(extensions.digest(
-    'deposit-user|USDT|TRC20|2|T12345678|withdrawal-ci-admin-queue-0001','sha256'
-  ),'hex');
-  v_result := public.create_withdrawal_atomic(
-    'WD-CI-ADMIN-QUEUE','deposit-user','USDT','TRC20',2,1,'T12345678',
-    'withdrawal-ci-admin-queue-0001',v_hash,true,1,'USDT',3,1
-  );
-  IF v_result->>'ok'<>'true' THEN
-    RAISE EXCEPTION 'admin queue withdrawal fixture creation failed: %',v_result;
-  END IF;
-  v_result := public.review_withdrawal_atomic(
-    'WD-CI-ADMIN-QUEUE','admin-ci',true,'approved payout remains actionable'
-  );
-  IF v_result->>'status'<>'approved' THEN
-    RAISE EXCEPTION 'admin queue withdrawal approval failed: %',v_result;
-  END IF;
-  v_snapshot := public.read_admin_withdrawal_snapshot_v1();
-  IF v_snapshot->>'ok'<>'true'
-     OR NOT EXISTS (
-       SELECT 1 FROM jsonb_array_elements(v_snapshot->'withdrawals') AS item
-       WHERE item->>'id'='WD-CI-ADMIN-QUEUE' AND item->>'status'='approved'
-     )
-     OR (v_snapshot->>'approved_count')::integer < 1 THEN
-    RAISE EXCEPTION 'approved withdrawal disappeared from admin queue before manual payout: %',v_snapshot;
-  END IF;
-
   -- Cursor history: records are user-scoped, stable across pages, and expose only customer-safe review details.
   v_hash := encode(extensions.digest(
     'deposit-user|USDT|TRC20|2|T12345678|withdrawal-ci-request-0003','sha256'
@@ -312,6 +285,33 @@ BEGIN
   v_snapshot := public.read_withdrawal_history_page_v1('unrelated-user',NULL,NULL,20);
   IF jsonb_array_length(v_snapshot->'withdrawals')<>0 THEN
     RAISE EXCEPTION 'withdrawal history returned another user records: %',v_snapshot;
+  END IF;
+
+  -- Approved withdrawals must remain in the admin queue until manual payout completion.
+  v_hash := encode(extensions.digest(
+    'deposit-user|USDT|TRC20|2|T12345678|withdrawal-ci-admin-queue-0001','sha256'
+  ),'hex');
+  v_result := public.create_withdrawal_atomic(
+    'WD-CI-ADMIN-QUEUE','deposit-user','USDT','TRC20',2,1,'T12345678',
+    'withdrawal-ci-admin-queue-0001',v_hash,true,1,'USDT',3,1
+  );
+  IF v_result->>'ok'<>'true' THEN
+    RAISE EXCEPTION 'admin queue withdrawal fixture creation failed: %',v_result;
+  END IF;
+  v_result := public.review_withdrawal_atomic(
+    'WD-CI-ADMIN-QUEUE','admin-ci',true,'approved payout remains actionable'
+  );
+  IF v_result->>'status'<>'approved' THEN
+    RAISE EXCEPTION 'admin queue withdrawal approval failed: %',v_result;
+  END IF;
+  v_snapshot := public.read_admin_withdrawal_snapshot_v1();
+  IF v_snapshot->>'ok'<>'true'
+     OR NOT EXISTS (
+       SELECT 1 FROM jsonb_array_elements(v_snapshot->'withdrawals') AS item
+       WHERE item->>'id'='WD-CI-ADMIN-QUEUE' AND item->>'status'='approved'
+     )
+     OR (v_snapshot->>'approved_count')::integer < 1 THEN
+    RAISE EXCEPTION 'approved withdrawal disappeared from admin queue before manual payout: %',v_snapshot;
   END IF;
 
   -- A failed approval audit must roll back the approval ledger debit and status update.
