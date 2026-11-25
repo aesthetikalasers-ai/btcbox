@@ -1848,5 +1848,6 @@
   "Confirm current login password": "Confirm current login password",
   "Withdrawal request submitted. You can track its progress in withdrawal history.": "Withdrawal request submitted. You can track its progress in withdrawal history.",
   "Choose a saved address and enter the amount you want to withdraw. You can track the request status in withdrawal history.": "Choose a saved address and enter the amount you want to withdraw. You can track the request status in withdrawal history.",
-  "No withdrawal assets and networks are currently configured.": "No withdrawal assets and networks are currently configured."
+  "No withdrawal assets and networks are currently configured.": "No withdrawal assets and networks are currently configured.",
+  "Net amount": "Net amount"
 }
