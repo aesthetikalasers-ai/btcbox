@@ -35,6 +35,9 @@ SELECT public.create_withdrawal_atomic(
     'sha256'
   ),'hex'),
   true,
+  1,
+  'USDT',
+  6,
   1
 );
 
