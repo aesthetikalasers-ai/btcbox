@@ -1851,5 +1851,9 @@
   "No withdrawal assets and networks are currently configured.": "Al momento non sono configurati asset o reti di prelievo.",
   "Net amount": "Importo netto",
   "Application ID": "ID richiesta",
-  "Showing the latest 20 requests": "Sono visualizzate le ultime 20 richieste"
+  "Showing the latest 20 requests": "Sono visualizzate le ultime 20 richieste",
+  "Manual payout reference (internal)": "Riferimento interno del pagamento manuale",
+  "Enter a valid internal payout reference (1–160 characters).": "Inserisci un riferimento interno valido per il pagamento manuale (1–160 caratteri).",
+  "A saved internal payout reference could not be read. Check the withdrawal status before entering a new reference.": "Impossibile leggere il riferimento interno salvato del pagamento manuale. Controlla lo stato del prelievo prima di inserirne uno nuovo.",
+  "Approve or reject requests. Approval deducts the frozen amount and fee; record the internal payout reference separately after funds are actually sent.": "Approva o rifiuta le richieste. Con l'approvazione vengono detratti l'importo bloccato e la commissione; registra il riferimento interno separatamente dopo l'effettivo invio dei fondi."
 }
