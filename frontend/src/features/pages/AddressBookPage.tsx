@@ -47,7 +47,7 @@ export function AddressBookPage() {
     if (status !== "authenticated") { setLoading(false); setItems([]); setWithdrawalConfig(null); return; }
     const controller = new AbortController();
     setLoading(true); setError("");
-    Promise.all([getSavedCryptoAddresses(controller.signal), getWithdrawalConfig(controller.signal)])
+    Promise.all([getSavedCryptoAddresses(controller.signal), getWithdrawalConfig(controller.signal).catch(() => null)])
       .then(([list, config]) => {
         if (controller.signal.aborted) return;
         setItems(list);
