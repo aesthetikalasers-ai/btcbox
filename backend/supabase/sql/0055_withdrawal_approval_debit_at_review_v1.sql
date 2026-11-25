@@ -220,7 +220,7 @@ CREATE OR REPLACE FUNCTION public.read_withdrawal_history_page_v1(
   p_limit integer DEFAULT 20
 ) RETURNS jsonb
 LANGUAGE plpgsql SECURITY INVOKER SET search_path = ''
-AS $
+AS $withdrawal_history$
 DECLARE
   v_limit integer := greatest(1, least(coalesce(p_limit, 20), 50));
   v_rows jsonb := '[]'::jsonb;
@@ -288,7 +288,7 @@ BEGIN
     END
   );
 END;
-$;
+$withdrawal_history$;
 
 REVOKE ALL ON FUNCTION public.read_withdrawal_history_page_v1(text, timestamptz, text, integer)
   FROM PUBLIC, anon, authenticated;
