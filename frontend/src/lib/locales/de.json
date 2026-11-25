@@ -1851,5 +1851,9 @@
   "No withdrawal assets and networks are currently configured.": "Derzeit sind keine Auszahlungs-Assets oder -Netzwerke konfiguriert.",
   "Net amount": "Nettobetrag",
   "Application ID": "Antragsnummer",
-  "Showing the latest 20 requests": "Die letzten 20 Anträge werden angezeigt"
+  "Showing the latest 20 requests": "Die letzten 20 Anträge werden angezeigt",
+  "Manual payout reference (internal)": "Interne Referenz für manuelle Auszahlung",
+  "Enter a valid internal payout reference (1–160 characters).": "Geben Sie eine gültige interne Auszahlungsreferenz ein (1–160 Zeichen).",
+  "A saved internal payout reference could not be read. Check the withdrawal status before entering a new reference.": "Die gespeicherte interne Auszahlungsreferenz konnte nicht gelesen werden. Prüfen Sie den Auszahlungsstatus, bevor Sie eine neue Referenz eingeben.",
+  "Approve or reject requests. Approval deducts the frozen amount and fee; record the internal payout reference separately after funds are actually sent.": "Anträge genehmigen oder ablehnen. Bei Genehmigung werden der eingefrorene Betrag und die Gebühr abgezogen; die interne Referenz wird erst nach der tatsächlichen Überweisung erfasst."
 }
