@@ -1848,5 +1848,6 @@
   "Confirm current login password": "Aktuelles Anmeldepasswort bestätigen",
   "Withdrawal request submitted. You can track its progress in withdrawal history.": "Auszahlungsantrag eingereicht. Du kannst den Status im Auszahlungsverlauf verfolgen.",
   "Choose a saved address and enter the amount you want to withdraw. You can track the request status in withdrawal history.": "Wähle eine gespeicherte Adresse und gib den Auszahlungsbetrag ein. Den Status kannst du im Auszahlungsverlauf verfolgen.",
-  "No withdrawal assets and networks are currently configured.": "Derzeit sind keine Auszahlungs-Assets oder -Netzwerke konfiguriert."
+  "No withdrawal assets and networks are currently configured.": "Derzeit sind keine Auszahlungs-Assets oder -Netzwerke konfiguriert.",
+  "Net amount": "Nettobetrag"
 }
