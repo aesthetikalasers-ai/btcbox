@@ -196,11 +196,24 @@ BEGIN
   );
   IF v_result->>'ok'<>'true' THEN RAISE EXCEPTION 'rejected withdrawal creation failed: %',v_result; END IF;
   v_result := public.review_withdrawal_atomic('WD-CI-0002','admin-ci',false,'postgres-ci reject');
-  IF v_result->>'status'<>'rejected' THEN RAISE EXCEPTION 'withdrawal rejection failed: %',v_result; END IF;
+  IF v_result->>'status'<>'rejected' OR v_result->>'duplicate'<>'false' THEN
+    RAISE EXCEPTION 'withdrawal rejection failed: %',v_result;
+  END IF;
+  v_result := public.review_withdrawal_atomic('WD-CI-0002','admin-ci',false,'postgres-ci reject');
+  IF v_result->>'status'<>'rejected' OR v_result->>'duplicate'<>'true' THEN
+    RAISE EXCEPTION 'withdrawal rejection retry was not idempotent: %',v_result;
+  END IF;
   SELECT available,frozen INTO v_balance,v_frozen FROM public.financial_accounts
   WHERE user_id='reject-user' AND asset='USDT';
   IF v_balance<>20 OR v_frozen<>0 THEN
     RAISE EXCEPTION 'withdrawal rejection did not refund exactly once: available %, frozen %',v_balance,v_frozen;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.financial_operations o
+    JOIN public.withdrawal_requests w ON w.review_operation_id=o.id
+    WHERE w.id='WD-CI-0002' AND o.operation_type='withdraw_reject'
+  ) THEN
+    RAISE EXCEPTION 'rejected withdrawal is not linked to its withdraw_reject operation';
   END IF;
 
   -- 3) Spot: match at maker price, then cancel with durable request-key binding.
