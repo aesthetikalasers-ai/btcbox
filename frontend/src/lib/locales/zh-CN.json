@@ -1857,5 +1857,7 @@
   "A saved internal payout reference could not be read. Check the withdrawal status before entering a new reference.": "无法读取已保存的人工出币内部参考编号。输入新编号前，请先核对提现状态。",
   "Approve or reject requests. Approval deducts the frozen amount and fee; record the internal payout reference separately after funds are actually sent.": "批准或拒绝提现申请。批准时正式扣除冻结金额及手续费；实际人工转账完成后再单独登记内部付款参考编号。",
   "Internal payout reference": "内部人工出币付款参考编号",
-  "A payout request is still pending with a different internal reference. Enter the exact saved reference; do not replace it.": "存在尚未确认的人工出币请求，且内部参考编号不同。请填写已保存的原编号，不要替换。"
+  "A payout request is still pending with a different internal reference. Enter the exact saved reference; do not replace it.": "存在尚未确认的人工出币请求，且内部参考编号不同。请填写已保存的原编号，不要替换。",
+  "Load more": "加载更多",
+  "Withdrawal history is temporarily unavailable.": "提现记录暂时无法加载。"
 }
