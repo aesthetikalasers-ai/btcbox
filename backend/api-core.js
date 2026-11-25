@@ -654,7 +654,7 @@ async function readAdminAccountBalances(userIds) {
       // rejecting those valid rows made the entire admin user list fail with 503.
       if (!SUPPORTED_LEDGER_ASSETS.has(asset)) throw new Error('Admin account balance response invalid');
       const b = assets[asset];
-      if (!b || !Number.isFinite(b.free) || !Number.isFinite(b.frozen) || b.free < 0 || b.frozen < 0) throw new Error('Admin account balance response invalid');
+      if (!b || !Number.isFinite(b.free) || !Number.isFinite(b.frozen) || b.frozen < 0) throw new Error('Admin account balance response invalid');
     }
   }
   // A user with no normalized account rows is a valid zero-balance account, not
@@ -4094,13 +4094,15 @@ async function handleRequest(event, context) {
         const mode = String(body.mode || 'adjust').trim().toLowerCase();
         const requestId = String(body.request_id || '').trim();
         const suppliedReason = String(body.reason || '').trim().slice(0, 500);
-        // Keep database audit metadata mandatory without asking staff to type a reason.
-        const reason = suppliedReason || (mode === 'freeze' ? '管理员后台冻结资金' : mode === 'unfreeze' ? '管理员后台解冻资金' : deltaNegative ? '管理员后台下分' : '管理员后台上分');
+        const isManualDebit = mode === 'adjust' && deltaNegative;
+        // The database migration permits negative available balances only for
+        // this explicit operation marker; no free-form reason is required.
+        const reason = isManualDebit ? 'admin_manual_debit' : suppliedReason || (mode === 'freeze' ? '管理员后台冻结资金' : mode === 'unfreeze' ? '管理员后台解冻资金' : deltaNegative ? '管理员后台下分' : '管理员后台上分');
         if (!allowedCoins.includes(coin)) return json({ ok: false, msg: 'Operation failed: coin not supported.' }, 400);
         if (!['adjust', 'freeze', 'unfreeze'].includes(mode)) return json({ ok: false, msg: 'Invalid fund operation type.' }, 400);
         if (!amountText || compareMoney(amountText, '0') <= 0 || compareMoney(amountText, '1000000000000') > 0 || (mode !== 'adjust' && deltaNegative)) return json({ ok: false, msg: 'Invalid operation amount. Freeze/unfreeze amounts must be positive.' }, 400);
         if (!/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) return json({ ok: false, code: 'IDEMPOTENCY_KEY_REQUIRED', msg: 'A valid operation ID is required. Balance was unchanged.' }, 400);
-        if (reason.length < 5) return json({ ok: false, msg: 'Please provide an adjustment reason of at least 5 characters. Balance was unchanged.' }, 400);
+        if (!isManualDebit && reason.length < 5) return json({ ok: false, msg: 'Please provide an adjustment reason of at least 5 characters. Balance was unchanged.' }, 400);
         const adminId = adminUserId;
         if (!adminId) return json({ ok: false, code: 'ADMIN_ACTOR_NOT_CONFIGURED', msg: 'Administrator audit identity not configured. Balance was unchanged.' }, 503);
         // PostgreSQL numeric::text preserves canonical decimal notation. Build
