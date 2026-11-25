@@ -1203,6 +1203,35 @@ function totalUsdt(balances, prices) {
   return total;
 }
 
+async function getFreshUsdcUsdtRate() {
+  const fetchJson = async url => {
+    const response = await fetch(url, { signal: AbortSignal.timeout(4000), headers: { Accept: 'application/json' } });
+    if (!response.ok) throw new Error('Live USDC/USDT quote provider unavailable');
+    return response.json();
+  };
+  // Never reuse an expired cached quote for a new financial reservation.
+  try {
+    const products = await fetchJson('https://api.exchange.coinbase.com/products');
+    const product = Array.isArray(products) && products.find(p =>
+      p && p.id === 'USDC-USDT' && p.quote_currency === 'USDT' &&
+      p.status === 'online' && p.trading_disabled !== true
+    );
+    if (product) {
+      const stats = await fetchJson('https://api.exchange.coinbase.com/products/USDC-USDT/stats');
+      const price = Number(stats && stats.last);
+      if (Number.isFinite(price) && price > 0) return price;
+    }
+  } catch (_) {}
+  try {
+    const payload = await fetchJson('https://api.bybit.com/v5/market/tickers?category=spot');
+    const rows = payload && payload.result && payload.result.list;
+    const row = Array.isArray(rows) && rows.find(item => item && item.symbol === 'USDCUSDT');
+    const price = Number(row && row.lastPrice);
+    if (Number.isFinite(price) && price > 0) return price;
+  } catch (_) {}
+  return null;
+}
+
 async function getLiveUsdtPrices(requestedBases) {
   const bases = Array.from(new Set((requestedBases || []).filter(x => /^[A-Z0-9]{2,12}$/.test(x) && x !== 'USDT'))).sort();
   if (!bases.length) return {};
@@ -1454,6 +1483,20 @@ function addMoney(a, b) {
   if (!scale) return digits;
   const whole = digits.slice(0, -scale);
   const fraction = digits.slice(-scale).replace(/0+$/, '');
+  return fraction ? whole + '.' + fraction : whole;
+}
+function multiplyMoneyCeil(a, b) {
+  const left = parseMoneyInput(String(a)), right = parseMoneyInput(String(b));
+  if (left === null || right === null) return null;
+  const lp = left.split('.'), rp = right.split('.');
+  const ls = (lp[1] || '').length, rs = (rp[1] || '').length;
+  const product = moneyScaledInteger(left, ls) * moneyScaledInteger(right, rs);
+  const denominator = 10n ** BigInt(ls + rs);
+  const numerator = product * (10n ** 18n);
+  const scaled = (numerator + denominator - 1n) / denominator;
+  const digits = scaled.toString().padStart(19, '0');
+  const whole = digits.slice(0, -18);
+  const fraction = digits.slice(-18).replace(/0+$/, '');
   return fraction ? whole + '.' + fraction : whole;
 }
 
@@ -2469,7 +2512,20 @@ async function handleRequest(event, context) {
       unpriced_assets: unpricedAssets,
       orders: user.orders.slice(-50),
       deposits: financialSnapshot ? financialSnapshot.deposits : user.deposits.slice(-20),
-      withdrawals: financialSnapshot ? financialSnapshot.withdrawals : user.withdrawals.slice(-20),
+      // Customer withdrawal history is a strict public projection. Internal manual-payout
+      // references, notes, staff identity and payout timestamps must never reach the user API.
+      withdrawals: (financialSnapshot ? financialSnapshot.withdrawals : user.withdrawals.slice(-20)).map(function (row) {
+        return {
+          id: String(row && row.id || ''),
+          coin: String(row && (row.coin || row.asset) || ''),
+          amount: row && row.amount != null ? row.amount : '0',
+          fee: row && row.fee != null ? row.fee : '0',
+          network: String(row && row.network || ''),
+          address: String(row && (row.address || row.destination) || ''),
+          status: String(row && row.status || ''),
+          time: row && (row.time || row.created_at) || null
+        };
+      }),
       earn_records: financialSnapshot ? financialSnapshot.earn_records : user.earn_records,
       fund_password_set: !!(user.fund_password_hash || user.fund_password),
       // 2FA is optional. Password accounts re-enter their BTCBOX password;
@@ -2641,15 +2697,91 @@ async function handleRequest(event, context) {
     }
   }
 
+  // ---------- GET /api/withdrawal/history?cursor=... ----------
+  // Stable keyset pagination scoped to the authenticated customer. Only public
+  // withdrawal fields are projected; internal manual-payout metadata never leaves admin APIs.
+  if (path === 'withdrawal/history' && method === 'GET') {
+    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
+    if (!financialPostgresReadsEnabled() || !supabaseStorageConfigured()) {
+      return json({ ok: false, code: 'WITHDRAWAL_HISTORY_UNAVAILABLE', msg: 'Withdrawal history is temporarily unavailable.' }, 503);
+    }
+
+    const token = String((event.queryStringParameters && event.queryStringParameters.cursor) || '').trim();
+    let cursor = null;
+    if (token) {
+      if (token.length > 512 || !/^[A-Za-z0-9_-]+$/.test(token)) {
+        return json({ ok: false, code: 'INVALID_WITHDRAWAL_HISTORY_CURSOR', msg: 'Withdrawal history cursor is invalid.' }, 400);
+      }
+      try {
+        const decoded = JSON.parse(Buffer.from(token, 'base64url').toString('utf8'));
+        if (!decoded || typeof decoded.created_at !== 'string' ||
+            !Number.isFinite(Date.parse(decoded.created_at)) ||
+            typeof decoded.id !== 'string' || !decoded.id || decoded.id.length > 100 ||
+            /[\u0000-\u001f\u007f]/.test(decoded.id)) throw new Error('invalid cursor');
+        cursor = { created_at: decoded.created_at, id: decoded.id };
+      } catch (_) {
+        return json({ ok: false, code: 'INVALID_WITHDRAWAL_HISTORY_CURSOR', msg: 'Withdrawal history cursor is invalid.' }, 400);
+      }
+    }
+
+    try {
+      const response = await fetch(process.env.SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/rpc/read_withdrawal_history_page_v1', {
+        method: 'POST',
+        headers: supabaseHeaders(),
+        body: JSON.stringify({
+          p_user_id: String(user.uid),
+          p_before_created_at: cursor ? cursor.created_at : null,
+          p_before_id: cursor ? cursor.id : null,
+          p_limit: 20
+        }),
+        signal: AbortSignal.timeout(5000)
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result || result.ok !== true || !Array.isArray(result.withdrawals) ||
+          typeof result.has_more !== 'boolean') throw new Error('Withdrawal history page read failed');
+
+      const withdrawals = result.withdrawals.map(function (row) {
+        return {
+          id: String(row && row.id || ''),
+          coin: String(row && row.coin || ''),
+          amount: row && row.amount != null ? row.amount : '0',
+          fee: row && row.fee != null ? row.fee : '0',
+          settlement_asset: String(row && row.settlement_asset || row && row.coin || ''),
+          settlement_amount: row && row.settlement_amount != null ? row.settlement_amount : null,
+          conversion_rate: row && row.conversion_rate != null ? row.conversion_rate : null,
+          network: String(row && row.network || ''),
+          address: String(row && row.address || ''),
+          status: String(row && row.status || ''),
+          time: row && row.time || null,
+          reviewed_at: row && row.reviewed_at || null,
+          rejection_reason: row && row.rejection_reason || null
+        };
+      });
+      const nextCursor = result.has_more && result.next_cursor &&
+        typeof result.next_cursor.created_at === 'string' && typeof result.next_cursor.id === 'string'
+        ? Buffer.from(JSON.stringify(result.next_cursor)).toString('base64url')
+        : null;
+      return json({ ok: true, withdrawals: withdrawals, has_more: result.has_more, next_cursor: nextCursor });
+    } catch (_) {
+      return json({ ok: false, code: 'WITHDRAWAL_HISTORY_UNAVAILABLE', msg: 'Withdrawal history could not be loaded. Please try again.' }, 503);
+    }
+  }
+
   // ---------- GET /api/withdrawal/config ----------
   // Expose only the public withdrawal form contract and fail-closed availability.
   if (path === 'withdrawal/config' && method === 'GET') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
+    let usdcUsdtRate = null;
+    try {
+      const rate = await getFreshUsdcUsdtRate();
+      if (Number.isFinite(Number(rate)) && Number(rate) > 0) usdcUsdtRate = Number(rate).toFixed(12);
+    } catch (_) {}
     return json({
       ok: true,
       actions_enabled: financialWritesEnabled() && manualDepositRpcEnabled() && supabaseStorageConfigured(),
       fees: safeWithdrawalFees(db.withdrawal_fees),
-      allowed_networks: safeWithdrawalNetworks(db.withdrawal_networks)
+      allowed_networks: safeWithdrawalNetworks(db.withdrawal_networks),
+      usdc_usdt_rate: usdcUsdtRate
     });
   }
 
@@ -2728,25 +2860,47 @@ async function handleRequest(event, context) {
     if (!supabaseStorageConfigured()) return json({ ok: false, code: 'FINANCIAL_RPC_NOT_CONFIGURED', msg: 'Financial database not configured. Withdrawal was not submitted.' }, 503);
     const requestHash = crypto.createHash('sha256').update([String(user.uid), coin, network, String(amount), addr, requestId].join('|')).digest('hex');
     try {
+      let settlementAsset = coin;
+      let conversionRate = '1';
+      let settlementAmount = addMoney(amount, fee);
+      if (coin === 'USDC') {
+        const liveRate = Number(await getFreshUsdcUsdtRate());
+        settlementAsset = 'USDT';
+        if (!Number.isFinite(liveRate) || liveRate <= 0) {
+          // Still call the idempotent RPC with a null quote: an already-created
+          // request can replay its persisted rate even if the market feed is down.
+          conversionRate = null;
+          settlementAmount = null;
+        } else {
+          conversionRate = liveRate.toFixed(12);
+          settlementAmount = multiplyMoneyCeil(addMoney(amount, fee), conversionRate);
+          if (!settlementAmount) { conversionRate = null; settlementAmount = null; }
+        }
+      }
       const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
       const rpc = await fetch(base + '/rest/v1/rpc/create_withdrawal_atomic', {
         method: 'POST', headers: supabaseHeaders(),
         body: JSON.stringify({ p_withdrawal_id: withdrawalId, p_user_id: String(user.uid), p_asset: coin,
           p_network: network, p_amount: String(amount), p_fee: String(fee), p_destination: addr,
-          p_request_id: requestId, p_request_hash: requestHash, p_require_admin_review: requireAdminReview, p_expected_fee: String(expectedFee) })
+          p_request_id: requestId, p_request_hash: requestHash, p_require_admin_review: requireAdminReview, p_expected_fee: String(expectedFee),
+          p_settlement_asset: settlementAsset, p_settlement_amount: settlementAmount, p_conversion_rate: conversionRate })
       });
       const result = await rpc.json().catch(() => null);
       if (!rpc.ok || !result || result.ok !== true || !result.withdrawal_id || !['pending', 'pending_admin_review', 'approved', 'rejected', 'broadcast', 'failed', 'completed'].includes(result.status) || typeof result.require_admin_review !== 'boolean') {
         const rpcErrorText = JSON.stringify(result || {});
         const feeChanged = /withdrawal fee changed/i.test(rpcErrorText);
         const insufficient = rpc.status === 400 && /insufficient funds/i.test(rpcErrorText);
+        const rateUnavailable = /USDC conversion rate unavailable/i.test(rpcErrorText);
         return json({
           ok: false,
-          code: feeChanged ? 'WITHDRAWAL_FEE_CHANGED' : insufficient ? 'INSUFFICIENT_FUNDS' : 'FINANCIAL_RPC_FAILED',
-          msg: feeChanged ? 'The withdrawal fee changed. Refresh the current fee and review the request again.' : insufficient ? 'Insufficient available balance (including fees).' : 'Withdrawal request was not confirmed by the database. Please check your operation history before retrying.'
+          code: feeChanged ? 'WITHDRAWAL_FEE_CHANGED' : insufficient ? 'INSUFFICIENT_FUNDS' : rateUnavailable ? 'USDC_RATE_UNAVAILABLE' : 'FINANCIAL_RPC_FAILED',
+          msg: feeChanged ? 'The withdrawal fee changed. Refresh the current fee and review the request again.' : insufficient ? 'Insufficient available balance (including fees).' : rateUnavailable ? 'USDC/USDT conversion is temporarily unavailable. No new withdrawal was submitted.' : 'Withdrawal request was not confirmed by the database. Please check your operation history before retrying.'
         }, feeChanged ? 409 : insufficient ? 400 : 503);
       }
-      return json({ ok: true, duplicate: result.duplicate === true, withdrawal_id: result.withdrawal_id, status: result.status, require_admin_review: result.require_admin_review, msg: result.duplicate === true ? 'This withdrawal request has already been received. Do not submit it again.' : (result.require_admin_review ? 'Withdrawal request submitted and flagged for admin review.' : 'Withdrawal request submitted. Funds will be sent after review.') });
+      return json({ ok: true, duplicate: result.duplicate === true, withdrawal_id: result.withdrawal_id, status: result.status,
+        require_admin_review: result.require_admin_review, settlement_asset: result.settlement_asset || settlementAsset,
+        settlement_amount: result.settlement_amount || settlementAmount, conversion_rate: result.conversion_rate || conversionRate,
+        msg: result.duplicate === true ? 'This withdrawal request has already been received. Do not submit it again.' : (result.require_admin_review ? 'Withdrawal request submitted and flagged for admin review.' : 'Withdrawal request submitted. Funds will be sent after review.') });
     } catch (e) {
       return json({ ok: false, code: 'FINANCIAL_RPC_UNAVAILABLE', msg: 'Financial database temporarily unavailable. Withdrawal is unconfirmed. Please check your operation history before retrying.' }, 503);
     }
@@ -4314,7 +4468,7 @@ async function handleRequest(event, context) {
       const reference = String(body.reference || '').trim();
       const note = String(body.note || '').trim();
       if (!wdId || wdId.length > 100) return json({ ok: false, msg: 'Withdrawal record ID is invalid.' }, 400);
-      if (!reference) return json({ ok: false, code: 'PAYOUT_REFERENCE_REQUIRED', msg: 'TxID / payout reference is required.' }, 400);
+      if (!reference) return json({ ok: false, code: 'PAYOUT_REFERENCE_REQUIRED', msg: 'Internal payout reference is required.' }, 400);
       if (reference.length > 160 || note.length > 300) return json({ ok: false, msg: 'Payout reference or note is too long.' }, 400);
       if (/[\u0000-\u001f\u007f]/.test(reference)) return json({ ok: false, code: 'PAYOUT_REFERENCE_INVALID', msg: 'Payout reference cannot contain control characters.' }, 400);
       if (!supabaseStorageConfigured()) return json({ ok: false, code: 'FINANCIAL_RPC_NOT_CONFIGURED', msg: 'Financial database is not configured. Payout status was not changed.' }, 503);
@@ -5038,6 +5192,7 @@ exports._test = {
   clientIp: clientIp,
   compareMoney: compareMoney,
   addMoney: addMoney,
+  multiplyMoneyCeil: multiplyMoneyCeil,
   withdrawalAddressCheck: withdrawalAddressCheck,
   safeWithdrawalFees: safeWithdrawalFees,
   safeWithdrawalNetworks: safeWithdrawalNetworks,

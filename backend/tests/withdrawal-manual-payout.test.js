@@ -7,10 +7,10 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const api = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
-const sql = fs.readFileSync(path.join(root, 'supabase', 'sql', '0027_withdrawal_manual_payout_completion_v1.sql'), 'utf8');
+const sql = fs.readFileSync(path.join(root, 'supabase', 'sql', '0055_withdrawal_approval_debit_at_review_v1.sql'), 'utf8');
 
-test('manual payout API rejects a missing TxID/reference and enforces bounded input', () => {
-  assert.ok(api.includes("if (!reference) return json({ ok: false, code: 'PAYOUT_REFERENCE_REQUIRED'"));
+test('manual payout API requires an internal payout reference and enforces bounded input', () => {
+  assert.ok(api.includes("if (!reference) return json({ ok: false, code: 'PAYOUT_REFERENCE_REQUIRED', msg: 'Internal payout reference is required.'"));
   assert.ok(api.includes('reference.length > 160 || note.length > 300'));
   assert.ok(api.includes("PAYOUT_REFERENCE_INVALID"));
   assert.ok(api.includes("/[\\u0000-\\u001f\\u007f]/.test(reference)"));
@@ -24,22 +24,25 @@ test('manual payout completion requires the financial cutover and configured ser
 });
 
 test('database RPC independently rejects blank references and permits only approved withdrawals', () => {
-  assert.ok(sql.includes("coalesce(btrim(p_reference),'')=''"));
-  assert.ok(sql.includes("coalesce(p_reference,'') ~ '[[:cntrl:]]'"));
-  assert.ok(sql.includes("IF v_w.status<>'approved' THEN"));
+  assert.ok(sql.includes("v_ref = '' OR length(coalesce(p_reference, '')) > 160"));
+  assert.ok(sql.includes("coalesce(p_reference, '') ~ '[[:cntrl:]]'"));
+  assert.ok(sql.includes("IF v_w.status <> 'approved' THEN"));
   assert.ok(sql.includes("withdrawal must be approved before manual payout completion"));
 });
 
 test('manual payout exact retries are idempotent and conflicting references fail', () => {
-  assert.ok(sql.includes("IF v_w.status='completed' THEN"));
-  assert.ok(sql.includes("coalesce(v_w.payout_reference,'')<>v_ref"));
-  assert.ok(sql.includes("'duplicate',true"));
+  assert.ok(sql.includes("IF v_w.status = 'completed' THEN"));
+  assert.ok(sql.includes("coalesce(v_w.payout_reference, '') <> v_ref"));
+  assert.ok(sql.includes("'duplicate', true"));
 });
 
 test('manual payout completion is audit/status-only and does not apply another ledger debit', () => {
   assert.ok(sql.includes("'withdrawal_manual_payout_completed'"));
-  assert.ok(sql.includes('payout_reference',));
-  assert.ok(!sql.includes('apply_financial_operation'));
+  assert.ok(sql.includes("'internal_payout_reference', v_ref"));
+  const paidStart = sql.indexOf('CREATE OR REPLACE FUNCTION public.mark_withdrawal_paid_atomic');
+  const paidEnd = sql.indexOf('REVOKE ALL ON FUNCTION public.review_withdrawal_atomic', paidStart);
+  assert.ok(paidStart >= 0 && paidEnd > paidStart);
+  assert.ok(!sql.slice(paidStart, paidEnd).includes('apply_financial_operation'));
   assert.ok(sql.includes('REVOKE ALL ON FUNCTION public.mark_withdrawal_paid_atomic'));
   assert.ok(sql.includes('TO service_role'));
 });
@@ -79,29 +82,30 @@ test('admin withdrawal mutations preserve confirmed UI state when queue refresh 
 });
 
 test('manual payout audit binds the verified actor, withdrawal subject and payout reference exactly once', () => {
-  const completedBranchStart = sql.indexOf("IF v_w.status='completed' THEN");
-  const approvedGuard = sql.indexOf("IF v_w.status<>'approved' THEN", completedBranchStart);
+  const completedBranchStart = sql.indexOf("IF v_w.status = 'completed' THEN");
+  const approvedGuard = sql.indexOf("IF v_w.status <> 'approved' THEN", completedBranchStart);
   assert.ok(completedBranchStart >= 0 && approvedGuard > completedBranchStart);
   const retryBranch = sql.slice(completedBranchStart, approvedGuard);
-  assert.ok(retryBranch.includes("'duplicate',true"));
+  assert.ok(retryBranch.includes("'duplicate', true"));
   assert.ok(!retryBranch.includes('financial_audit_log'), 'an exact retry must not append a second audit event');
 
-  const updateAt = sql.indexOf("UPDATE public.withdrawal_requests");
+  const paidFunctionStart = sql.indexOf('CREATE OR REPLACE FUNCTION public.mark_withdrawal_paid_atomic');
+  const updateAt = sql.indexOf("UPDATE public.withdrawal_requests", paidFunctionStart);
   const auditAt = sql.indexOf("INSERT INTO public.financial_audit_log(", updateAt);
   const auditEnd = sql.indexOf("RETURN jsonb_build_object(", auditAt);
   assert.ok(updateAt >= 0 && auditAt > updateAt && auditEnd > auditAt);
   const auditInsert = sql.slice(auditAt, auditEnd);
   for (const fragment of [
-    'actor_id,subject_user_id,action,object_type,object_id,reason,metadata',
-    'p_admin_id,v_w.user_id',
+    'actor_id, subject_user_id, action, object_type, object_id, reason, metadata',
+    'p_admin_id, v_w.user_id',
     "'withdrawal_manual_payout_completed'",
-    "'withdrawal',v_w.id,v_note",
-    "'asset',v_w.asset",
-    "'amount',v_w.amount",
-    "'payout_reference',v_ref",
+    "'withdrawal', v_w.id, v_note",
+    "'asset', v_w.asset",
+    "'amount', v_w.amount",
+    "'internal_payout_reference', v_ref",
   ]) assert.ok(auditInsert.includes(fragment), 'audit insert must include ' + fragment);
-  assert.ok(sql.includes('paid_by=p_admin_id'));
-  assert.ok(sql.includes('paid_at=clock_timestamp()'));
+  assert.ok(sql.includes('paid_by = p_admin_id'));
+  assert.ok(sql.includes('paid_at = v_paid_at'));
 });
 
 test('admin manual payout handler blocks concurrent duplicate submissions synchronously', () => {
@@ -123,4 +127,65 @@ test('admin manual credit uses a per-asset synchronous lock and fails closed wit
   assert.ok(handler.includes('window.crypto.randomUUID()'));
   assert.ok(handler.includes('Secure manual-credit request IDs are unavailable in this browser.'));
   assert.ok(handler.includes('finally { manualCreditLocksRef.current[coin] = false; setBusy(false); }'));
+});
+
+
+test('customer account API exposes only public withdrawal fields and never manual payout metadata', () => {
+  const start = api.indexOf("if (path === 'account' && method === 'GET')");
+  const end = api.indexOf("// ---------- GET /api/addresses", start);
+  assert.ok(start >= 0 && end > start);
+  const route = api.slice(start, end);
+  assert.ok(route.includes("withdrawals: (financialSnapshot ? financialSnapshot.withdrawals : user.withdrawals.slice(-20)).map"));
+  for (const field of ['payout_reference', 'payout_note', 'paid_by', 'paid_at', 'txid', 'payout_operation_id']) {
+    assert.doesNotMatch(route, new RegExp(field));
+  }
+  for (const field of ['id:', 'coin:', 'amount:', 'fee:', 'network:', 'address:', 'status:', 'time:']) {
+    assert.ok(route.includes(field), 'public withdrawal field missing: ' + field);
+  }
+});
+
+test('withdrawal application number is generated server-side and displayed as a copyable application ID', () => {
+  const pages = fs.readFileSync(path.resolve(root, '../frontend/src/features/pages/Pages.tsx'), 'utf8');
+  assert.ok(api.includes("const withdrawalId = 'W' + Date.now() + crypto.randomBytes(8).toString('hex');"));
+  assert.ok(pages.includes('t("Application ID")'));
+  assert.ok(pages.includes('getWithdrawalHistoryPage'), 'customer history must use the cursor-paginated endpoint');
+  assert.ok(pages.includes('t("Load more")'), 'customer history must allow loading the next page');
+  assert.ok(pages.includes('navigator.clipboard?.writeText(item.id)'));
+  const historyStart = pages.indexOf('const [historyFilter', pages.indexOf('export function WithdrawPage'));
+  const historyEnd = pages.indexOf('</PageFrame>;', historyStart);
+  assert.ok(historyStart >= 0 && historyEnd > historyStart);
+  const history = pages.slice(historyStart, historyEnd);
+  for (const field of ['item.txid', 'item.payout_reference', 'item.paid_at']) {
+    assert.ok(!history.includes(field), 'customer history must not display ' + field);
+  }
+});
+
+
+test('manual payout references remain admin-internal and are never described as blockchain TXIDs', () => {
+  const admin = fs.readFileSync(path.resolve(root, '../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+  const queueStart = admin.indexOf('!loading && tab === "withdrawals"');
+  const queueEnd = admin.indexOf('!loading && tab === "kyc"', queueStart);
+  assert.ok(queueStart >= 0 && queueEnd > queueStart);
+  const queue = admin.slice(queueStart, queueEnd);
+  assert.ok(queue.includes('adminText("Manual payout reference (internal)")'));
+  assert.doesNotMatch(queue, /TxID|transaction hash/i);
+  assert.ok(admin.includes('adminText("Internal payout reference")'));
+  assert.ok(!admin.includes('adminText("TxID / reference")'), 'admin withdrawal history must not label manual references as chain TXIDs');
+  assert.ok(admin.includes('Enter a valid internal payout reference (1–160 characters).'));
+  const customerHistoryStart = fs.readFileSync(path.resolve(root, '../frontend/src/features/pages/Pages.tsx'), 'utf8');
+  const withdrawStart = customerHistoryStart.indexOf('export function WithdrawPage');
+  const withdrawEnd = customerHistoryStart.indexOf('</PageFrame>;', withdrawStart);
+  const customer = customerHistoryStart.slice(withdrawStart, withdrawEnd);
+  assert.doesNotMatch(customer, /txid|payout_reference|payout_note|paid_by|paid_at/i);
+});
+
+test('an unconfirmed idempotent retry is not blocked by a refreshed USDC quote', () => {
+  const pages = fs.readFileSync(path.resolve(root, '../frontend/src/features/pages/Pages.tsx'), 'utf8');
+  assert.ok(pages.includes('(!!pendingIntent||(estimatedSettlement!==null&&settlementWithinBalance))'));
+  assert.ok(pages.includes('conversionVerified||!!pendingIntent'));
+  assert.ok(pages.includes('expected_fee:String(config?.fees[selectedAddress.coin]??"")'), 'new request intent must persist its original fee quote');
+  assert.ok(pages.includes('expected_fee:intent.expected_fee'), 'retry must reuse the original fee quote');
+  assert.ok(pages.includes('(!!pendingIntent||(available!==null&&Number.isFinite(available)&&available>=0&&feeVerified))'), 'retry must not depend on a refreshed balance or fee snapshot');
+  const settlementPanel = '{item.settlement_asset&&item.settlement_asset!==item.coin?<div className="min-w-0 rounded-md bg-brand-surface-2 p-2">';
+  assert.equal(pages.split(settlementPanel).length - 1, 1, 'customer history should render one settlement debit panel');
 });

@@ -263,7 +263,7 @@ test('admin user profile includes permission-scoped withdrawal history from the 
   assert.ok(reactAdminPage.includes('selectedUser.withdrawal_history'));
   assert.ok(reactAdminPage.includes('selectedUser.withdrawal_history_source'));
   assert.ok(reactAdminPage.includes('withdrawals.read'));
-  assert.ok(reactAdminPage.includes('TxID / reference'));
+  assert.ok(reactAdminPage.includes('Internal payout reference'));
   assert.ok(apiCore.includes("safeUser.withdrawal_history = normalized.withdrawals.slice(0, 20)"));
 });
 

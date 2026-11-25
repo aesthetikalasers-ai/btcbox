@@ -74,7 +74,8 @@ test('canonical bootstrap source preserves the prepared Seconds and Admin migrat
     '0035_service_role_privilege_minimization_v1.sql',
 '0042_support_read_state_v1.sql',
     '0043_support_read_cursor_v1.sql',
-    '0044_withdrawal_operation_type_compatibility_v1.sql'
+    '0044_withdrawal_operation_type_compatibility_v1.sql',
+    '0057_admin_withdrawal_queue_includes_approved_payouts_v1.sql'
   ];
   for (const source of scripts) {
     const block = source.split('FILES=(')[1]?.split(LF + ')')[0];

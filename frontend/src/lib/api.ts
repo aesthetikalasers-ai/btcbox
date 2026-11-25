@@ -416,17 +416,26 @@ export interface DepositRecord {
 }
 
 export interface WithdrawalRecord {
+  /** Server-generated withdrawal application number (never supplied by the customer). */
   id: string;
   coin: string;
   amount: number | string;
   fee?: number | string;
+  settlement_asset?: string;
+  settlement_amount?: number | string | null;
+  conversion_rate?: number | string | null;
   network?: string;
   address?: string;
   status: string;
   time?: string;
-  txid?: string;
-  payout_reference?: string;
-  paid_at?: string;
+  reviewed_at?: string;
+  rejection_reason?: string;
+}
+
+export interface WithdrawalHistoryPage {
+  withdrawals: WithdrawalRecord[];
+  has_more: boolean;
+  next_cursor: string | null;
 }
 
 export interface AccountSnapshot {
@@ -1226,6 +1235,8 @@ export interface WithdrawalConfig {
   actions_enabled: boolean;
   fees: Record<string, number | string>;
   allowed_networks: Record<string, string[]>;
+  /** Indicative live rate; the server locks its own rate when a USDC request is created. */
+  usdc_usdt_rate: string | null;
 }
 
 export interface WithdrawalSubmissionResult {
@@ -1233,6 +1244,9 @@ export interface WithdrawalSubmissionResult {
   status: string;
   require_admin_review: boolean;
   duplicate: boolean;
+  settlement_asset?: string;
+  settlement_amount?: string;
+  conversion_rate?: string;
   msg?: string;
 }
 
@@ -1250,6 +1264,20 @@ export async function getWithdrawalConfig(signal?: AbortSignal): Promise<Withdra
   if (typeof payload.actions_enabled !== "boolean" || !payload.fees || typeof payload.fees !== "object" ||
       !payload.allowed_networks || typeof payload.allowed_networks !== "object") {
     throw new ApiError("BTCBOX returned an invalid withdrawal configuration.", 502, "INVALID_WITHDRAWAL_CONFIG");
+  }
+  return payload;
+}
+
+export async function getWithdrawalHistoryPage(cursor?: string | null, signal?: AbortSignal): Promise<WithdrawalHistoryPage> {
+  if (DEMO_PREVIEW_ACTIVE) {
+    const demo = await getDemoAccount();
+    return { withdrawals: demo.withdrawals || [], has_more: false, next_cursor: null };
+  }
+  const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+  const payload = await readAuthenticated<WithdrawalHistoryPage & { ok: true }>(`withdrawal/history${query}`, signal);
+  if (!Array.isArray(payload.withdrawals) || typeof payload.has_more !== "boolean" ||
+      (payload.next_cursor !== null && typeof payload.next_cursor !== "string")) {
+    throw new ApiError("BTCBOX returned an invalid withdrawal history page.", 502, "INVALID_WITHDRAWAL_HISTORY");
   }
   return payload;
 }
@@ -1327,8 +1355,18 @@ export interface AdminUserRecord {
   financial_balance_source?: "postgres_financial_ledger" | "legacy_state_retention_limited" | "unverified";
   deposit_history?: DepositRecord[];
   deposit_history_source?: "postgres_financial_ledger" | "legacy_state_retention_limited";
-  withdrawal_history?: WithdrawalRecord[];
+  withdrawal_history?: AdminUserWithdrawalRecord[];
   withdrawal_history_source?: "postgres_financial_ledger" | "legacy_state_retention_limited";
+}
+/** Expanded withdrawal shape used only in the authenticated admin user-detail view. */
+export interface AdminUserWithdrawalRecord extends WithdrawalRecord {
+  txid?: string;
+  payout_reference?: string;
+  paid_at?: string;
+  reviewed_by?: string;
+  freeze_operation_id?: string;
+  review_operation_id?: string;
+  payout_operation_id?: string;
 }
 export interface AdminWithdrawalRecord {
   id: string;
@@ -1336,9 +1374,19 @@ export interface AdminWithdrawalRecord {
   coin: string;
   amount: string;
   fee: string;
+  settlement_asset?: string;
+  settlement_amount?: string;
+  conversion_rate?: string;
   network: string;
   address: string;
   status: string;
+  time?: string;
+  reviewed_at?: string | null;
+  reviewed_by?: string;
+  rejection_reason?: string;
+  freeze_operation_id?: string;
+  review_operation_id?: string;
+  payout_operation_id?: string;
   payout_reference?: string;
   paid_at?: string | null;
 }

@@ -29,9 +29,17 @@ test('default withdrawal fees stay unchanged while configured ledger assets are 
   assert.deepEqual(networks.DOGE, []);
   assert.deepEqual(networks.BTC, ['BTC']);
   assert.deepEqual(networks.USDT, ['TRC20', 'ERC20']);
+  assert.deepEqual(networks.USDC, ['ERC20']);
+  assert.deepEqual(apiModule._test.safeWithdrawalNetworks({}).USDC, ['ERC20'],
+    'USDC ERC20 must remain in the six default withdrawal routes when no override is stored');
   assert.equal(apiModule._test.isValidWithdrawalAddress('XRP', 'ERC20', '0x1234567890123456789012345678901234567890'), false);
   assert.equal(apiModule._test.isValidWithdrawalAddress('USDT', 'ERC20', '0x1234567890123456789012345678901234567890'), true);
   assert.equal(apiModule._test.isValidWithdrawalAddress('USDT', 'BEP20', '0x1234567890123456789012345678901234567890'), true);
+  assert.equal(apiModule._test.isValidWithdrawalAddress('USDC', 'ERC20', '0x1234567890123456789012345678901234567890'), true);
+  assert.equal(apiModule._test.isValidWithdrawalAddress('USDC', 'TRC20', 'TXYZ1234567890123456789012345678901'), false,
+    'USDC must not inherit the USDT TRC20 route');
+  assert.equal(apiModule._test.isValidWithdrawalAddress('USDC', 'BEP20', '0x1234567890123456789012345678901234567890'), false,
+    'USDC must not inherit the USDT BEP20 route');
   assert.equal(apiModule._test.isValidWithdrawalAddress('DOGE', 'BTC', '1BoatSLRHtKNngkdXEeobR76b53LETtpyT'), false);
 });
 
@@ -46,8 +54,11 @@ test('withdrawal fees are configurable in admin and the same server values are u
   assert.ok(api.includes('body.expected_fee === undefined ? fee : parseMoneyInput(body.expected_fee)'));
   assert.ok(api.includes('p_expected_fee: String(expectedFee)'));
   assert.ok(api.includes('WITHDRAWAL_FEE_CHANGED'));
-  assert.ok(pages.includes('expected_fee:String(config?.fees[intent.coin] ?? "")'));
-  assert.ok(pages.includes('account.balances[selectedAddress.coin]??{free:"0",frozen:"0"}'));
+  assert.ok(pages.includes('expected_fee:intent.expected_fee'), 'submission must reuse the fee captured when the idempotency intent was created');
+  assert.ok(pages.includes('selectedAddress?.coin==="USDC"?"USDT":selectedAddress?.coin'),
+    'USDC payout must reserve USDT while other assets keep their own settlement asset');
+  assert.ok(pages.includes('Estimated USDT deduction'),
+    'the withdrawal form must disclose the estimated USDT debit for USDC requests');
   assert.ok(pages.includes('reason.code==="WITHDRAWAL_FEE_CHANGED"'));
   const duplicateAt = withdrawalSql.indexOf('if found then');
   const quoteCheckAt = withdrawalSql.indexOf('if p_expected_fee is distinct from p_fee then');
@@ -91,5 +102,24 @@ test('admin UI exposes editable fee inputs for every supported withdrawal asset'
   assert.ok(addressBook.includes('getWithdrawalConfig(controller.signal)'));
   assert.ok(addressBook.includes('allowed_networks[coin]'));
   assert.ok(addressBook.includes('withdrawalConfig.fees[asset] !== undefined'));
+  assert.ok(addressBook.includes('Object.keys(withdrawalConfig.allowed_networks)'),
+    'address-book asset choices must be driven by the server withdrawal catalogue, including USDC');
   assert.ok(!addressBook.includes('const COIN_NETWORKS'));
+  assert.ok(pages.includes('config.allowed_networks[item.coin]?.includes(item.network)'),
+    'withdrawal form must only offer a saved address whose exact coin/network route is enabled');
+  assert.ok(pages.includes('selectedAddress?.coin==="USDC"?"USDT":selectedAddress?.coin'),
+    'USDC payout must reserve USDT while other assets retain their own ledger asset');
+  assert.ok(pages.includes('Estimated USDT deduction'),
+    'USDC customers must see the estimated USDT debit before submitting');
+});
+
+
+test('USDC conversion is server-fetched and calculated with exact decimal arithmetic', () => {
+  assert.equal(apiModule._test.multiplyMoneyCeil('101', '0.999900000000'), '100.9899');
+  assert.equal(apiModule._test.multiplyMoneyCeil('0.000000000000000001', '1.000000000001'), '0.000000000000000002');
+  assert.ok(api.includes('getFreshUsdcUsdtRate()'));
+  assert.ok(api.includes('p_settlement_asset: settlementAsset'));
+  assert.ok(api.includes('p_settlement_amount: settlementAmount'));
+  assert.ok(api.includes('p_conversion_rate: conversionRate'));
+  assert.ok(api.includes("settlementAsset = 'USDT'"));
 });

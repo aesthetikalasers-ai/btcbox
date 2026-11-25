@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { multiplyDecimalStrings } from '../src/lib/decimal.ts';
+import { multiplyDecimalStrings, addDecimalStrings, multiplyDecimalStringsCeil } from '../src/lib/decimal.ts';
 
 test('fractional order estimate has no floating-point artifacts', () => {
   assert.equal(multiplyDecimalStrings('0.1', '0.2'), '0.02');
@@ -45,4 +45,12 @@ test('spot market steps and order sizing use exact decimal arithmetic', async ()
   assert.equal(roundDecimalToStep('65000.006', '0.01'), '65000.01');
   assert.equal(divideDecimalStrings('1', '0', 18), undefined);
   assert.equal(isDecimalMultipleOfStep('1', '0'), false);
+});
+
+test('withdrawal settlement estimates add and ceil exactly like PostgreSQL', () => {
+  assert.equal(addDecimalStrings('10.000000000000000001', '0.000000000000000009'), '10.00000000000000001');
+  assert.equal(multiplyDecimalStringsCeil('10.00000000000000001', '1.000000000000000001'), '10.000000000000000021');
+  assert.equal(multiplyDecimalStringsCeil('1', '1.0000000000000000001'), '1.000000000000000001');
+  assert.equal(multiplyDecimalStringsCeil('1', '0'), '0');
+  assert.equal(addDecimalStrings('-1', '2'), undefined);
 });

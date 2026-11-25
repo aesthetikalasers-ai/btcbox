@@ -104,6 +104,9 @@ FILES=(
   0052_perpetual_two_source_median_bootstrap_v1.sql
   0053_perpetual_two_source_live_mark_v1.sql
   0054_admin_manual_debit_negative_balance_v1.sql
+  0055_withdrawal_approval_debit_at_review_v1.sql
+  0056_usdc_withdrawal_settlement_in_usdt_v1.sql
+  0057_admin_withdrawal_queue_includes_approved_payouts_v1.sql
 )
 
 echo "[info] Bootstrapping a fresh BTCBOX schema with ${#FILES[@]} canonical SQL files."

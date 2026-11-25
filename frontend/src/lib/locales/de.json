@@ -1848,5 +1848,21 @@
   "Confirm current login password": "Aktuelles Anmeldepasswort bestätigen",
   "Withdrawal request submitted. You can track its progress in withdrawal history.": "Auszahlungsantrag eingereicht. Du kannst den Status im Auszahlungsverlauf verfolgen.",
   "Choose a saved address and enter the amount you want to withdraw. You can track the request status in withdrawal history.": "Wähle eine gespeicherte Adresse und gib den Auszahlungsbetrag ein. Den Status kannst du im Auszahlungsverlauf verfolgen.",
-  "No withdrawal assets and networks are currently configured.": "Derzeit sind keine Auszahlungs-Assets oder -Netzwerke konfiguriert."
+  "No withdrawal assets and networks are currently configured.": "Derzeit sind keine Auszahlungs-Assets oder -Netzwerke konfiguriert.",
+  "Net amount": "Nettobetrag",
+  "Application ID": "Antragsnummer",
+  "Showing the latest 20 requests": "Die letzten 20 Anträge werden angezeigt",
+  "Manual payout reference (internal)": "Interne Referenz für manuelle Auszahlung",
+  "Enter a valid internal payout reference (1–160 characters).": "Geben Sie eine gültige interne Auszahlungsreferenz ein (1–160 Zeichen).",
+  "A saved internal payout reference could not be read. Check the withdrawal status before entering a new reference.": "Die gespeicherte interne Auszahlungsreferenz konnte nicht gelesen werden. Prüfen Sie den Auszahlungsstatus, bevor Sie eine neue Referenz eingeben.",
+  "Approve or reject requests. Approval deducts the frozen amount and fee; record the internal payout reference separately after funds are actually sent.": "Anträge genehmigen oder ablehnen. Bei Genehmigung werden der eingefrorene Betrag und die Gebühr abgezogen; die interne Referenz wird erst nach der tatsächlichen Überweisung erfasst.",
+  "Internal payout reference": "Interne Auszahlungsreferenz",
+  "A payout request is still pending with a different internal reference. Enter the exact saved reference; do not replace it.": "Eine Auszahlungsanfrage mit einer anderen internen Referenz ist noch offen. Geben Sie exakt die gespeicherte Referenz ein und ersetzen Sie sie nicht.",
+  "Load more": "Mehr laden",
+  "Withdrawal history is temporarily unavailable.": "Der Auszahlungsverlauf ist vorübergehend nicht verfügbar.",
+  "Reviewed": "Geprüft",
+  "Estimated USDT deduction": "Voraussichtlicher USDT-Abzug",
+  "Final rate is locked when you submit.": "Der endgültige Kurs wird beim Absenden festgeschrieben.",
+  "USDC/USDT conversion is temporarily unavailable.": "Die USDC/USDT-Umrechnung ist vorübergehend nicht verfügbar.",
+  "Balance debit": "Kontobelastung"
 }

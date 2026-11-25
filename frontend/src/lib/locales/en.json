@@ -1848,5 +1848,21 @@
   "Confirm current login password": "Confirm current login password",
   "Withdrawal request submitted. You can track its progress in withdrawal history.": "Withdrawal request submitted. You can track its progress in withdrawal history.",
   "Choose a saved address and enter the amount you want to withdraw. You can track the request status in withdrawal history.": "Choose a saved address and enter the amount you want to withdraw. You can track the request status in withdrawal history.",
-  "No withdrawal assets and networks are currently configured.": "No withdrawal assets and networks are currently configured."
+  "No withdrawal assets and networks are currently configured.": "No withdrawal assets and networks are currently configured.",
+  "Net amount": "Net amount",
+  "Application ID": "Application ID",
+  "Showing the latest 20 requests": "Showing the latest 20 requests",
+  "Manual payout reference (internal)": "Internal manual payout reference",
+  "Enter a valid internal payout reference (1–160 characters).": "Enter a valid internal payout reference (1–160 characters).",
+  "A saved internal payout reference could not be read. Check the withdrawal status before entering a new reference.": "A saved internal payout reference could not be read. Check the withdrawal status before entering a new reference.",
+  "Approve or reject requests. Approval deducts the frozen amount and fee; record the internal payout reference separately after funds are actually sent.": "Approve or reject requests. Approval deducts the frozen amount and fee; record the internal payout reference separately after funds are actually sent.",
+  "Internal payout reference": "Internal payout reference",
+  "A payout request is still pending with a different internal reference. Enter the exact saved reference; do not replace it.": "A payout request is still pending with a different internal reference. Enter the exact saved reference; do not replace it.",
+  "Load more": "Load more",
+  "Withdrawal history is temporarily unavailable.": "Withdrawal history is temporarily unavailable.",
+  "Reviewed": "Reviewed",
+  "Estimated USDT deduction": "Estimated USDT deduction",
+  "Final rate is locked when you submit.": "Final rate is locked when you submit.",
+  "USDC/USDT conversion is temporarily unavailable.": "USDC/USDT conversion is temporarily unavailable.",
+  "Balance debit": "Balance debit"
 }

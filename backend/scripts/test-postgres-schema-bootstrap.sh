@@ -178,7 +178,7 @@ BEGIN
     RAISE EXCEPTION 'manual deposit RPC grants are not service-role-only';
   END IF;
 
-  v_proc := to_regprocedure('public.create_withdrawal_atomic(text,text,text,text,numeric,numeric,text,text,text,boolean,numeric)');
+  v_proc := to_regprocedure('public.create_withdrawal_atomic(text,text,text,text,numeric,numeric,text,text,text,boolean,numeric,text,numeric,numeric)');
   IF v_proc IS NULL OR NOT has_function_privilege('service_role',v_proc,'EXECUTE')
      OR has_function_privilege('anon',v_proc,'EXECUTE')
      OR has_function_privilege('authenticated',v_proc,'EXECUTE') THEN
@@ -298,3 +298,9 @@ SQL
 
 echo '[test] Executing financial lifecycle RPCs inside a rolled-back PostgreSQL transaction.'
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f backend/tests/postgres-financial-lifecycle.integration.sql
+
+echo '[test] Running concurrent approve-versus-reject withdrawal sessions.'
+bash backend/scripts/test-withdrawal-concurrency.sh
+
+echo '[test] Executing the read-only legacy withdrawal reconciliation report.'
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f backend/supabase/diagnostics/withdrawal-approval-reconciliation-report.sql

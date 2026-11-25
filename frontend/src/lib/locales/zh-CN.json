@@ -1848,5 +1848,21 @@
   "Confirm current login password": "确认当前登录密码",
   "Withdrawal request submitted. You can track its progress in withdrawal history.": "提现申请已提交，可在提现记录中查看进度。",
   "Choose a saved address and enter the amount you want to withdraw. You can track the request status in withdrawal history.": "请选择已保存的提现地址并输入提现金额。你可以在提现记录中查看申请状态。",
-  "No withdrawal assets and networks are currently configured.": "目前尚未配置可提现的币种和网络。"
+  "No withdrawal assets and networks are currently configured.": "目前尚未配置可提现的币种和网络。",
+  "Net amount": "预计到账",
+  "Application ID": "申请编号",
+  "Showing the latest 20 requests": "当前显示最近 20 笔申请",
+  "Manual payout reference (internal)": "人工出币内部付款参考编号",
+  "Enter a valid internal payout reference (1–160 characters).": "请输入有效的人工出币内部参考编号（1–160 个字符）。",
+  "A saved internal payout reference could not be read. Check the withdrawal status before entering a new reference.": "无法读取已保存的人工出币内部参考编号。输入新编号前，请先核对提现状态。",
+  "Approve or reject requests. Approval deducts the frozen amount and fee; record the internal payout reference separately after funds are actually sent.": "批准或拒绝提现申请。批准时正式扣除冻结金额及手续费；实际人工转账完成后再单独登记内部付款参考编号。",
+  "Internal payout reference": "内部人工出币付款参考编号",
+  "A payout request is still pending with a different internal reference. Enter the exact saved reference; do not replace it.": "存在尚未确认的人工出币请求，且内部参考编号不同。请填写已保存的原编号，不要替换。",
+  "Load more": "加载更多",
+  "Withdrawal history is temporarily unavailable.": "提现记录暂时无法加载。",
+  "Reviewed": "审核时间",
+  "Estimated USDT deduction": "预计扣除 USDT",
+  "Final rate is locked when you submit.": "最终汇率将在提交时锁定。",
+  "USDC/USDT conversion is temporarily unavailable.": "USDC/USDT 汇率暂时不可用。",
+  "Balance debit": "余额扣款"
 }

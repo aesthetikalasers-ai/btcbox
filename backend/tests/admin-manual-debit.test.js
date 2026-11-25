@@ -63,7 +63,10 @@ test('fresh database bootstrap scripts preserve the current migration sequence a
   const dockerFiles = files(dockerInit);
   assert.deepEqual(dockerFiles, bootstrapFiles);
   assert.ok(bootstrapFiles.includes('0053_perpetual_two_source_live_mark_v1.sql'));
-  assert.equal(bootstrapFiles.at(-1), '0054_admin_manual_debit_negative_balance_v1.sql');
+  assert.equal(bootstrapFiles.at(-4), '0054_admin_manual_debit_negative_balance_v1.sql');
+  assert.equal(bootstrapFiles.at(-3), '0055_withdrawal_approval_debit_at_review_v1.sql');
+  assert.equal(bootstrapFiles.at(-2), '0056_usdc_withdrawal_settlement_in_usdt_v1.sql');
+  assert.equal(bootstrapFiles.at(-1), '0057_admin_withdrawal_queue_includes_approved_payouts_v1.sql');
 });
 
 test('the existing admin adjustment UI submits debit as a signed idempotent ledger operation', () => {

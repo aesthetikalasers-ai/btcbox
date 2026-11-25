@@ -1849,5 +1849,21 @@
   "Confirm current login password": "Xác nhận mật khẩu đăng nhập hiện tại",
   "Withdrawal request submitted. You can track its progress in withdrawal history.": "Đã gửi yêu cầu rút tiền. Bạn có thể theo dõi tiến độ trong lịch sử rút tiền.",
   "Choose a saved address and enter the amount you want to withdraw. You can track the request status in withdrawal history.": "Chọn địa chỉ đã lưu và nhập số tiền muốn rút. Bạn có thể theo dõi trạng thái yêu cầu trong lịch sử rút tiền.",
-  "No withdrawal assets and networks are currently configured.": "Hiện chưa có tài sản và mạng lưới rút tiền nào được cấu hình."
+  "No withdrawal assets and networks are currently configured.": "Hiện chưa có tài sản và mạng lưới rút tiền nào được cấu hình.",
+  "Net amount": "Số tiền thực nhận",
+  "Application ID": "Mã yêu cầu",
+  "Showing the latest 20 requests": "Đang hiển thị 20 yêu cầu gần nhất",
+  "Manual payout reference (internal)": "Mã tham chiếu nội bộ cho khoản chi thủ công",
+  "Enter a valid internal payout reference (1–160 characters).": "Nhập mã tham chiếu nội bộ hợp lệ cho khoản chi thủ công (1–160 ký tự).",
+  "A saved internal payout reference could not be read. Check the withdrawal status before entering a new reference.": "Không thể đọc mã tham chiếu nội bộ đã lưu của khoản chi thủ công. Hãy kiểm tra trạng thái rút tiền trước khi nhập mã mới.",
+  "Approve or reject requests. Approval deducts the frozen amount and fee; record the internal payout reference separately after funds are actually sent.": "Phê duyệt hoặc từ chối yêu cầu. Khi phê duyệt, số tiền bị khóa và phí sẽ được trừ; ghi mã tham chiếu nội bộ riêng sau khi thực sự chuyển tiền.",
+  "Internal payout reference": "Mã tham chiếu thanh toán nội bộ",
+  "A payout request is still pending with a different internal reference. Enter the exact saved reference; do not replace it.": "Yêu cầu thanh toán với mã tham chiếu nội bộ khác vẫn đang chờ xử lý. Hãy nhập đúng mã đã lưu, không thay thế.",
+  "Load more": "Tải thêm",
+  "Withdrawal history is temporarily unavailable.": "Lịch sử rút tiền tạm thời không khả dụng.",
+  "Reviewed": "Đã xem xét",
+  "Estimated USDT deduction": "Khoản khấu trừ USDT ước tính",
+  "Final rate is locked when you submit.": "Tỷ giá cuối cùng được khóa khi bạn gửi yêu cầu.",
+  "USDC/USDT conversion is temporarily unavailable.": "Tạm thời không thể quy đổi USDC/USDT.",
+  "Balance debit": "Khoản trừ số dư"
 }

@@ -13,7 +13,7 @@ CREATE OR REPLACE FUNCTION pg_temp.test_credit(
   p_note text
 ) RETURNS jsonb
 LANGUAGE plpgsql
-AS $$
+AS $test_credit$
 DECLARE
   v_hash text;
 BEGIN
@@ -25,7 +25,41 @@ BEGIN
     p_deposit_id,'admin-ci',p_user_id,p_asset,p_amount,p_request_id,v_hash,p_reference,p_note
   );
 END;
-$$;
+$test_credit$;
+
+CREATE OR REPLACE FUNCTION pg_temp.fail_withdrawal_approval_audit()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $withdrawal_audit_test$
+BEGIN
+  IF NEW.action = 'withdrawal_approved' AND NEW.object_id = 'WD-CI-ROLLBACK' THEN
+    RAISE EXCEPTION 'simulated withdrawal approval audit failure';
+  END IF;
+  RETURN NEW;
+END;
+$withdrawal_audit_test$;
+
+DROP TRIGGER IF EXISTS ci_fail_withdrawal_approval_audit ON public.financial_audit_log;
+CREATE TRIGGER ci_fail_withdrawal_approval_audit
+BEFORE INSERT ON public.financial_audit_log
+FOR EACH ROW EXECUTE FUNCTION pg_temp.fail_withdrawal_approval_audit();
+
+CREATE OR REPLACE FUNCTION pg_temp.fail_withdrawal_approval_ledger()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $withdrawal_ledger_test$
+BEGIN
+  IF NEW.idempotency_key = 'withdraw-approve:WD-CI-LEDGER-ROLLBACK' THEN
+    RAISE EXCEPTION 'simulated withdrawal approval ledger failure';
+  END IF;
+  RETURN NEW;
+END;
+$withdrawal_ledger_test$;
+
+DROP TRIGGER IF EXISTS ci_fail_withdrawal_approval_ledger ON public.financial_operations;
+CREATE TRIGGER ci_fail_withdrawal_approval_ledger
+BEFORE INSERT ON public.financial_operations
+FOR EACH ROW EXECUTE FUNCTION pg_temp.fail_withdrawal_approval_ledger();
 
 DO $financial_tests$
 DECLARE
@@ -109,7 +143,7 @@ BEGIN
   ),'hex');
   v_result := public.create_withdrawal_atomic(
     'WD-CI-0001','deposit-user','USDT','TRC20',10,1,'T12345678',
-    'withdrawal-ci-request-0001',v_hash,false,1
+    'withdrawal-ci-request-0001',v_hash,false,1,'USDT',11,1
   );
   IF v_result->>'ok'<>'true' OR v_result->>'duplicate'<>'false' THEN
     RAISE EXCEPTION 'withdrawal creation failed: %',v_result;
@@ -118,7 +152,7 @@ BEGIN
   -- Current fee changed to 2, but the exact old request must replay its stored fee of 1.
   v_result := public.create_withdrawal_atomic(
     'WD-CI-RETRY','deposit-user','USDT','TRC20',10,2,'T12345678',
-    'withdrawal-ci-request-0001',v_hash,false,2
+    'withdrawal-ci-request-0001',v_hash,false,2,'USDT',12,1
   );
   IF v_result->>'duplicate'<>'true' OR (v_result->>'fee')::numeric<>1 THEN
     RAISE EXCEPTION 'withdrawal retry did not preserve its original fee snapshot: %',v_result;
@@ -130,7 +164,7 @@ BEGIN
     RAISE EXCEPTION 'withdrawal freeze mismatch: available %, frozen %',v_balance,v_frozen;
   END IF;
 
-  -- Capture ledger count before approval to prove that approval itself is non-financial.
+  -- Approval atomically consumes the frozen principal + fee exactly once.
   SELECT count(*) INTO v_ledger_before FROM public.financial_ledger WHERE user_id='deposit-user';
   v_result := public.review_withdrawal_atomic('WD-CI-0001','admin-ci',true,'postgres-ci approve');
   IF v_result->>'status'<>'approved' OR v_result->>'duplicate'<>'false' THEN
@@ -140,49 +174,48 @@ BEGIN
   IF v_result->>'status'<>'approved' OR v_result->>'duplicate'<>'true' THEN
     RAISE EXCEPTION 'withdrawal approval retry was not idempotent: %',v_result;
   END IF;
-
-  -- Approval is status-only: preserve the user's full reserved amount and create no ledger row.
-  SELECT count(*) INTO v_ledger_after FROM public.financial_ledger WHERE user_id='deposit-user';
-  IF v_ledger_after<>v_ledger_before THEN
-    RAISE EXCEPTION 'approval must not create a financial ledger row';
-  END IF;
-  SELECT available,frozen INTO v_balance,v_frozen FROM public.financial_accounts
-  WHERE user_id='deposit-user' AND asset='USDT';
-  IF v_balance<>89 OR v_frozen<>11 THEN
-    RAISE EXCEPTION 'approval changed reserved funds: available %, frozen %',v_balance,v_frozen;
-  END IF;
-  IF NOT EXISTS (
-    SELECT 1 FROM public.withdrawal_requests
-    WHERE id='WD-CI-0001' AND review_operation_id=freeze_operation_id
-  ) THEN
-    RAISE EXCEPTION 'approved withdrawal is not linked to its original freeze operation';
-  END IF;
-
-  -- Staff payout completion is the single, idempotent ledger debit of frozen funds.
-  SELECT count(*) INTO v_ledger_before FROM public.financial_ledger WHERE user_id='deposit-user';
-  v_result := public.mark_withdrawal_paid_atomic('WD-CI-0001','admin-ci','txid-ci-0001','postgres-ci payout');
-  IF v_result->>'status'<>'completed' OR v_result->>'duplicate'<>'false' THEN
-    RAISE EXCEPTION 'manual payout completion failed: %',v_result;
-  END IF;
-  v_result := public.mark_withdrawal_paid_atomic('WD-CI-0001','admin-ci','txid-ci-0001','postgres-ci payout');
-  IF v_result->>'status'<>'completed' OR v_result->>'duplicate'<>'true' THEN
-    RAISE EXCEPTION 'manual payout retry was not idempotent: %',v_result;
-  END IF;
   SELECT count(*) INTO v_ledger_after FROM public.financial_ledger WHERE user_id='deposit-user';
   IF v_ledger_after<>v_ledger_before+1 THEN
-    RAISE EXCEPTION 'manual payout must create exactly one debit ledger operation';
+    RAISE EXCEPTION 'approval must create exactly one financial ledger operation';
   END IF;
   IF NOT EXISTS (
     SELECT 1 FROM public.financial_operations o
-    JOIN public.withdrawal_requests w ON w.payout_operation_id=o.id
-    WHERE w.id='WD-CI-0001' AND o.operation_type='withdraw_paid'
+    JOIN public.withdrawal_requests w ON w.review_operation_id=o.id
+    WHERE w.id='WD-CI-0001' AND o.operation_type='withdraw_approve'
   ) THEN
-    RAISE EXCEPTION 'completed withdrawal is not linked to its withdraw_paid ledger operation';
+    RAISE EXCEPTION 'approved withdrawal is not linked to a withdraw_approve operation';
   END IF;
   SELECT available,frozen INTO v_balance,v_frozen FROM public.financial_accounts
   WHERE user_id='deposit-user' AND asset='USDT';
   IF v_balance<>89 OR v_frozen<>0 THEN
-    RAISE EXCEPTION 'manual payout changed balance after approval: available %, frozen %',v_balance,v_frozen;
+    RAISE EXCEPTION 'approval did not consume frozen funds: available %, frozen %',v_balance,v_frozen;
+  END IF;
+
+  -- Staff payout completion records status/reference only and never debits again.
+  SELECT count(*) INTO v_ledger_before FROM public.financial_ledger WHERE user_id='deposit-user';
+  v_result := public.mark_withdrawal_paid_atomic('WD-CI-0001','admin-ci','internal-ref-ci-0001','postgres-ci payout');
+  IF v_result->>'status'<>'completed' OR v_result->>'duplicate'<>'false' THEN
+    RAISE EXCEPTION 'manual payout completion failed: %',v_result;
+  END IF;
+  v_result := public.mark_withdrawal_paid_atomic('WD-CI-0001','admin-ci','internal-ref-ci-0001','postgres-ci payout');
+  IF v_result->>'status'<>'completed' OR v_result->>'duplicate'<>'true' THEN
+    RAISE EXCEPTION 'manual payout retry was not idempotent: %',v_result;
+  END IF;
+  SELECT count(*) INTO v_ledger_after FROM public.financial_ledger WHERE user_id='deposit-user';
+  IF v_ledger_after<>v_ledger_before THEN
+    RAISE EXCEPTION 'manual payout completion must not create a second ledger operation';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.withdrawal_requests
+    WHERE id='WD-CI-0001' AND status='completed'
+      AND payout_reference='internal-ref-ci-0001' AND payout_operation_id IS NULL
+  ) THEN
+    RAISE EXCEPTION 'manual payout completion did not persist only the internal reference/status';
+  END IF;
+  SELECT available,frozen INTO v_balance,v_frozen FROM public.financial_accounts
+  WHERE user_id='deposit-user' AND asset='USDT';
+  IF v_balance<>89 OR v_frozen<>0 THEN
+    RAISE EXCEPTION 'manual payout completion changed funds after approval: available %, frozen %',v_balance,v_frozen;
   END IF;
 
   PERFORM pg_temp.test_credit(
@@ -193,15 +226,172 @@ BEGIN
   ),'hex');
   v_result := public.create_withdrawal_atomic(
     'WD-CI-0002','reject-user','USDT','TRC20',5,1,'T87654321',
-    'withdrawal-ci-request-0002',v_hash,false,1
+    'withdrawal-ci-request-0002',v_hash,false,1,'USDT',6,1
   );
   IF v_result->>'ok'<>'true' THEN RAISE EXCEPTION 'rejected withdrawal creation failed: %',v_result; END IF;
   v_result := public.review_withdrawal_atomic('WD-CI-0002','admin-ci',false,'postgres-ci reject');
-  IF v_result->>'status'<>'rejected' THEN RAISE EXCEPTION 'withdrawal rejection failed: %',v_result; END IF;
+  IF v_result->>'status'<>'rejected' OR v_result->>'duplicate'<>'false' THEN
+    RAISE EXCEPTION 'withdrawal rejection failed: %',v_result;
+  END IF;
+  v_result := public.review_withdrawal_atomic('WD-CI-0002','admin-ci',false,'postgres-ci reject');
+  IF v_result->>'status'<>'rejected' OR v_result->>'duplicate'<>'true' THEN
+    RAISE EXCEPTION 'withdrawal rejection retry was not idempotent: %',v_result;
+  END IF;
   SELECT available,frozen INTO v_balance,v_frozen FROM public.financial_accounts
   WHERE user_id='reject-user' AND asset='USDT';
   IF v_balance<>20 OR v_frozen<>0 THEN
     RAISE EXCEPTION 'withdrawal rejection did not refund exactly once: available %, frozen %',v_balance,v_frozen;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.financial_operations o
+    JOIN public.withdrawal_requests w ON w.review_operation_id=o.id
+    WHERE w.id='WD-CI-0002' AND o.operation_type='withdraw_reject'
+  ) THEN
+    RAISE EXCEPTION 'rejected withdrawal is not linked to its withdraw_reject operation';
+  END IF;
+
+  -- Cursor history: records are user-scoped, stable across pages, and expose only customer-safe review details.
+  v_hash := encode(extensions.digest(
+    'deposit-user|USDT|TRC20|2|T12345678|withdrawal-ci-request-0003','sha256'
+  ),'hex');
+  v_result := public.create_withdrawal_atomic(
+    'WD-CI-0003','deposit-user','USDT','TRC20',2,1,'T12345678',
+    'withdrawal-ci-request-0003',v_hash,true,1,'USDT',3,1
+  );
+  IF v_result->>'ok'<>'true' THEN RAISE EXCEPTION 'paginated withdrawal creation failed: %',v_result; END IF;
+  v_result := public.review_withdrawal_atomic('WD-CI-0003','admin-ci',false,'cursor pagination reject reason');
+  IF v_result->>'status'<>'rejected' THEN RAISE EXCEPTION 'paginated withdrawal rejection failed: %',v_result; END IF;
+
+  v_snapshot := public.read_withdrawal_history_page_v1('deposit-user',NULL,NULL,1);
+  IF v_snapshot->>'ok'<>'true' OR v_snapshot->>'has_more'<>'true'
+     OR jsonb_array_length(v_snapshot->'withdrawals')<>1
+     OR v_snapshot->'withdrawals'->0->>'id'<>'WD-CI-0003'
+     OR v_snapshot->'withdrawals'->0->>'rejection_reason'<>'cursor pagination reject reason'
+     OR coalesce(v_snapshot->'withdrawals'->0->>'reviewed_at','')='' THEN
+    RAISE EXCEPTION 'first withdrawal history page did not return the newest customer-safe row and cursor: %',v_snapshot;
+  END IF;
+  v_snapshot := public.read_withdrawal_history_page_v1(
+    'deposit-user',
+    (v_snapshot->'next_cursor'->>'created_at')::timestamptz,
+    v_snapshot->'next_cursor'->>'id',
+    1
+  );
+  IF v_snapshot->>'ok'<>'true' OR v_snapshot->>'has_more'<>'false'
+     OR jsonb_array_length(v_snapshot->'withdrawals')<>1
+     OR v_snapshot->'withdrawals'->0->>'id'<>'WD-CI-0001'
+     OR v_snapshot->'withdrawals'->0->>'status'<>'completed' THEN
+    RAISE EXCEPTION 'second withdrawal history page did not continue after the stable cursor: %',v_snapshot;
+  END IF;
+  v_snapshot := public.read_withdrawal_history_page_v1('unrelated-user',NULL,NULL,20);
+  IF jsonb_array_length(v_snapshot->'withdrawals')<>0 THEN
+    RAISE EXCEPTION 'withdrawal history returned another user records: %',v_snapshot;
+  END IF;
+
+  -- Approved withdrawals must remain in the admin queue until manual payout completion.
+  v_hash := encode(extensions.digest(
+    'deposit-user|USDT|TRC20|2|T12345678|withdrawal-ci-admin-queue-0001','sha256'
+  ),'hex');
+  v_result := public.create_withdrawal_atomic(
+    'WD-CI-ADMIN-QUEUE','deposit-user','USDT','TRC20',2,1,'T12345678',
+    'withdrawal-ci-admin-queue-0001',v_hash,true,1,'USDT',3,1
+  );
+  IF v_result->>'ok'<>'true' THEN
+    RAISE EXCEPTION 'admin queue withdrawal fixture creation failed: %',v_result;
+  END IF;
+  v_result := public.review_withdrawal_atomic(
+    'WD-CI-ADMIN-QUEUE','admin-ci',true,'approved payout remains actionable'
+  );
+  IF v_result->>'status'<>'approved' THEN
+    RAISE EXCEPTION 'admin queue withdrawal approval failed: %',v_result;
+  END IF;
+  v_snapshot := public.read_admin_withdrawal_snapshot_v1();
+  IF v_snapshot->>'ok'<>'true'
+     OR NOT EXISTS (
+       SELECT 1 FROM jsonb_array_elements(v_snapshot->'withdrawals') AS item
+       WHERE item->>'id'='WD-CI-ADMIN-QUEUE' AND item->>'status'='approved'
+     )
+     OR (v_snapshot->>'approved_count')::integer < 1 THEN
+    RAISE EXCEPTION 'approved withdrawal disappeared from admin queue before manual payout: %',v_snapshot;
+  END IF;
+
+  -- A failed approval audit must roll back the approval ledger debit and status update.
+  PERFORM pg_temp.test_credit(
+    'MD-CI-ROLLBACK','rollback-user','USDT',30,'deposit-ci-rollback-0001','rollback-credit','postgres-ci'
+  );
+  v_hash := encode(extensions.digest(
+    'rollback-user|USDT|TRC20|5|T12345678|withdrawal-ci-rollback-0001','sha256'
+  ),'hex');
+  v_result := public.create_withdrawal_atomic(
+    'WD-CI-ROLLBACK','rollback-user','USDT','TRC20',5,1,'T12345678',
+    'withdrawal-ci-rollback-0001',v_hash,true,1,'USDT',6,1
+  );
+  IF v_result->>'ok'<>'true' THEN RAISE EXCEPTION 'rollback fixture withdrawal creation failed: %',v_result; END IF;
+  v_failed := false;
+  BEGIN
+    PERFORM public.review_withdrawal_atomic('WD-CI-ROLLBACK','admin-ci',true,'rollback audit failure');
+  EXCEPTION WHEN OTHERS THEN
+    v_failed := SQLERRM LIKE '%simulated withdrawal approval audit failure%';
+  END;
+  IF NOT v_failed THEN RAISE EXCEPTION 'approval unexpectedly succeeded when its audit insert failed'; END IF;
+  SELECT available,frozen INTO v_balance,v_frozen FROM public.financial_accounts
+  WHERE user_id='rollback-user' AND asset='USDT';
+  IF v_balance<>24 OR v_frozen<>6 THEN
+    RAISE EXCEPTION 'approval audit failure did not roll back the debit: available %, frozen %',v_balance,v_frozen;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.withdrawal_requests
+    WHERE id='WD-CI-ROLLBACK' AND status='pending_admin_review'
+  ) OR EXISTS (
+    SELECT 1 FROM public.financial_operations
+    WHERE idempotency_key='withdraw-approve:WD-CI-ROLLBACK'
+  ) THEN
+    RAISE EXCEPTION 'approval audit failure left a partial status or ledger operation';
+  END IF;
+
+  -- A ledger insert failure must roll back the entire approval before the
+  -- account update, withdrawal status, and audit can become visible.
+  PERFORM pg_temp.test_credit(
+    'MD-CI-LEDGER-ROLLBACK','ledger-rollback-user','USDT',30,
+    'deposit-ci-ledger-rollback-0001','ledger-rollback-credit','postgres-ci'
+  );
+  v_hash := encode(extensions.digest(
+    'ledger-rollback-user|USDT|TRC20|5|T12345678|withdrawal-ci-ledger-rollback-0001','sha256'
+  ),'hex');
+  v_result := public.create_withdrawal_atomic(
+    'WD-CI-LEDGER-ROLLBACK','ledger-rollback-user','USDT','TRC20',5,1,'T12345678',
+    'withdrawal-ci-ledger-rollback-0001',v_hash,true,1,'USDT',6,1
+  );
+  IF v_result->>'ok'<>'true' THEN
+    RAISE EXCEPTION 'ledger rollback fixture withdrawal creation failed: %',v_result;
+  END IF;
+  v_failed := false;
+  BEGIN
+    PERFORM public.review_withdrawal_atomic(
+      'WD-CI-LEDGER-ROLLBACK','admin-ci',true,'ledger write failure'
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_failed := SQLERRM LIKE '%simulated withdrawal approval ledger failure%';
+  END;
+  IF NOT v_failed THEN
+    RAISE EXCEPTION 'approval unexpectedly succeeded when its ledger insert failed';
+  END IF;
+  SELECT available,frozen INTO v_balance,v_frozen FROM public.financial_accounts
+  WHERE user_id='ledger-rollback-user' AND asset='USDT';
+  IF v_balance<>24 OR v_frozen<>6 THEN
+    RAISE EXCEPTION 'ledger failure changed balances: available %, frozen %',v_balance,v_frozen;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.withdrawal_requests
+    WHERE id='WD-CI-LEDGER-ROLLBACK' AND status='pending_admin_review'
+  ) OR EXISTS (
+    SELECT 1 FROM public.financial_operations
+    WHERE idempotency_key='withdraw-approve:WD-CI-LEDGER-ROLLBACK'
+  ) OR EXISTS (
+    SELECT 1 FROM public.financial_audit_log
+    WHERE object_type='withdrawal' AND object_id='WD-CI-LEDGER-ROLLBACK'
+      AND action='withdrawal_approved'
+  ) THEN
+    RAISE EXCEPTION 'ledger failure left a partial operation, status, or audit';
   END IF;
 
   -- 3) Spot: match at maker price, then cancel with durable request-key binding.
@@ -728,5 +918,201 @@ BEGIN
   RAISE NOTICE 'Perpetual order filter, minimum notional, exposure cap and emergency close checks passed';
 END
 $perpetual_order_filter_tests$;
+
+-- Legacy approvals from the 0039/0044 contract still hold frozen funds.
+-- The 0055 payout-completion RPC must fail closed and leave the row untouched.
+DO $legacy_approved_payout_guard$
+DECLARE
+  v_result jsonb;
+  v_failed boolean := false;
+  v_status text;
+  v_frozen numeric;
+  v_payout_reference text;
+  v_hash text;
+BEGIN
+  PERFORM pg_temp.test_credit(
+    'MD-CI-LEGACY-WD','legacy-approved-user','USDT',20,
+    'legacy-approved-credit-0001','legacy-approved-ref','legacy approved guard'
+  );
+  v_hash := encode(extensions.digest(
+    'legacy-approved-user|USDT|TRC20|5|T12345678|legacy-approved-withdrawal-0001',
+    'sha256'
+  ),'hex');
+  v_result := public.create_withdrawal_atomic(
+    'WD-CI-LEGACY-APPROVED','legacy-approved-user','USDT','TRC20',5,1,
+    'T12345678','legacy-approved-withdrawal-0001',v_hash,false,1,'USDT',6,1
+  );
+  IF v_result->>'ok'<>'true' THEN
+    RAISE EXCEPTION 'legacy approval guard fixture creation failed: %',v_result;
+  END IF;
+
+  -- Simulate legacy approval linked to the original freeze, not a 0055 debit.
+  UPDATE public.withdrawal_requests
+  SET status='approved',
+      reviewed_by='admin-ci-legacy',
+      reviewed_at=clock_timestamp(),
+      review_operation_id=freeze_operation_id
+  WHERE id='WD-CI-LEGACY-APPROVED';
+
+  BEGIN
+    PERFORM public.mark_withdrawal_paid_atomic(
+      'WD-CI-LEGACY-APPROVED','admin-ci-legacy',
+      'legacy-must-not-complete','legacy payout guard test'
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_failed := SQLERRM LIKE '%withdrawal approval debit not verified%';
+  END;
+  IF NOT v_failed THEN
+    RAISE EXCEPTION 'legacy approved withdrawal was incorrectly allowed to complete';
+  END IF;
+
+  SELECT status,payout_reference INTO v_status,v_payout_reference
+  FROM public.withdrawal_requests WHERE id='WD-CI-LEGACY-APPROVED';
+  SELECT frozen INTO v_frozen FROM public.financial_accounts
+  WHERE user_id='legacy-approved-user' AND asset='USDT';
+
+  IF v_status<>'approved' OR v_payout_reference IS NOT NULL OR v_frozen<>6 THEN
+    RAISE EXCEPTION 'legacy approved row changed after blocked completion: status %, reference %, frozen %',
+      v_status,v_payout_reference,v_frozen;
+  END IF;
+END
+$legacy_approved_payout_guard$;
+
+
+DO $withdrawal_fee_quote_guard$
+DECLARE
+  v_result jsonb;
+  v_hash text;
+  v_available numeric;
+  v_frozen numeric;
+BEGIN
+  PERFORM pg_temp.test_credit(
+    'MD-CI-WITHDRAW-FEE-GUARD','withdraw-fee-guard-user','USDT',100,
+    'withdraw-fee-guard-credit-0001','withdraw-fee-guard-ref','withdrawal fee quote guard fixture'
+  );
+  v_hash := encode(extensions.digest(
+    'withdraw-fee-guard-user|USDT|TRC20|10|T123456789|withdraw-fee-guard-request-0001',
+    'sha256'
+  ),'hex');
+  BEGIN
+    PERFORM public.create_withdrawal_atomic(
+      'WD-CI-WITHDRAW-FEE-GUARD','withdraw-fee-guard-user','USDT','TRC20',10,2,
+      'T123456789','withdraw-fee-guard-request-0001',v_hash,true,1,
+      'USDT',12,1
+    );
+    RAISE EXCEPTION 'withdrawal accepted a fee different from the customer quote';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM = 'withdrawal accepted a fee different from the customer quote' THEN RAISE; END IF;
+    IF SQLERRM <> 'withdrawal fee changed' THEN RAISE; END IF;
+  END;
+  SELECT available,frozen INTO v_available,v_frozen
+  FROM public.financial_accounts
+  WHERE user_id='withdraw-fee-guard-user' AND asset='USDT';
+  IF v_available<>100 OR v_frozen<>0 THEN
+    RAISE EXCEPTION 'fee quote mismatch changed balances: available %, frozen %',v_available,v_frozen;
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.withdrawal_requests WHERE id='WD-CI-WITHDRAW-FEE-GUARD') THEN
+    RAISE EXCEPTION 'fee quote mismatch created a withdrawal request';
+  END IF;
+END
+$withdrawal_fee_quote_guard$;
+
+DO $usdc_settlement$
+DECLARE
+  v_result jsonb;
+  v_hash text;
+  v_available numeric;
+  v_frozen numeric;
+  v_asset text;
+  v_settlement_asset text;
+  v_settlement_amount numeric;
+  v_rate numeric;
+BEGIN
+  PERFORM pg_temp.test_credit(
+    'MD-CI-USDC-SETTLEMENT','usdc-settlement-user','USDT',1000,
+    'usdc-settlement-credit-0001','usdc-settlement-ref','USDC settlement fixture'
+  );
+  v_hash := encode(extensions.digest(
+    'usdc-settlement-user|USDC|ERC20|100|0x1111111111111111111111111111111111111111|withdrawal-usdc-settlement-0001',
+    'sha256'
+  ),'hex');
+  v_result := public.create_withdrawal_atomic(
+    'WD-CI-USDC-SETTLEMENT','usdc-settlement-user','USDC','ERC20',100,1,
+    '0x1111111111111111111111111111111111111111','withdrawal-usdc-settlement-0001',
+    v_hash,true,1,'USDT',100.9899,0.9999
+  );
+  IF v_result->>'ok'<>'true' OR v_result->>'duplicate'<>'false'
+     OR v_result->>'settlement_asset'<>'USDT'
+     OR (v_result->>'settlement_amount')::numeric<>100.9899
+     OR (v_result->>'conversion_rate')::numeric<>0.9999 THEN
+    RAISE EXCEPTION 'USDC withdrawal did not persist its locked USDT settlement quote: %',v_result;
+  END IF;
+
+  -- A retry replays its original locked rate even if the market feed is now down.
+  v_result := public.create_withdrawal_atomic(
+    'WD-CI-USDC-RETRY','usdc-settlement-user','USDC','ERC20',100,1,
+    '0x1111111111111111111111111111111111111111','withdrawal-usdc-settlement-0001',
+    v_hash,true,1,NULL,NULL,NULL
+  );
+  IF v_result->>'duplicate'<>'true'
+     OR (v_result->>'settlement_amount')::numeric<>100.9899
+     OR (v_result->>'conversion_rate')::numeric<>0.9999 THEN
+    RAISE EXCEPTION 'USDC idempotent retry did not replay its original locked quote: %',v_result;
+  END IF;
+
+  SELECT available,frozen INTO v_available,v_frozen
+  FROM public.financial_accounts WHERE user_id='usdc-settlement-user' AND asset='USDT';
+  IF v_available<>899.0101 OR v_frozen<>100.9899 THEN
+    RAISE EXCEPTION 'USDC request did not freeze the exact converted USDT amount: available %, frozen %',v_available,v_frozen;
+  END IF;
+
+  SELECT asset,settlement_asset,settlement_amount,conversion_rate
+  INTO v_asset,v_settlement_asset,v_settlement_amount,v_rate
+  FROM public.withdrawal_requests WHERE id='WD-CI-USDC-SETTLEMENT';
+  IF v_asset<>'USDC' OR v_settlement_asset<>'USDT' OR v_settlement_amount<>100.9899 OR v_rate<>0.9999 THEN
+    RAISE EXCEPTION 'USDC payout asset and USDT settlement asset were not kept separate';
+  END IF;
+
+  v_result := public.review_withdrawal_atomic('WD-CI-USDC-SETTLEMENT','admin-ci',true,'USDC settlement approve');
+  IF v_result->>'status'<>'approved' THEN RAISE EXCEPTION 'USDC settlement approval failed: %',v_result; END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.financial_operations
+    WHERE idempotency_key='withdraw-approve:WD-CI-USDC-SETTLEMENT'
+      AND asset='USDT' AND operation_type='withdraw_approve'
+  ) THEN RAISE EXCEPTION 'USDC approval did not debit the USDT ledger'; END IF;
+
+  SELECT available,frozen INTO v_available,v_frozen
+  FROM public.financial_accounts WHERE user_id='usdc-settlement-user' AND asset='USDT';
+  IF v_available<>899.0101 OR v_frozen<>0 THEN
+    RAISE EXCEPTION 'USDC approval did not consume the locked USDT reservation: available %, frozen %',v_available,v_frozen;
+  END IF;
+
+  v_result := public.mark_withdrawal_paid_atomic(
+    'WD-CI-USDC-SETTLEMENT','admin-ci','internal-usdc-ref','manual USDC payout'
+  );
+  IF v_result->>'status'<>'completed' THEN RAISE EXCEPTION 'USDC manual payout completion failed: %',v_result; END IF;
+  SELECT available,frozen INTO v_available,v_frozen
+  FROM public.financial_accounts WHERE user_id='usdc-settlement-user' AND asset='USDT';
+  IF v_available<>899.0101 OR v_frozen<>0 THEN RAISE EXCEPTION 'USDC mark-paid applied a second USDT debit'; END IF;
+
+  v_hash := encode(extensions.digest(
+    'usdc-settlement-user|USDC|ERC20|20|0x2222222222222222222222222222222222222222|withdrawal-usdc-reject-0001',
+    'sha256'
+  ),'hex');
+  v_result := public.create_withdrawal_atomic(
+    'WD-CI-USDC-REJECT','usdc-settlement-user','USDC','ERC20',20,1,
+    '0x2222222222222222222222222222222222222222','withdrawal-usdc-reject-0001',
+    v_hash,true,1,'USDT',20.9979,0.9999
+  );
+  IF v_result->>'ok'<>'true' THEN RAISE EXCEPTION 'USDC reject fixture creation failed: %',v_result; END IF;
+  v_result := public.review_withdrawal_atomic('WD-CI-USDC-REJECT','admin-ci',false,'USDC settlement reject');
+  IF v_result->>'status'<>'rejected' THEN RAISE EXCEPTION 'USDC settlement rejection failed: %',v_result; END IF;
+  SELECT available,frozen INTO v_available,v_frozen
+  FROM public.financial_accounts WHERE user_id='usdc-settlement-user' AND asset='USDT';
+  IF v_available<>899.0101 OR v_frozen<>0 THEN
+    RAISE EXCEPTION 'USDC rejection did not release the exact USDT reservation: available %, frozen %',v_available,v_frozen;
+  END IF;
+END
+$usdc_settlement$;
 
 ROLLBACK;

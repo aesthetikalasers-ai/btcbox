@@ -1848,5 +1848,21 @@
   "Confirm current login password": "Conferma la password di accesso attuale",
   "Withdrawal request submitted. You can track its progress in withdrawal history.": "Richiesta di prelievo inviata. Puoi seguirne l'avanzamento nella cronologia dei prelievi.",
   "Choose a saved address and enter the amount you want to withdraw. You can track the request status in withdrawal history.": "Scegli un indirizzo salvato e inserisci l'importo da prelevare. Puoi controllare lo stato nella cronologia dei prelievi.",
-  "No withdrawal assets and networks are currently configured.": "Al momento non sono configurati asset o reti di prelievo."
+  "No withdrawal assets and networks are currently configured.": "Al momento non sono configurati asset o reti di prelievo.",
+  "Net amount": "Importo netto",
+  "Application ID": "ID richiesta",
+  "Showing the latest 20 requests": "Sono visualizzate le ultime 20 richieste",
+  "Manual payout reference (internal)": "Riferimento interno del pagamento manuale",
+  "Enter a valid internal payout reference (1–160 characters).": "Inserisci un riferimento interno valido per il pagamento manuale (1–160 caratteri).",
+  "A saved internal payout reference could not be read. Check the withdrawal status before entering a new reference.": "Impossibile leggere il riferimento interno salvato del pagamento manuale. Controlla lo stato del prelievo prima di inserirne uno nuovo.",
+  "Approve or reject requests. Approval deducts the frozen amount and fee; record the internal payout reference separately after funds are actually sent.": "Approva o rifiuta le richieste. Con l'approvazione vengono detratti l'importo bloccato e la commissione; registra il riferimento interno separatamente dopo l'effettivo invio dei fondi.",
+  "Internal payout reference": "Riferimento interno del pagamento",
+  "A payout request is still pending with a different internal reference. Enter the exact saved reference; do not replace it.": "È ancora in sospeso una richiesta di pagamento con un riferimento interno diverso. Inserisci esattamente il riferimento salvato; non sostituirlo.",
+  "Load more": "Carica altro",
+  "Withdrawal history is temporarily unavailable.": "La cronologia dei prelievi non è temporaneamente disponibile.",
+  "Reviewed": "Esaminato",
+  "Estimated USDT deduction": "Addebito stimato in USDT",
+  "Final rate is locked when you submit.": "Il tasso finale viene bloccato al momento dell'invio.",
+  "USDC/USDT conversion is temporarily unavailable.": "La conversione USDC/USDT non è temporaneamente disponibile.",
+  "Balance debit": "Addebito sul saldo"
 }
