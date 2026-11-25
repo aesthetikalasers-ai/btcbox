@@ -141,7 +141,7 @@ test('customer account API exposes only public withdrawal fields and never manua
 });
 
 test('withdrawal application number is generated server-side and displayed as a copyable application ID', () => {
-  const pages = fs.readFileSync(path.resolve(root, '../../frontend/src/features/pages/Pages.tsx'), 'utf8');
+  const pages = fs.readFileSync(path.resolve(root, '../frontend/src/features/pages/Pages.tsx'), 'utf8');
   assert.ok(api.includes("const withdrawalId = 'W' + Date.now() + crypto.randomBytes(8).toString('hex');"));
   assert.ok(pages.includes('t("Application ID")'));
   assert.ok(pages.includes('navigator.clipboard?.writeText(item.id)'));
