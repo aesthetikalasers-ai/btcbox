@@ -333,18 +333,14 @@
   "Sending…": "送信中…",
   "Send message": "メッセージを送信",
   "Deposit address": "入金アドレス",
-  "Always verify the asset and network before sending funds.": "送金前に、資産とネットワークが正しいことを必ず確認してください。",
   "Network": "ネットワーク",
   "Loading configured deposit address…": "設定済みの入金アドレスを読み込み中…",
-  "Verified network destination": "確認済みネットワークの送金先",
   "Copy address": "アドレスをコピー",
   "Important": "重要",
-  "Send only the selected asset on the selected network. Sending unsupported assets or using another network may result in permanent loss. After the transfer, BTCBOX staff verify receipt and manually credit the account. This page does not create a deposit order or automatically credit funds.": "選択した資産を、選択したネットワークでのみ送金してください。未対応の資産や別のネットワークで送金すると、資金を永久に失う可能性があります。送金後、BTCBOXスタッフが入金を確認し、手動で口座に反映します。このページでは入金注文は作成されず、自動入金処理も行われません。",
   "Deposit history": "入金履歴",
   "Track deposits verified and credited by BTCBOX staff.": "BTCBOXスタッフが確認し、口座へ反映した入金を追跡できます。",
   "Loading deposit history…": "入金履歴を読み込み中…",
   "Reference": "参照番号",
-  "No deposit records have been returned for this account.": "このアカウントの入金記録はありません。",
   "BTCBOX Earn": "BTCBOX Earn",
   "Live catalog · account-backed positions": "リアルタイム商品一覧 · アカウント連携済みポジション",
   "Loading Earn products and positions…": "Earn商品とポジションを読み込み中…",
@@ -1864,5 +1860,7 @@
   "Estimated USDT deduction": "USDT換算の概算控除額",
   "Final rate is locked when you submit.": "最終レートは申請時に確定します。",
   "USDC/USDT conversion is temporarily unavailable.": "USDC/USDTの換算は一時的に利用できません。",
-  "Balance debit": "残高からの差引額"
+  "Balance debit": "残高からの差引額",
+  "Only send the selected asset on the selected network. Incorrect deposits may be lost. BTCBOX verifies deposits and credits them manually.": "選択した資産を選択したネットワークでのみ送金してください。誤った入金は資産の損失につながる可能性があります。BTCBOXが入金を確認し、手動で口座に反映します。",
+  "No deposit history yet.": "入金履歴はありません。"
 }
