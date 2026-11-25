@@ -1847,5 +1847,6 @@
   "For accounts using only Google or a wallet, a recent sign-in may be required to confirm this change.": "仅使用 Google 或钱包登录的账户，可能需要近期重新登录后才能确认此次修改。",
   "Confirm current login password": "确认当前登录密码",
   "Withdrawal request submitted. You can track its progress in withdrawal history.": "提现申请已提交，可在提现记录中查看进度。",
-  "Choose a saved address and enter the amount you want to withdraw. You can track the request status in withdrawal history.": "请选择已保存的提现地址并输入提现金额。你可以在提现记录中查看申请状态。"
+  "Choose a saved address and enter the amount you want to withdraw. You can track the request status in withdrawal history.": "请选择已保存的提现地址并输入提现金额。你可以在提现记录中查看申请状态。",
+  "No withdrawal assets and networks are currently configured.": "目前尚未配置可提现的币种和网络。"
 }
