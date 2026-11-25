@@ -2721,34 +2721,35 @@ async function handleRequest(event, context) {
     // 输入与安全校验全部通过后再检查资金切开关；RPC 错误 fail-closed，绝不回退 Blobs。
     if (!financialWritesEnabled()) return json({ ok: false, code: 'FINANCIAL_CUTOVER_INCOMPLETE', msg: 'Financial ledger cutover is incomplete. Withdrawal was not submitted and your balance was unchanged.' }, 503);
     const withdrawalId = 'W' + Date.now() + crypto.randomBytes(8).toString('hex');
-    if (manualDepositRpcEnabled()) {
-      if (!supabaseStorageConfigured()) return json({ ok: false, code: 'FINANCIAL_RPC_NOT_CONFIGURED', msg: 'Financial database not configured. Withdrawal was not submitted.' }, 503);
-      const requestHash = crypto.createHash('sha256').update([String(user.uid), coin, network, String(amount), addr, requestId].join('|')).digest('hex');
-      try {
-        const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
-        const rpc = await fetch(base + '/rest/v1/rpc/create_withdrawal_atomic', {
-          method: 'POST', headers: supabaseHeaders(),
-          body: JSON.stringify({ p_withdrawal_id: withdrawalId, p_user_id: String(user.uid), p_asset: coin,
-            p_network: network, p_amount: String(amount), p_fee: String(fee), p_destination: addr,
-            p_request_id: requestId, p_request_hash: requestHash, p_require_admin_review: requireAdminReview, p_expected_fee: String(expectedFee) })
-        });
-        const result = await rpc.json().catch(() => null);
-        if (!rpc.ok || !result || result.ok !== true || !result.withdrawal_id || !['pending', 'pending_admin_review', 'approved', 'rejected', 'broadcast', 'failed', 'completed'].includes(result.status) || typeof result.require_admin_review !== 'boolean') {
-          const rpcErrorText = JSON.stringify(result || {});
-          const feeChanged = /withdrawal fee changed/i.test(rpcErrorText);
-          const insufficient = rpc.status === 400 && /insufficient funds/i.test(rpcErrorText);
-          return json({
-            ok: false,
-            code: feeChanged ? 'WITHDRAWAL_FEE_CHANGED' : insufficient ? 'INSUFFICIENT_FUNDS' : 'FINANCIAL_RPC_FAILED',
-            msg: feeChanged ? 'The withdrawal fee changed. Refresh the current fee and review the request again.' : insufficient ? 'Insufficient available balance (including fees).' : 'Withdrawal request was not confirmed by the database. Please check your operation history before retrying.'
-          }, feeChanged ? 409 : insufficient ? 400 : 503);
-        }
-        return json({ ok: true, duplicate: result.duplicate === true, withdrawal_id: result.withdrawal_id, status: result.status, require_admin_review: result.require_admin_review, msg: result.duplicate === true ? 'This withdrawal request has already been received. Do not submit it again.' : (result.require_admin_review ? 'Withdrawal request submitted and flagged for admin review.' : 'Withdrawal request submitted. Funds will be sent after review.') });
-      } catch (e) {
-        return json({ ok: false, code: 'FINANCIAL_RPC_UNAVAILABLE', msg: 'Financial database temporarily unavailable. Withdrawal is unconfirmed. Please check your operation history before retrying.' }, 503);
+    // Withdrawal writes use the authoritative PostgreSQL financial cutover.
+    // Do not gate this on the deposit helper: once financialWritesEnabled()
+    // passes, submit directly to create_withdrawal_atomic and let PostgreSQL
+    // decide the resulting request status.
+    if (!supabaseStorageConfigured()) return json({ ok: false, code: 'FINANCIAL_RPC_NOT_CONFIGURED', msg: 'Financial database not configured. Withdrawal was not submitted.' }, 503);
+    const requestHash = crypto.createHash('sha256').update([String(user.uid), coin, network, String(amount), addr, requestId].join('|')).digest('hex');
+    try {
+      const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
+      const rpc = await fetch(base + '/rest/v1/rpc/create_withdrawal_atomic', {
+        method: 'POST', headers: supabaseHeaders(),
+        body: JSON.stringify({ p_withdrawal_id: withdrawalId, p_user_id: String(user.uid), p_asset: coin,
+          p_network: network, p_amount: String(amount), p_fee: String(fee), p_destination: addr,
+          p_request_id: requestId, p_request_hash: requestHash, p_require_admin_review: requireAdminReview, p_expected_fee: String(expectedFee) })
+      });
+      const result = await rpc.json().catch(() => null);
+      if (!rpc.ok || !result || result.ok !== true || !result.withdrawal_id || !['pending', 'pending_admin_review', 'approved', 'rejected', 'broadcast', 'failed', 'completed'].includes(result.status) || typeof result.require_admin_review !== 'boolean') {
+        const rpcErrorText = JSON.stringify(result || {});
+        const feeChanged = /withdrawal fee changed/i.test(rpcErrorText);
+        const insufficient = rpc.status === 400 && /insufficient funds/i.test(rpcErrorText);
+        return json({
+          ok: false,
+          code: feeChanged ? 'WITHDRAWAL_FEE_CHANGED' : insufficient ? 'INSUFFICIENT_FUNDS' : 'FINANCIAL_RPC_FAILED',
+          msg: feeChanged ? 'The withdrawal fee changed. Refresh the current fee and review the request again.' : insufficient ? 'Insufficient available balance (including fees).' : 'Withdrawal request was not confirmed by the database. Please check your operation history before retrying.'
+        }, feeChanged ? 409 : insufficient ? 400 : 503);
       }
+      return json({ ok: true, duplicate: result.duplicate === true, withdrawal_id: result.withdrawal_id, status: result.status, require_admin_review: result.require_admin_review, msg: result.duplicate === true ? 'This withdrawal request has already been received. Do not submit it again.' : (result.require_admin_review ? 'Withdrawal request submitted and flagged for admin review.' : 'Withdrawal request submitted. Funds will be sent after review.') });
+    } catch (e) {
+      return json({ ok: false, code: 'FINANCIAL_RPC_UNAVAILABLE', msg: 'Financial database temporarily unavailable. Withdrawal is unconfirmed. Please check your operation history before retrying.' }, 503);
     }
-    return json({ ok: false, code: 'FINANCIAL_CUTOVER_INCOMPLETE', msg: 'Financial ledger cutover is incomplete. Withdrawal was not submitted and your balance was unchanged.' }, 503);
   }
 
   // ---------- GET /api/market/pairs ----------
