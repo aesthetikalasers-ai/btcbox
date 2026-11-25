@@ -1850,5 +1850,6 @@
   "Choose a saved address and enter the amount you want to withdraw. You can track the request status in withdrawal history.": "保存済みのアドレスを選択し、出金額を入力してください。申請状況は出金履歴で確認できます。",
   "No withdrawal assets and networks are currently configured.": "現在、出金用の資産とネットワークは設定されていません。",
   "Net amount": "受取予定額",
-  "Application ID": "申請番号"
+  "Application ID": "申請番号",
+  "Showing the latest 20 requests": "最新20件の申請を表示しています"
 }
