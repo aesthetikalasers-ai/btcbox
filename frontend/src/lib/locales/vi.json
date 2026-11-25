@@ -1852,5 +1852,9 @@
   "No withdrawal assets and networks are currently configured.": "Hiện chưa có tài sản và mạng lưới rút tiền nào được cấu hình.",
   "Net amount": "Số tiền thực nhận",
   "Application ID": "Mã yêu cầu",
-  "Showing the latest 20 requests": "Đang hiển thị 20 yêu cầu gần nhất"
+  "Showing the latest 20 requests": "Đang hiển thị 20 yêu cầu gần nhất",
+  "Manual payout reference (internal)": "Mã tham chiếu nội bộ cho khoản chi thủ công",
+  "Enter a valid internal payout reference (1–160 characters).": "Nhập mã tham chiếu nội bộ hợp lệ cho khoản chi thủ công (1–160 ký tự).",
+  "A saved internal payout reference could not be read. Check the withdrawal status before entering a new reference.": "Không thể đọc mã tham chiếu nội bộ đã lưu của khoản chi thủ công. Hãy kiểm tra trạng thái rút tiền trước khi nhập mã mới.",
+  "Approve or reject requests. Approval deducts the frozen amount and fee; record the internal payout reference separately after funds are actually sent.": "Phê duyệt hoặc từ chối yêu cầu. Khi phê duyệt, số tiền bị khóa và phí sẽ được trừ; ghi mã tham chiếu nội bộ riêng sau khi thực sự chuyển tiền."
 }
