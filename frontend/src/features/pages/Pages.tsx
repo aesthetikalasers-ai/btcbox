@@ -4,7 +4,7 @@ import { multiplyDecimalStrings, divideDecimalStrings, compareDecimalStrings, is
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldAlert, ArrowLeft, ChevronRight, ChevronDown, ChevronsLeft, ChevronsRight, KeyRound, Copy, Check, Plus, Minus, History, WifiOff, Search } from "lucide-react";
-import { ApiError, getAccount, getOrders, getMarkets, getSpotMarketPairs, getKlines, getOrderBook, getUsdtUsdRate, getTradingStatus, submitSpotOrder, cancelSpotOrder, getDepositAddress, getSavedCryptoAddresses, getSelectedCryptoAddress, getWithdrawalConfig, submitWithdrawal, getEarnCatalog, submitEarnAction, getSupportUnread, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type DepositRecord, type OrderRecord, type MarketTicker, type SpotMarketPair, type MarketCandle, type OrderBookSnapshot, type TradingStatus, type SelectedCryptoAddress, type WithdrawalConfig, type WithdrawalRecord, submitKyc } from "../../lib/api";
+import { ApiError, getAccount, getOrders, getMarkets, getSpotMarketPairs, getKlines, getOrderBook, getUsdtUsdRate, getTradingStatus, submitSpotOrder, cancelSpotOrder, getDepositAddress, getSavedCryptoAddresses, getSelectedCryptoAddress, getWithdrawalConfig, getWithdrawalHistoryPage, submitWithdrawal, getEarnCatalog, submitEarnAction, getSupportUnread, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type DepositRecord, type OrderRecord, type MarketTicker, type SpotMarketPair, type MarketCandle, type OrderBookSnapshot, type TradingStatus, type SelectedCryptoAddress, type WithdrawalConfig, type WithdrawalRecord, submitKyc } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { DEV_ACCOUNT_PLACEHOLDER, DEV_OPEN_ACCOUNT_PAGES } from "../../lib/devAccess";
 import { useAuthDialog } from "../../lib/auth-dialog";
@@ -1405,14 +1405,19 @@ export function WithdrawPage(){
  const submitLockRef=useRef(false);
  const [reload,setReload]=useState(0);
  const [historyFilter,setHistoryFilter]=useState<"all"|"pending"|"review"|"processing"|"approved"|"rejected"|"completed"|"failed">("all");
+ const [historyRecords,setHistoryRecords]=useState<WithdrawalRecord[]>([]);
+ const [historyCursor,setHistoryCursor]=useState<string|null>(null);
+ const [historyHasMore,setHistoryHasMore]=useState(false);
+ const [historyLoading,setHistoryLoading]=useState(false);
+ const [historyError,setHistoryError]=useState("");
 
  useEffect(()=>{
   const controller=new AbortController();
-  setLoading(true);setAccount(null);setAddresses([]);setConfig(null);setSelectedAddress(null);setError("");setNeedsSignIn(false);
-  Promise.all([getAccount(controller.signal),getSavedCryptoAddresses(controller.signal),getWithdrawalConfig(controller.signal)])
-   .then(([snapshot,book,withdrawalConfig])=>{
+  setLoading(true);setHistoryLoading(true);setHistoryRecords([]);setHistoryCursor(null);setHistoryHasMore(false);setHistoryError("");setAccount(null);setAddresses([]);setConfig(null);setSelectedAddress(null);setError("");setNeedsSignIn(false);
+  Promise.all([getAccount(controller.signal),getSavedCryptoAddresses(controller.signal),getWithdrawalConfig(controller.signal),getWithdrawalHistoryPage(null,controller.signal)])
+   .then(([snapshot,book,withdrawalConfig,historyPage])=>{
     if(controller.signal.aborted)return;
-    setAccount(snapshot);setAddresses(book.filter((item):item is SavedCryptoAddress=>item.type==="crypto"));setConfig(withdrawalConfig);
+    setAccount(snapshot);setAddresses(book.filter((item):item is SavedCryptoAddress=>item.type==="crypto"));setConfig(withdrawalConfig);setHistoryRecords(historyPage.withdrawals);setHistoryCursor(historyPage.next_cursor);setHistoryHasMore(historyPage.has_more&&!!historyPage.next_cursor);
     const usable=book.filter((item):item is SavedCryptoAddress=>item.type==="crypto"&&!item.blocked&&!item.unbound);
     const storageKey="btcbox.withdraw.pending.v1."+snapshot.uid;
     try{
@@ -1441,7 +1446,7 @@ export function WithdrawPage(){
     setError(signedOut?"":t("Account data is temporarily unavailable."));
    }
    })
-   .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
+   .finally(()=>{if(!controller.signal.aborted){setLoading(false);setHistoryLoading(false);}});
   return ()=>controller.abort();
  },[reload]);
 
@@ -1521,6 +1526,16 @@ export function WithdrawPage(){
    }else if(!requestAccepted&&reason instanceof ApiError&&reason.status>=400&&reason.status<500&&reason.status!==409)clearPending();
   }finally{submitLockRef.current=false;setSubmitting(false);}
  };
+ const loadMoreHistory=async()=>{
+  if(!historyHasMore||!historyCursor||historyLoading)return;
+  setHistoryLoading(true);setHistoryError("");
+  try{
+   const page=await getWithdrawalHistoryPage(historyCursor);
+   setHistoryRecords(current=>{const seen=new Set(current.map(item=>item.id));return [...current,...page.withdrawals.filter(item=>!seen.has(item.id))];});
+   setHistoryCursor(page.next_cursor);setHistoryHasMore(page.has_more&&!!page.next_cursor);
+  }catch{setHistoryError(t("Withdrawal history is temporarily unavailable."));}
+  finally{setHistoryLoading(false);}
+ };
  return <PageFrame title="Withdraw" tone="assets" backTo="/assets">
   {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-5 text-sm text-brand-text-muted" role="status">{t("Loading wallet and saved addresses…")}</CardContent></Card>
   :needsSignIn&&!DEV_OPEN_ACCOUNT_PAGES?<Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-4"><p className="text-xs text-brand-text-muted">{t("Please sign in to view your account data")}</p><Button asChild size="sm" className="h-10"><Link to="/login">{t("Go to sign in")}</Link></Button></CardContent></Card>
@@ -1552,13 +1567,13 @@ export function WithdrawPage(){
 
    <Card className="overflow-hidden border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)]">
     <CardHeader className="gap-3 border-b border-brand-border bg-brand-surface-2/60 sm:flex-row sm:items-center sm:justify-between">
-     <div className="min-w-0"><CardTitle>{t("Withdrawal history")}</CardTitle><p className="mt-1 text-xs text-brand-text-muted">{t("Showing the latest 20 requests")}</p></div>
+     <div className="min-w-0"><CardTitle>{t("Withdrawal history")}</CardTitle></div>
      <select aria-label={t("Withdrawal history")} value={historyFilter} onChange={event=>setHistoryFilter(event.target.value as typeof historyFilter)} className="min-h-10 w-full rounded-lg border border-brand-border bg-brand-surface px-3 text-sm text-brand-text sm:w-auto">
       <option value="all">{t("All")}</option><option value="pending">{t("Pending")}</option><option value="review">{t("Under review")}</option><option value="processing">{t("Processing")}</option><option value="approved">{t("Approved")}</option><option value="rejected">{t("Rejected")}</option><option value="completed">{t("Completed")}</option><option value="failed">{t("Failed")}</option>
      </select>
     </CardHeader>
     <CardContent className="space-y-3 p-3 sm:p-4">
-     {account?.withdrawals?.length ? account.withdrawals.slice().reverse().filter(item=>historyFilter==="all"||normalizeWithdrawalStatus(item.status)===historyFilter).map((item:WithdrawalRecord)=>{
+     {historyRecords.length ? historyRecords.filter(item=>historyFilter==="all"||normalizeWithdrawalStatus(item.status)===historyFilter).map((item:WithdrawalRecord)=>{
       const normalized=normalizeWithdrawalStatus(item.status),net=withdrawalNetAmount(item.amount,item.fee??"0"),destination=item.address||"—";
       const masked=destination.length>24?destination.slice(0,10)+"…"+destination.slice(-8):destination;
       return <article key={item.id} className="min-w-0 rounded-lg border border-brand-border bg-brand-surface-2/35 p-3 sm:p-4">
@@ -1582,7 +1597,9 @@ export function WithdrawPage(){
        </div>
       </article>;
      }) : <p className="rounded-xl border border-dashed border-brand-border p-5 text-sm text-brand-text-muted">{t("No withdrawal requests have been returned for this account.")}</p>}
-     {account?.withdrawals?.length && !account.withdrawals.some(item=>historyFilter==="all"||normalizeWithdrawalStatus(item.status)===historyFilter)?<p className="rounded-lg border border-dashed border-brand-border p-5 text-center text-sm text-brand-text-muted">{t("No withdrawal requests have been returned for this account.")}</p>:null}
+     {historyRecords.length>0 && !historyRecords.some(item=>historyFilter==="all"||normalizeWithdrawalStatus(item.status)===historyFilter)?<p className="rounded-lg border border-dashed border-brand-border p-5 text-center text-sm text-brand-text-muted">{t("No withdrawal requests have been returned for this account.")}</p>:null}
+      {historyError?<p role="alert" className="text-sm text-brand-danger">{t(historyError)}</p>:null}
+      {historyHasMore?<Button type="button" variant="outline" className="w-full" disabled={historyLoading} onClick={()=>void loadMoreHistory()}>{historyLoading?t("Loading…"):t("Load more")}</Button>:null}
     </CardContent>
    </Card>
 
