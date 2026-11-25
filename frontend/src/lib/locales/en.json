@@ -340,18 +340,14 @@
   "Sending…": "Sending…",
   "Send message": "Send message",
   "Deposit address": "Deposit address",
-  "Always verify the asset and network before sending funds.": "Always verify the asset and network before sending funds.",
   "Network": "Network",
   "Loading configured deposit address…": "Loading configured deposit address…",
-  "Verified network destination": "Verified network destination",
   "Copy address": "Copy address",
   "Important": "Important",
-  "Send only the selected asset on the selected network. Sending unsupported assets or using another network may result in permanent loss. After the transfer, BTCBOX staff verify receipt and manually credit the account. This page does not create a deposit order or automatically credit funds.": "Send only the selected asset on the selected network. Sending unsupported assets or using another network may result in permanent loss. After the transfer, BTCBOX staff verify receipt and manually credit the account. This page does not create a deposit order or automatically credit funds.",
   "Deposit history": "Deposit history",
   "Track deposits verified and credited by BTCBOX staff.": "Track deposits verified and credited by BTCBOX staff.",
   "Loading deposit history…": "Loading deposit history…",
   "Reference": "Reference",
-  "No deposit records have been returned for this account.": "No deposit records have been returned for this account.",
   "BTCBOX Earn": "BTCBOX Earn",
   "Live catalog · account-backed positions": "Live catalog · account-backed positions",
   "Loading Earn products and positions…": "Loading Earn products and positions…",
@@ -1864,5 +1860,7 @@
   "Estimated USDT deduction": "Estimated USDT deduction",
   "Final rate is locked when you submit.": "Final rate is locked when you submit.",
   "USDC/USDT conversion is temporarily unavailable.": "USDC/USDT conversion is temporarily unavailable.",
-  "Balance debit": "Balance debit"
+  "Balance debit": "Balance debit",
+  "Only send the selected asset on the selected network. Incorrect deposits may be lost. BTCBOX verifies deposits and credits them manually.": "Only send the selected asset on the selected network. Incorrect deposits may be lost. BTCBOX verifies deposits and credits them manually.",
+  "No deposit history yet.": "No deposit history yet."
 }
