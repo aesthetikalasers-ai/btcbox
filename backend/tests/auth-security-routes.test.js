@@ -508,6 +508,17 @@ test('2FA login consumes its challenge and creates a session only through a succ
 });
 
 
+test('local password change endpoint enforces the same 8–128 character policy', () => {
+  const start = source.indexOf("if (path === 'settings/password' && method === 'POST')");
+  const end = source.indexOf('// ---------- POST /api/settings/fundpwd', start);
+  assert.ok(start >= 0 && end > start, 'local password change route must exist');
+  const route = source.slice(start, end);
+  assert.match(route, /body\.new_password\.length < 8/);
+  assert.match(route, /body\.new_password\.length > 128/);
+  assert.match(route, /New password must be 8–128 characters/);
+  assert.doesNotMatch(route, /body\.new_password\s*\|\|\s*''\)\.length < 6/);
+});
+
 test('BTCBOX local password policy accepts 8–128 characters and rejects shorter or invalid values', () => {
   const start = source.indexOf('function validateBtcboxLoginPassword');
   const end = source.indexOf('\n}', start);
