@@ -7,10 +7,10 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const api = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
-const sql = fs.readFileSync(path.join(root, 'supabase', 'sql', '0027_withdrawal_manual_payout_completion_v1.sql'), 'utf8');
+const sql = fs.readFileSync(path.join(root, 'supabase', 'sql', '0055_withdrawal_approval_debit_at_review_v1.sql'), 'utf8');
 
-test('manual payout API rejects a missing TxID/reference and enforces bounded input', () => {
-  assert.ok(api.includes("if (!reference) return json({ ok: false, code: 'PAYOUT_REFERENCE_REQUIRED'"));
+test('manual payout API requires an internal payout reference and enforces bounded input', () => {
+  assert.ok(api.includes("if (!reference) return json({ ok: false, code: 'PAYOUT_REFERENCE_REQUIRED', msg: 'Internal payout reference is required.'"));
   assert.ok(api.includes('reference.length > 160 || note.length > 300'));
   assert.ok(api.includes("PAYOUT_REFERENCE_INVALID"));
   assert.ok(api.includes("/[\\u0000-\\u001f\\u007f]/.test(reference)"));
@@ -24,21 +24,21 @@ test('manual payout completion requires the financial cutover and configured ser
 });
 
 test('database RPC independently rejects blank references and permits only approved withdrawals', () => {
-  assert.ok(sql.includes("coalesce(btrim(p_reference),'')=''"));
+  assert.ok(sql.includes("v_ref = '' OR length(coalesce(p_reference, '')) > 160"));
   assert.ok(sql.includes("coalesce(p_reference,'') ~ '[[:cntrl:]]'"));
-  assert.ok(sql.includes("IF v_w.status<>'approved' THEN"));
+  assert.ok(sql.includes("IF v_w.status <> 'approved' THEN"));
   assert.ok(sql.includes("withdrawal must be approved before manual payout completion"));
 });
 
 test('manual payout exact retries are idempotent and conflicting references fail', () => {
-  assert.ok(sql.includes("IF v_w.status='completed' THEN"));
-  assert.ok(sql.includes("coalesce(v_w.payout_reference,'')<>v_ref"));
+  assert.ok(sql.includes("IF v_w.status = 'completed' THEN"));
+  assert.ok(sql.includes("coalesce(v_w.payout_reference, '') <> v_ref"));
   assert.ok(sql.includes("'duplicate',true"));
 });
 
 test('manual payout completion is audit/status-only and does not apply another ledger debit', () => {
   assert.ok(sql.includes("'withdrawal_manual_payout_completed'"));
-  assert.ok(sql.includes('payout_reference',));
+  assert.ok(sql.includes("'internal_payout_reference', v_ref"));
   assert.ok(!sql.includes('apply_financial_operation'));
   assert.ok(sql.includes('REVOKE ALL ON FUNCTION public.mark_withdrawal_paid_atomic'));
   assert.ok(sql.includes('TO service_role'));
@@ -79,8 +79,8 @@ test('admin withdrawal mutations preserve confirmed UI state when queue refresh 
 });
 
 test('manual payout audit binds the verified actor, withdrawal subject and payout reference exactly once', () => {
-  const completedBranchStart = sql.indexOf("IF v_w.status='completed' THEN");
-  const approvedGuard = sql.indexOf("IF v_w.status<>'approved' THEN", completedBranchStart);
+  const completedBranchStart = sql.indexOf("IF v_w.status = 'completed' THEN");
+  const approvedGuard = sql.indexOf("IF v_w.status <> 'approved' THEN", completedBranchStart);
   assert.ok(completedBranchStart >= 0 && approvedGuard > completedBranchStart);
   const retryBranch = sql.slice(completedBranchStart, approvedGuard);
   assert.ok(retryBranch.includes("'duplicate',true"));
@@ -98,10 +98,10 @@ test('manual payout audit binds the verified actor, withdrawal subject and payou
     "'withdrawal',v_w.id,v_note",
     "'asset',v_w.asset",
     "'amount',v_w.amount",
-    "'payout_reference',v_ref",
+    "'internal_payout_reference', v_ref",
   ]) assert.ok(auditInsert.includes(fragment), 'audit insert must include ' + fragment);
-  assert.ok(sql.includes('paid_by=p_admin_id'));
-  assert.ok(sql.includes('paid_at=clock_timestamp()'));
+  assert.ok(sql.includes('paid_by = p_admin_id'));
+  assert.ok(sql.includes('paid_at = v_paid_at'));
 });
 
 test('admin manual payout handler blocks concurrent duplicate submissions synchronously', () => {
