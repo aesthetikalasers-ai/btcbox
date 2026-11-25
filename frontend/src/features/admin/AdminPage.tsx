@@ -90,7 +90,11 @@ const depositAddressKeys = [
   "USDT-TRC20", "USDT-ERC20", "USDT-BEP20", "BTC-BTC",
   "ETH-ERC20", "SOL-SOL", "BNB-BEP20", "USDC-ERC20",
 ];
-const assets = ["USDT", "BTC", "ETH", "SOL", "BNB", "USDC"];
+const assets = ["USDT", "USDC", "BTC", "ETH", "SOL", "BNB", "XRP", "DOGE", "ADA", "AVAX", "LINK", "DOT", "TRX", "LTC", "BCH", "NEAR", "UNI", "ATOM", "ETC", "APT", "ARB", "OP", "SUI", "INJ", "TIA", "FIL"];
+const withdrawalNetworkOptions: Record<string, readonly string[]> = {
+  BTC: ["BTC"], ETH: ["ERC20"], USDT: ["TRC20", "ERC20", "BEP20"],
+  SOL: ["SOL"], BNB: ["BEP20"], USDC: ["ERC20"],
+};
 const spotAssets = ["USDT", "USDC", "BTC", "ETH", "SOL", "BNB", "XRP", "DOGE", "ADA", "AVAX", "LINK", "DOT", "TRX", "LTC", "BCH", "NEAR", "UNI", "ATOM", "ETC", "APT", "ARB", "OP", "SUI", "INJ", "TIA", "FIL"];
 
 function asText(value: unknown) {
@@ -191,6 +195,7 @@ export function AdminPage() {
   const [config, setConfig] = useState<AdminConfig>({
     deposit_addresses: {},
     withdrawal_fees: {},
+    withdrawal_networks: {},
     announcement: "",
   });
   const [kyc, setKyc] = useState<AdminKycRecord[]>([]);
@@ -365,7 +370,7 @@ export function AdminPage() {
         setUsers(snapshot.users);
       }
       if (tab === "deposits") {
-        setConfig({ deposit_addresses: {}, withdrawal_fees: {}, announcement: "" });
+        setConfig({ deposit_addresses: {}, withdrawal_fees: {}, withdrawal_networks: {}, announcement: "" });
         const snapshot = await getAdminConfig(token);
         if (requestId !== tabLoadRequestRef.current) return;
         setConfig(snapshot);
@@ -1103,7 +1108,8 @@ export function AdminPage() {
     if (!token) return;
     setBusy(true); setError(""); setNotice("");
     try {
-      await saveAdminConfig(token, config);
+      const configuredFees = Object.fromEntries(Object.entries(config.withdrawal_fees || {}).filter(([, value]) => String(value).trim() !== ""));
+      await saveAdminConfig(token, { ...config, withdrawal_fees: configuredFees });
       setNotice("Finance configuration saved.");
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Configuration was not saved."); }
     finally { setBusy(false); }
@@ -1627,7 +1633,8 @@ export function AdminPage() {
 
     {!loading && tab === "deposits" ? <Card><CardHeader><CardTitle>{adminText("Finance configuration")}</CardTitle><CardDescription>{adminText("Configure customer deposit addresses and server-enforced withdrawal fees. Staff verify incoming transfers and manually credit the selected user's asset row.")}</CardDescription></CardHeader><CardContent><form onSubmit={saveAddresses} className="space-y-5">
       <section className="space-y-3"><h3 className="text-sm font-semibold text-brand-text">{adminText("Deposit addresses")}</h3><div className="grid gap-3 md:grid-cols-2">{depositAddressKeys.map(key=><label key={key} className="block space-y-1"><span className="text-xs font-semibold text-brand-text-muted">{key.replace("_"," · ")}</span><input value={config.deposit_addresses[key]||""} onChange={event=>setConfig(current=>({...current,deposit_addresses:{...current.deposit_addresses,[key]:event.target.value}}))} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text" placeholder={adminText("Configured wallet address")}/></label>)}</div></section>
-      <section className="space-y-3"><div><h3 className="text-sm font-semibold text-brand-text">{adminText("Withdrawal fees")}</h3><p className="text-xs text-brand-text-muted">{adminText("These values are applied by the server when a withdrawal is submitted. Enter zero to disable a fee for an asset.")}</p></div><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{assets.map(coin=><label key={coin} className="block space-y-1"><span className="text-xs font-semibold text-brand-text-muted">{coin} {adminText("fee")}</span><input inputMode="decimal" value={config.withdrawal_fees?.[coin] ?? ""} onChange={event=>setConfig(current=>({...current,withdrawal_fees:{...current.withdrawal_fees,[coin]:event.target.value}}))} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text" placeholder="0"/></label>)}</div></section>
+      <section className="space-y-3"><div><h3 className="text-sm font-semibold text-brand-text">{adminText("Withdrawal fees")}</h3><p className="text-xs text-brand-text-muted">{adminText("These values are applied by the server when a withdrawal is submitted. A zero value means a zero fee; remove all configured networks to disable withdrawals for an asset.")}</p></div><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{assets.map(coin=><label key={coin} className="block space-y-1"><span className="text-xs font-semibold text-brand-text-muted">{coin} {adminText("fee")}</span><input inputMode="decimal" value={config.withdrawal_fees?.[coin] ?? ""} onChange={event=>setConfig(current=>({...current,withdrawal_fees:{...current.withdrawal_fees,[coin]:event.target.value}}))} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text" placeholder="0"/></label>)}</div></section>
+      <section className="space-y-3"><div><h3 className="text-sm font-semibold text-brand-text">{adminText("Withdrawal networks")}</h3><p className="text-xs text-brand-text-muted">{adminText("Only reviewed coin/network pairs are accepted. An address format alone does not prove that a coin is supported on that chain. Additional assets remain disabled until their exact network and destination rules are implemented.")}</p></div><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{assets.map(coin=>{const options=withdrawalNetworkOptions[coin]||[];const enabled=config.withdrawal_networks?.[coin]??[];return <div key={coin} className="space-y-2 rounded-lg border border-brand-border p-3"><span className="text-xs font-semibold text-brand-text-muted">{coin} {adminText("networks")}</span>{options.length?<div className="flex flex-wrap gap-3">{options.map(network=><label key={network} className="flex items-center gap-2 text-sm text-brand-text"><input type="checkbox" checked={enabled.includes(network)} disabled={busy||!hasPermission("system_config.write")} onChange={event=>setConfig(current=>({...current,withdrawal_networks:{...current.withdrawal_networks,[coin]:event.target.checked?Array.from(new Set([...(current.withdrawal_networks?.[coin]??[]),network])):(current.withdrawal_networks?.[coin]??[]).filter(value=>value!==network)}}))}/><span>{network}</span></label>)}</div>:<p className="text-xs text-brand-text-muted">{adminText("No verified network route")}</p>}</div>})}</div></section>
       <label className="block space-y-1"><span className="text-xs font-semibold text-brand-text-muted">{adminText("Customer announcement")}</span><textarea value={config.announcement||""} onChange={event=>setConfig(current=>({...current,announcement:event.target.value}))} rows={3} className="w-full rounded-lg border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm text-brand-text"/></label>
       <Button type="submit" disabled={busy || !hasPermission("system_config.write")}>{adminText("Save configuration")}</Button>
     </form></CardContent></Card> : null}

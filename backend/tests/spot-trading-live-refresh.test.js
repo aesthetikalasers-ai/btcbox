@@ -295,7 +295,7 @@ test('admin deposit configuration never substitutes example withdrawal fees for 
   assert.ok(configInit.includes('withdrawal_fees: {}'));
   assert.ok(!configInit.includes('USDT: "1"'));
   const depositLoad = admin.slice(admin.indexOf('if (tab === "deposits")'), admin.indexOf('if (tab === "markets")'));
-  assert.ok(depositLoad.includes('setConfig({ deposit_addresses: {}, withdrawal_fees: {}, announcement: "" });'));
+  assert.ok(depositLoad.includes('setConfig({ deposit_addresses: {}, withdrawal_fees: {}, withdrawal_networks: {}, announcement: "" });'));
   assert.ok(!depositLoad.includes('USDT: "1"'));
 });
 

@@ -1847,5 +1847,6 @@
   "For accounts using only Google or a wallet, a recent sign-in may be required to confirm this change.": "Googleまたはウォレットのみを使用するアカウントでは、この変更の確認に直近の再ログインが必要な場合があります。",
   "Confirm current login password": "現在のログインパスワードを確認",
   "Withdrawal request submitted. You can track its progress in withdrawal history.": "出金申請を受け付けました。出金履歴で進捗を確認できます。",
-  "Choose a saved address and enter the amount you want to withdraw. You can track the request status in withdrawal history.": "保存済みのアドレスを選択し、出金額を入力してください。申請状況は出金履歴で確認できます。"
+  "Choose a saved address and enter the amount you want to withdraw. You can track the request status in withdrawal history.": "保存済みのアドレスを選択し、出金額を入力してください。申請状況は出金履歴で確認できます。",
+  "No withdrawal assets and networks are currently configured.": "現在、出金用の資産とネットワークは設定されていません。"
 }

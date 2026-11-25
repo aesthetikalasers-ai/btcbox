@@ -104,6 +104,10 @@ test('withdrawal and earn options use the backend financial contract', () => {
   const frontend = read('assets/js/views-assets.js');
   const backend = read('api-core.js');
   assert.ok(frontend.includes("const DW_COINS=['USDT','BTC','ETH','SOL','BNB','USDC']"));
+  assert.ok(frontend.includes('let WITHDRAWAL_COINS=DW_COINS.slice()'));
+  assert.ok(frontend.includes('WITHDRAWAL_NETWORKS[coin]||[]'));
+  assert.ok(frontend.includes('WITHDRAWAL_COINS=configuredCoins'));
+  assert.ok(!frontend.includes('新绑定地址 24 小时后可提币'));
   assert.ok(frontend.includes("BTC:['BTC']") && frontend.includes("SOL:['SOL']") && frontend.includes("BNB:['BEP20']"));
   assert.ok(frontend.includes('const WITHDRAW_FEES={USDT:1,BTC:0.0001,ETH:0.001,SOL:0.01,BNB:0.0005,USDC:1}'));
   assert.ok(frontend.includes("fetch('/api/withdrawal/config'"));
@@ -111,6 +115,8 @@ test('withdrawal and earn options use the backend financial contract', () => {
   assert.ok(frontend.includes("$('#wd-next').disabled=!withdrawalFeeConfigReady"));
   assert.ok(frontend.includes('expected_fee:String(WITHDRAW_FEES[withdrawalIntent.coin])'));
   assert.ok(backend.includes("BTC:['BTC']") && backend.includes("SOL:['SOL']") && backend.includes("BNB:['BEP20']"));
+  assert.ok(backend.includes('function safeWithdrawalNetworks(networks)'));
+  assert.ok(backend.includes('SUPPORTED_LEDGER_ASSETS.has(coin)'));
   assert.ok(backend.includes('const supportedFees = safeWithdrawalFees(db.withdrawal_fees)'));
   assert.ok(backend.includes('const fee = supportedFees[coin]'));
   for (const id of ['flex_USDT', 'flex_BTC', 'flex_ETH', 'fixed30', 'fixed90', 'fixed180']) {
