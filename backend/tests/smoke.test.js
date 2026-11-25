@@ -107,6 +107,7 @@ test('withdrawal and earn options use the backend financial contract', () => {
   assert.ok(frontend.includes('let WITHDRAWAL_COINS=DW_COINS.slice()'));
   assert.ok(frontend.includes('WITHDRAWAL_NETWORKS[coin]||[]'));
   assert.ok(frontend.includes('WITHDRAWAL_COINS=configuredCoins'));
+  assert.ok(!frontend.includes('新绑定地址 24 小时后可提币'));
   assert.ok(frontend.includes("BTC:['BTC']") && frontend.includes("SOL:['SOL']") && frontend.includes("BNB:['BEP20']"));
   assert.ok(frontend.includes('const WITHDRAW_FEES={USDT:1,BTC:0.0001,ETH:0.001,SOL:0.01,BNB:0.0005,USDC:1}'));
   assert.ok(frontend.includes("fetch('/api/withdrawal/config'"));
