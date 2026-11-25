@@ -183,6 +183,9 @@ test('an unconfirmed idempotent retry is not blocked by a refreshed USDC quote',
   const pages = fs.readFileSync(path.resolve(root, '../frontend/src/features/pages/Pages.tsx'), 'utf8');
   assert.ok(pages.includes('(!!pendingIntent||(estimatedSettlement!==null&&settlementWithinBalance))'));
   assert.ok(pages.includes('conversionVerified||!!pendingIntent'));
+  assert.ok(pages.includes('expected_fee:String(config?.fees[selectedAddress.coin]??"")'), 'new request intent must persist its original fee quote');
+  assert.ok(pages.includes('expected_fee:intent.expected_fee'), 'retry must reuse the original fee quote');
+  assert.ok(pages.includes('(!!pendingIntent||(available!==null&&Number.isFinite(available)&&available>=0&&feeVerified))'), 'retry must not depend on a refreshed balance or fee snapshot');
   const settlementPanel = '{item.settlement_asset&&item.settlement_asset!==item.coin?<div className="min-w-0 rounded-md bg-brand-surface-2 p-2">';
   assert.equal(pages.split(settlementPanel).length - 1, 1, 'customer history should render one settlement debit panel');
 });
