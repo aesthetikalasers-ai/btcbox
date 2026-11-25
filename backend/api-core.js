@@ -2837,13 +2837,17 @@ async function handleRequest(event, context) {
       if (coin === 'USDC') {
         const rates = await getLiveUsdtPrices(['USDC']);
         const liveRate = Number(rates.USDC);
-        if (!Number.isFinite(liveRate) || liveRate <= 0) {
-          return json({ ok: false, code: 'USDC_RATE_UNAVAILABLE', msg: 'USDC/USDT conversion is temporarily unavailable. No withdrawal was submitted.' }, 503);
-        }
-        conversionRate = liveRate.toFixed(12);
         settlementAsset = 'USDT';
-        settlementAmount = multiplyMoneyCeil(addMoney(amount, fee), conversionRate);
-        if (!settlementAmount) return json({ ok: false, code: 'USDC_RATE_UNAVAILABLE', msg: 'USDC/USDT conversion could not be calculated. No withdrawal was submitted.' }, 503);
+        if (!Number.isFinite(liveRate) || liveRate <= 0) {
+          // Still call the idempotent RPC with a null quote: an already-created
+          // request can replay its persisted rate even if the market feed is down.
+          conversionRate = null;
+          settlementAmount = null;
+        } else {
+          conversionRate = liveRate.toFixed(12);
+          settlementAmount = multiplyMoneyCeil(addMoney(amount, fee), conversionRate);
+          if (!settlementAmount) { conversionRate = null; settlementAmount = null; }
+        }
       }
       const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
       const rpc = await fetch(base + '/rest/v1/rpc/create_withdrawal_atomic', {
@@ -2858,10 +2862,11 @@ async function handleRequest(event, context) {
         const rpcErrorText = JSON.stringify(result || {});
         const feeChanged = /withdrawal fee changed/i.test(rpcErrorText);
         const insufficient = rpc.status === 400 && /insufficient funds/i.test(rpcErrorText);
+        const rateUnavailable = /USDC conversion rate unavailable/i.test(rpcErrorText);
         return json({
           ok: false,
-          code: feeChanged ? 'WITHDRAWAL_FEE_CHANGED' : insufficient ? 'INSUFFICIENT_FUNDS' : 'FINANCIAL_RPC_FAILED',
-          msg: feeChanged ? 'The withdrawal fee changed. Refresh the current fee and review the request again.' : insufficient ? 'Insufficient available balance (including fees).' : 'Withdrawal request was not confirmed by the database. Please check your operation history before retrying.'
+          code: feeChanged ? 'WITHDRAWAL_FEE_CHANGED' : insufficient ? 'INSUFFICIENT_FUNDS' : rateUnavailable ? 'USDC_RATE_UNAVAILABLE' : 'FINANCIAL_RPC_FAILED',
+          msg: feeChanged ? 'The withdrawal fee changed. Refresh the current fee and review the request again.' : insufficient ? 'Insufficient available balance (including fees).' : rateUnavailable ? 'USDC/USDT conversion is temporarily unavailable. No new withdrawal was submitted.' : 'Withdrawal request was not confirmed by the database. Please check your operation history before retrying.'
         }, feeChanged ? 409 : insufficient ? 400 : 503);
       }
       return json({ ok: true, duplicate: result.duplicate === true, withdrawal_id: result.withdrawal_id, status: result.status,

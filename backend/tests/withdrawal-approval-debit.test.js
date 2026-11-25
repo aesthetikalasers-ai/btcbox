@@ -73,3 +73,20 @@ test('USDC settlement is debited from the locked USDT amount, not the payout ass
   assert.match(migration56, /o\.asset = v_w\.settlement_asset/);
   assert.match(migration56, /sum\(l\.frozen_delta\) = -v_w\.settlement_amount/);
 });
+
+test('USDC settlement is debited from the locked USDT amount, not the payout asset', () => {
+  const migration56 = fs.readFileSync(path.join(root, 'supabase/sql/0056_usdc_withdrawal_settlement_in_usdt_v1.sql'), 'utf8');
+  for (const contract of [
+    "p_asset = 'USDC'",
+    "p_settlement_asset <> 'USDT'",
+    "p_settlement_amount IS DISTINCT FROM v_expected_settlement",
+    "'withdraw-freeze:' || p_request_id",
+    "p_settlement_asset,",
+    "-p_settlement_amount, p_settlement_amount",
+    "v_w.settlement_asset",
+    "'withdraw_approve', 0, -v_w.settlement_amount",
+    "'withdraw_reject', v_w.settlement_amount, -v_w.settlement_amount",
+    "o.asset = v_w.settlement_asset",
+    "sum(l.frozen_delta) = -v_w.settlement_amount"
+  ]) assert.ok(migration56.includes(contract), 'missing USDC settlement contract: ' + contract);
+});
