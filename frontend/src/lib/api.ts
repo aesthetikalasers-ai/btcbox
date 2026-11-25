@@ -1261,7 +1261,10 @@ export async function getWithdrawalConfig(signal?: AbortSignal): Promise<Withdra
 }
 
 export async function getWithdrawalHistoryPage(cursor?: string | null, signal?: AbortSignal): Promise<WithdrawalHistoryPage> {
-  if (DEMO_PREVIEW_ACTIVE) return { withdrawals: [], has_more: false, next_cursor: null };
+  if (DEMO_PREVIEW_ACTIVE) {
+    const demo = await getDemoAccount();
+    return { withdrawals: demo.withdrawals || [], has_more: false, next_cursor: null };
+  }
   const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
   const payload = await readAuthenticated<WithdrawalHistoryPage & { ok: true }>(`withdrawal/history${query}`, signal);
   if (!Array.isArray(payload.withdrawals) || typeof payload.has_more !== "boolean" ||
