@@ -1552,7 +1552,7 @@ export function WithdrawPage(){
 
    <Card className="overflow-hidden border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)]">
     <CardHeader className="gap-3 border-b border-brand-border bg-brand-surface-2/60 sm:flex-row sm:items-center sm:justify-between">
-     <CardTitle>{t("Withdrawal history")}</CardTitle>
+     <div className="min-w-0"><CardTitle>{t("Withdrawal history")}</CardTitle><p className="mt-1 text-xs text-brand-text-muted">{t("Showing the latest 20 requests")}</p></div>
      <select aria-label={t("Withdrawal history")} value={historyFilter} onChange={event=>setHistoryFilter(event.target.value as typeof historyFilter)} className="min-h-10 w-full rounded-lg border border-brand-border bg-brand-surface px-3 text-sm text-brand-text sm:w-auto">
       <option value="all">{t("All")}</option><option value="pending">{t("Pending")}</option><option value="review">{t("Under review")}</option><option value="processing">{t("Processing")}</option><option value="approved">{t("Approved")}</option><option value="rejected">{t("Rejected")}</option><option value="completed">{t("Completed")}</option><option value="failed">{t("Failed")}</option>
      </select>
