@@ -30,14 +30,14 @@ $;
 CREATE OR REPLACE FUNCTION pg_temp.fail_withdrawal_approval_audit()
 RETURNS trigger
 LANGUAGE plpgsql
-AS $
+AS $withdrawal_audit_test$
 BEGIN
   IF NEW.action = 'withdrawal_approved' AND NEW.object_id = 'WD-CI-ROLLBACK' THEN
     RAISE EXCEPTION 'simulated withdrawal approval audit failure';
   END IF;
   RETURN NEW;
 END;
-$;
+$withdrawal_audit_test$;
 
 DROP TRIGGER IF EXISTS ci_fail_withdrawal_approval_audit ON public.financial_audit_log;
 CREATE TRIGGER ci_fail_withdrawal_approval_audit
