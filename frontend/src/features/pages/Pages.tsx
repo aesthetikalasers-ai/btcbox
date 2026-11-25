@@ -1399,7 +1399,7 @@ export function WithdrawPage(){
  const [submitting,setSubmitting]=useState(false);
  const [error,setError]=useState("");
  const [actionMessage,setActionMessage]=useState("");
- const [pendingIntent,setPendingIntent]=useState<{version:1;request_id:string;address_id:string;coin:string;network:string;amount:string;address:string;created_at:number}|null>(null);
+ const [pendingIntent,setPendingIntent]=useState<{version:1;request_id:string;address_id:string;coin:string;network:string;amount:string;address:string;expected_fee:string;created_at:number}|null>(null);
  const [pendingIntentInvalid,setPendingIntentInvalid]=useState(false);
  const [needsSignIn,setNeedsSignIn]=useState(false);
  const submitLockRef=useRef(false);
@@ -1426,7 +1426,7 @@ export function WithdrawPage(){
       const saved=JSON.parse(raw);
       const savedAddress=usable.find(item=>item.id===saved?.address_id);
       if(saved&&saved.version===1&&typeof saved.request_id==="string"&&/^[A-Za-z0-9_-]{16,100}$/.test(saved.request_id)&&typeof saved.amount==="string"&&typeof saved.address==="string"&&savedAddress&&!savedAddress.blocked&&!savedAddress.unbound&&savedAddress.coin===saved.coin&&savedAddress.network===saved.network){
-       setPendingIntent(saved);setSelectedId(saved.address_id);setAmount(saved.amount);
+       setPendingIntent({...saved,expected_fee:typeof saved.expected_fee==="string"?saved.expected_fee:String(withdrawalConfig.fees[saved.coin]??"")});setSelectedId(saved.address_id);setAmount(saved.amount);
       }else{setPendingIntentInvalid(true);setError("We couldn't verify the saved withdrawal destination. Contact support before trying again.");}
      }else{
       const eligible=usable.filter(item=>withdrawalConfig.fees[item.coin]!==undefined&&withdrawalConfig.allowed_networks[item.coin]?.includes(item.network));
@@ -1488,7 +1488,7 @@ export function WithdrawPage(){
  const settlementWithinBalance=estimatedSettlement!==null&&availableRaw!==null&&compareDecimalStrings(estimatedSettlement,availableRaw)!==undefined&&compareDecimalStrings(estimatedSettlement,availableRaw)!==1;
  const pendingStorageKey=account?.uid?"btcbox.withdraw.pending.v1."+account.uid:"";
  const clearPending=()=>{if(pendingStorageKey){try{window.localStorage.removeItem(pendingStorageKey);}catch{}}setPendingIntent(null);setPendingIntentInvalid(false);};
- const canSubmit=!!config?.actions_enabled&&!pendingIntentInvalid&&!!selectedAddress&&available!==null&&Number.isFinite(available)&&available>=0&&feeVerified&&(conversionVerified||!!pendingIntent)&&(!!pendingIntent||(estimatedSettlement!==null&&settlementWithinBalance))&&!!fundPassword.trim()&&(!account?.twofa_enabled||/^\d{6}$/.test(twofaCode))&&!submitting&&!loading;
+ const canSubmit=!!config?.actions_enabled&&!pendingIntentInvalid&&!!selectedAddress&&(!!pendingIntent||(available!==null&&Number.isFinite(available)&&available>=0&&feeVerified))&&(conversionVerified||!!pendingIntent)&&(!!pendingIntent||(estimatedSettlement!==null&&settlementWithinBalance))&&!!fundPassword.trim()&&(!account?.twofa_enabled||/^\d{6}$/.test(twofaCode))&&!submitting&&!loading;
 
  const submit=async(event:FormEvent<HTMLFormElement>)=>{
   event.preventDefault();
@@ -1499,7 +1499,7 @@ export function WithdrawPage(){
    let requestId:string;
    try{requestId=window.crypto.randomUUID();}
    catch{setError(t("Account data is temporarily unavailable."));submitLockRef.current=false;return;}
-   intent={version:1,request_id:requestId,address_id:selectedId,coin:selectedAddress.coin,network:selectedAddress.network,amount:amount.trim(),address:selectedAddress.address,created_at:Date.now()};
+   intent={version:1,request_id:requestId,address_id:selectedId,coin:selectedAddress.coin,network:selectedAddress.network,amount:amount.trim(),address:selectedAddress.address,expected_fee:String(config?.fees[selectedAddress.coin]??""),created_at:Date.now()};
    if(!pendingStorageKey){setError(t("Sign in to continue"));submitLockRef.current=false;return;}
    try{window.localStorage.setItem(pendingStorageKey,JSON.stringify(intent));}
    catch{setError(t("Account data is temporarily unavailable."));submitLockRef.current=false;return;}
@@ -1512,7 +1512,7 @@ export function WithdrawPage(){
    const result=await submitWithdrawal({
     request_id:intent.request_id,coin:intent.coin,network:intent.network,
     amount:intent.amount,address:intent.address,fund_password:fundPassword,
-    expected_fee:String(config?.fees[intent.coin] ?? ""),
+    expected_fee:intent.expected_fee,
     ...(account?.twofa_enabled?{twofa_code:twofaCode}:{})
    });
    requestAccepted=true;
