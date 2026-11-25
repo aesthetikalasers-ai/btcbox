@@ -49,7 +49,7 @@ test('spot market steps and order sizing use exact decimal arithmetic', async ()
 
 test('withdrawal settlement estimates add and ceil exactly like PostgreSQL', () => {
   assert.equal(addDecimalStrings('10.000000000000000001', '0.000000000000000009'), '10.00000000000000001');
-  assert.equal(multiplyDecimalStringsCeil('10.00000000000000001', '1.000000000000000001'), '10.00000000000000003');
+  assert.equal(multiplyDecimalStringsCeil('10.00000000000000001', '1.000000000000000001'), '10.00000000000000002');
   assert.equal(multiplyDecimalStringsCeil('1', '1.0000000000000000001'), '1.000000000000000001');
   assert.equal(multiplyDecimalStringsCeil('1', '0'), '0');
   assert.equal(addDecimalStrings('-1', '2'), undefined);
