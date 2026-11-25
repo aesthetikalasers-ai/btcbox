@@ -371,6 +371,7 @@ async function assertPageAtWidth(
     const entryShare = entryBox!.width / (entryBox!.width + bookBox!.width);
     expect(Math.abs(entryShare - 0.5), "Perpetual responsive columns must be balanced at approximately 50:50.").toBeLessThanOrEqual(0.015);
     expect(Math.abs(entryBox!.y - bookBox!.y), "Perpetual entry and depth must stay on the same row.").toBeLessThanOrEqual(8);
+    expect(Math.abs((entryBox!.y + entryBox!.height) - (bookBox!.y + bookBox!.height)), "Perpetual entry and depth columns must finish at the same bottom edge.").toBeLessThanOrEqual(2);
     if (width >= 600) {
       const workspaceBox = await workspace.boundingBox();
       expect(workspaceBox, "Perpetual tablet workspace must have a layout box.").not.toBeNull();
