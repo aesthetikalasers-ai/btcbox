@@ -1345,6 +1345,13 @@ export interface AdminWithdrawalRecord {
   network: string;
   address: string;
   status: string;
+  time?: string;
+  reviewed_at?: string | null;
+  reviewed_by?: string;
+  rejection_reason?: string;
+  freeze_operation_id?: string;
+  review_operation_id?: string;
+  payout_operation_id?: string;
   payout_reference?: string;
   paid_at?: string | null;
 }
