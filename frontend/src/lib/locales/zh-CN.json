@@ -1850,5 +1850,6 @@
   "Choose a saved address and enter the amount you want to withdraw. You can track the request status in withdrawal history.": "请选择已保存的提现地址并输入提现金额。你可以在提现记录中查看申请状态。",
   "No withdrawal assets and networks are currently configured.": "目前尚未配置可提现的币种和网络。",
   "Net amount": "预计到账",
-  "Application ID": "申请编号"
+  "Application ID": "申请编号",
+  "Showing the latest 20 requests": "当前显示最近 20 笔申请"
 }
