@@ -340,18 +340,14 @@
   "Sending…": "A enviar…",
   "Send message": "Enviar mensagem",
   "Deposit address": "Endereço de depósito",
-  "Always verify the asset and network before sending funds.": "Verifique sempre o ativo e a rede antes de enviar fundos.",
   "Network": "Rede",
   "Loading configured deposit address…": "A carregar o endereço de depósito configurado…",
-  "Verified network destination": "Destino de rede verificado",
   "Copy address": "Copiar endereço",
   "Important": "Importante",
-  "Send only the selected asset on the selected network. Sending unsupported assets or using another network may result in permanent loss. After the transfer, BTCBOX staff verify receipt and manually credit the account. This page does not create a deposit order or automatically credit funds.": "Envie apenas o ativo selecionado através da rede selecionada. O envio de ativos não suportados ou a utilização de outra rede pode resultar numa perda permanente. Após a transferência, a equipa BTCBOX verificará a receção e creditará os fundos manualmente. Esta página não cria uma ordem de depósito nem credita fundos automaticamente.",
   "Deposit history": "Histórico de depósitos",
   "Track deposits verified and credited by BTCBOX staff.": "Consulte os depósitos verificados e creditados pela equipa BTCBOX.",
   "Loading deposit history…": "A carregar o histórico de depósitos…",
   "Reference": "Referência",
-  "No deposit records have been returned for this account.": "Não foram devolvidos registos de depósito para esta conta.",
   "BTCBOX Earn": "BTCBOX Earn",
   "Live catalog · account-backed positions": "Catálogo em tempo real · posições associadas à conta",
   "Loading Earn products and positions…": "A carregar produtos e posições Earn…",
@@ -1864,5 +1860,7 @@
   "Estimated USDT deduction": "Débito estimado em USDT",
   "Final rate is locked when you submit.": "A taxa final é fixada ao enviar a solicitação.",
   "USDC/USDT conversion is temporarily unavailable.": "A conversão USDC/USDT está temporariamente indisponível.",
-  "Balance debit": "Débito do saldo"
+  "Balance debit": "Débito do saldo",
+  "Only send the selected asset on the selected network. Incorrect deposits may be lost. BTCBOX verifies deposits and credits them manually.": "Envie apenas o ativo selecionado pela rede selecionada. Depósitos incorretos podem resultar em perda de fundos. A BTCBOX verifica os depósitos e credita os fundos manualmente.",
+  "No deposit history yet.": "Ainda não há histórico de depósitos."
 }
