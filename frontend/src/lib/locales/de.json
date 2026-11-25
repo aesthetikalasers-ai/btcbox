@@ -1859,5 +1859,6 @@
   "Internal payout reference": "Interne Auszahlungsreferenz",
   "A payout request is still pending with a different internal reference. Enter the exact saved reference; do not replace it.": "Eine Auszahlungsanfrage mit einer anderen internen Referenz ist noch offen. Geben Sie exakt die gespeicherte Referenz ein und ersetzen Sie sie nicht.",
   "Load more": "Mehr laden",
-  "Withdrawal history is temporarily unavailable.": "Der Auszahlungsverlauf ist vorübergehend nicht verfügbar."
+  "Withdrawal history is temporarily unavailable.": "Der Auszahlungsverlauf ist vorübergehend nicht verfügbar.",
+  "Reviewed": "Geprüft"
 }
