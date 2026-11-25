@@ -429,6 +429,12 @@ export interface WithdrawalRecord {
   rejection_reason?: string;
 }
 
+export interface WithdrawalHistoryPage {
+  withdrawals: WithdrawalRecord[];
+  has_more: boolean;
+  next_cursor: string | null;
+}
+
 export interface AccountSnapshot {
   uid: string;
   email: string;
@@ -1250,6 +1256,17 @@ export async function getWithdrawalConfig(signal?: AbortSignal): Promise<Withdra
   if (typeof payload.actions_enabled !== "boolean" || !payload.fees || typeof payload.fees !== "object" ||
       !payload.allowed_networks || typeof payload.allowed_networks !== "object") {
     throw new ApiError("BTCBOX returned an invalid withdrawal configuration.", 502, "INVALID_WITHDRAWAL_CONFIG");
+  }
+  return payload;
+}
+
+export async function getWithdrawalHistoryPage(cursor?: string | null, signal?: AbortSignal): Promise<WithdrawalHistoryPage> {
+  if (DEMO_PREVIEW_ACTIVE) return { withdrawals: [], has_more: false, next_cursor: null };
+  const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+  const payload = await readAuthenticated<WithdrawalHistoryPage & { ok: true }>(`withdrawal/history${query}`, signal);
+  if (!Array.isArray(payload.withdrawals) || typeof payload.has_more !== "boolean" ||
+      (payload.next_cursor !== null && typeof payload.next_cursor !== "string")) {
+    throw new ApiError("BTCBOX returned an invalid withdrawal history page.", 502, "INVALID_WITHDRAWAL_HISTORY");
   }
   return payload;
 }
