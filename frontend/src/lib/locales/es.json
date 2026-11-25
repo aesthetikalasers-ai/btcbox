@@ -1849,5 +1849,6 @@
   "Withdrawal request submitted. You can track its progress in withdrawal history.": "Solicitud de retiro enviada. Puedes seguir su progreso en el historial de retiros.",
   "Choose a saved address and enter the amount you want to withdraw. You can track the request status in withdrawal history.": "Elige una dirección guardada e introduce el importe que deseas retirar. Puedes seguir el estado en el historial de retiros.",
   "No withdrawal assets and networks are currently configured.": "No hay activos ni redes de retiro configurados actualmente.",
-  "Net amount": "Importe neto"
+  "Net amount": "Importe neto",
+  "Application ID": "ID de solicitud"
 }
