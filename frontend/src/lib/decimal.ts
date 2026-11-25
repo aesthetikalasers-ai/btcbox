@@ -1,3 +1,25 @@
+/** Add non-negative decimal strings exactly without Number coercion. */
+export function addDecimalStrings(left: string, right: string): string | undefined {
+  const a = decimalParts(left), b = decimalParts(right);
+  if (!a || !b) return undefined;
+  const scale = Math.max(a.scale, b.scale);
+  const x = a.whole * 10n ** BigInt(scale - a.scale);
+  const y = b.whole * 10n ** BigInt(scale - b.scale);
+  return formatScaledDecimal(x + y, scale);
+}
+
+/** Multiply and round upward to the requested decimal precision (database settlement parity). */
+export function multiplyDecimalStringsCeil(left: string, right: string, precision = 18): string | undefined {
+  const a = decimalParts(left), b = decimalParts(right);
+  if (!a || !b || !Number.isInteger(precision) || precision < 0 || precision > 36) return undefined;
+  const product = a.whole * b.whole;
+  const scale = a.scale + b.scale;
+  if (scale <= precision) return formatScaledDecimal(product * 10n ** BigInt(precision - scale), precision);
+  const divisor = 10n ** BigInt(scale - precision);
+  const rounded = (product + divisor - 1n) / divisor;
+  return formatScaledDecimal(rounded, precision);
+}
+
 /** Exact multiplication for non-negative decimal input; never rounds financial strings. */
 export function multiplyDecimalStrings(left: string, right: string): string | undefined {
   const decimal = /^(\d+)(?:\.(\d+))?$/;
