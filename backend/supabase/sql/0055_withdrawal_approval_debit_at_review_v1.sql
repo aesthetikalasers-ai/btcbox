@@ -10,6 +10,9 @@
 ALTER TABLE public.withdrawal_requests
   ADD COLUMN IF NOT EXISTS rejection_reason text;
 
+CREATE INDEX IF NOT EXISTS withdrawal_requests_user_history_idx
+  ON public.withdrawal_requests (user_id, created_at DESC, id DESC);
+
 CREATE OR REPLACE FUNCTION public.review_withdrawal_atomic(
   p_withdrawal_id text,
   p_admin_id text,
