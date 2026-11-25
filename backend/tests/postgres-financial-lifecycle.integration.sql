@@ -13,7 +13,7 @@ CREATE OR REPLACE FUNCTION pg_temp.test_credit(
   p_note text
 ) RETURNS jsonb
 LANGUAGE plpgsql
-AS $$
+AS $test_credit$
 DECLARE
   v_hash text;
 BEGIN
@@ -25,7 +25,7 @@ BEGIN
     p_deposit_id,'admin-ci',p_user_id,p_asset,p_amount,p_request_id,v_hash,p_reference,p_note
   );
 END;
-$;
+$test_credit$;
 
 CREATE OR REPLACE FUNCTION pg_temp.fail_withdrawal_approval_audit()
 RETURNS trigger
