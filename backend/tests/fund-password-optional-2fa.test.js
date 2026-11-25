@@ -72,7 +72,7 @@ test('2FA enrollment password prompt matches the account credential type and 2FA
 
 test('withdrawal retry copy does not imply 2FA is mandatory', () => {
   const pages = fs.readFileSync(path.join(root, 'frontend/src/features/pages/Pages.tsx'), 'utf8');
-  assert.match(pages, /if 2FA is enabled, your authenticator code/);
+  assert.match(pages, /if enabled, your 2FA code/);
 });
 
 test('fund-password page explains that local-password confirmation does not sign the user out', () => {
