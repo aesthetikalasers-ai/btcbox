@@ -165,6 +165,7 @@ export function SpotTradingPage(){
  const navigate=useNavigate();
  const [ticker,setTicker]=useState<MarketTicker|null>(null);
  const [spotPairEnabled,setSpotPairEnabled]=useState(false);
+ const [spotCatalogDegraded,setSpotCatalogDegraded]=useState(false);
  const [spotPairRules,setSpotPairRules]=useState<SpotMarketPair|null>(null);
  const [chartInterval,setChartInterval]=useState("1h");
  // `compactTrade` (<=1279px) means "no inline chart": the chart moves into the
@@ -354,14 +355,16 @@ export function SpotTradingPage(){
  useEffect(()=>{
   const controller=new AbortController();
   isPriceManualRef.current=false;
-  setLoading(true);setError("");setSpotPairEnabled(false);setSpotPairRules(null);setTradingStatus(null);setPairSymbols([]);setAvailableBalances({});setOrderType("limit");
+  setLoading(true);setError("");setSpotPairEnabled(false);setSpotCatalogDegraded(false);setSpotPairRules(null);setTradingStatus(null);setPairSymbols([]);setAvailableBalances({});setOrderType("limit");
   setTicker(null);setCandles([]);setBook(null);setMarketFeedWarning("");setChartFeedWarning("");setPrice("");
   Promise.allSettled([getSpotMarketPairs(controller.signal),getMarkets(controller.signal),getOrderBook(symbol,controller.signal),getTradingStatus(controller.signal),getOrders(controller.signal),getAccount(controller.signal)]).then(results=>{
    if(controller.signal.aborted)return;
    const [pairResult,marketResult,bookResult,statusResult,ordersResult,accountResult]=results;
    if(pairResult.status==="fulfilled"){
     setPairSymbols(pairResult.value.filter(pair=>pair.quote_asset==="USDT").map(pair=>pair.base_asset+pair.quote_asset));
-    const selectedPair=pairResult.value.find(pair=>pair.base_asset===base&&pair.quote_asset==="USDT"&&pair.enabled===true)||null;
+    const catalogDegraded=pairResult.value.some(pair=>pair.trading_enabled===false);
+    setSpotCatalogDegraded(catalogDegraded);
+    const selectedPair=pairResult.value.find(pair=>pair.base_asset===base&&pair.quote_asset==="USDT"&&pair.enabled===true&&pair.trading_enabled!==false)||null;
     setSpotPairRules(selectedPair);
     const enabled=!!selectedPair;
     setSpotPairEnabled(enabled);
@@ -543,6 +546,7 @@ export function SpotTradingPage(){
   if(pendingIntentInvalid){setError("A saved spot order request must be reconciled before another order can be placed.");return;}
   if(tickerIsFallback&&!pendingIntent){setError("Live market data is unavailable. No order was sent.");return;}
    if((!ticker||marketSnapshotStale)&&!pendingIntent){setError("A fresh timestamped market snapshot is required before placing a new order. No order was sent.");return;}
+  if(spotCatalogDegraded&&!pendingIntent){setError("Market data is read-only while exchange configuration is unavailable. No order was sent.");return;}
   if(!spotPairEnabled&&!pendingIntent){setError("This spot pair is not enabled by BTCBOX operators. No order was sent.");return;}
   if(!tradingStatus?.spot_order_entry_enabled&&!pendingIntent){setError("Spot order execution is currently disabled by server policy. No order was placed.");return;}
   if(!pendingIntent&&!orderInputsValid){setError(orderRuleError||"Enter a valid limit price and quantity.");return;}
@@ -701,15 +705,15 @@ export function SpotTradingPage(){
  const isAuthenticated=authStatus==="authenticated";
  const tradingInactive=!!tradingStatus&&tradingStatus.spot_order_entry_enabled!==true;
  const staleSnapshot=!!ticker&&marketSnapshotStale;
- const bannerKey=[effectiveMarketFeedWarning,chartFeedWarning,tradingInactive?"engine":"",staleSnapshot?"stale":""].join("|");
- const bannerVisible=(effectiveMarketFeedWarning||chartFeedWarning||tradingInactive||staleSnapshot)&&!dismissedBanners.includes(bannerKey);
- const bannerText=[effectiveMarketFeedWarning,chartFeedWarning,(staleSnapshot||tradingInactive)?t("Trading is temporarily unavailable."):""].filter(Boolean).join(" · ");
+ const bannerKey=[effectiveMarketFeedWarning,chartFeedWarning,spotCatalogDegraded?"catalog-read-only":"",tradingInactive?"engine":"",staleSnapshot?"stale":""].join("|");
+ const bannerVisible=(effectiveMarketFeedWarning||chartFeedWarning||spotCatalogDegraded||tradingInactive||staleSnapshot)&&!dismissedBanners.includes(bannerKey);
+ const bannerText=[effectiveMarketFeedWarning,chartFeedWarning,(spotCatalogDegraded||staleSnapshot||tradingInactive)?t("Trading is temporarily unavailable."):""].filter(Boolean).join(" · ");
  const bannerDismissed=!bannerVisible&&dismissedBanners.includes(bannerKey);
  const orderHistory=orders.filter(item=>!["open","partially_filled","partially-filled","pending"].includes(String(item.status||"").toLowerCase()));
  // Executed orders only. Derived from the same authenticated `/api/orders`
  // payload — the fills tab never invents a trade or a fee.
  const filledOrders=orderHistory.filter(item=>["filled","completed","partially_filled","partially-filled"].includes(String(item.status||"").toLowerCase()));
- const entryDisabledReason=!tradingStatus?t("Spot execution status is unavailable. Order entry is disabled."):tradingInactive?t("Spot order execution is disabled by server policy. No order can be placed until the matching engine is approved and enabled."):staleSnapshot?t("Market snapshot is older than 90 seconds. Quotes and new order entry are disabled until fresh data arrives."):!spotPairEnabled?t("This spot market is not enabled by BTCBOX operators."):!spotPairRules?t("Market trading rules are unavailable. Order entry is disabled."):orderRuleError?t(orderRuleError):"";
+ const entryDisabledReason=!tradingStatus?t("Spot execution status is unavailable. Order entry is disabled."):spotCatalogDegraded?t("Trading is temporarily unavailable."):tradingInactive?t("Spot order execution is disabled by server policy. No order can be placed until the matching engine is approved and enabled."):staleSnapshot?t("Market snapshot is older than 90 seconds. Quotes and new order entry are disabled until fresh data arrives."):!spotPairEnabled?t("This spot market is not enabled by BTCBOX operators."):!spotPairRules?t("Market trading rules are unavailable. Order entry is disabled."):orderRuleError?t(orderRuleError):"";
  const pickBookPrice=(nextPrice:string, bookSide?:"ask"|"bid")=>{
     // Match the selected level and side to the same order-entry state on desktop
     // and mobile: asks populate a buy, bids populate a sell.

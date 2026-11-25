@@ -3,12 +3,44 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const vm = require('node:vm');
 const assert = require('node:assert/strict');
 
 const root = path.resolve(__dirname, '..');
 const backend = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
 const api = fs.readFileSync(path.resolve(root, '../frontend/src/lib/api.ts'), 'utf8');
 const pages = fs.readFileSync(path.resolve(root, '../frontend/src/features/pages/Pages.tsx'), 'utf8');
+
+function createSpotCatalogHarness(readSpotMarketCatalog, clock) {
+  const sandbox = {
+    readSpotMarketCatalog,
+    Date: { now: clock },
+    DEFAULT_SYMBOLS: ['BTC', 'ETH'],
+    PUBLIC_SPOT_CATALOG_CACHE_MAX_AGE_MS: 15 * 60 * 1000,
+  };
+  vm.createContext(sandbox);
+  const start = backend.indexOf('async function readPublicSpotMarketCatalog()');
+  const end = backend.indexOf('// Keep this list aligned with spot pair support', start);
+  assert.ok(start >= 0 && end > start, 'production catalogue helper must be extractable');
+  const productionHelper = backend.slice(start, end);
+  vm.runInContext(
+    'let lastKnownSpotMarketCatalog = null; let spotMarketCatalogReadGeneration = 0; let lastSuccessfulSpotMarketCatalogReadGeneration = 0; ' +
+      productionHelper + '; globalThis.readPublicSpotMarketCatalog = readPublicSpotMarketCatalog;',
+    sandbox
+  );
+  return {
+    read: () => sandbox.readPublicSpotMarketCatalog(),
+    setReader: reader => { sandbox.readSpotMarketCatalog = reader; },
+  };
+}
+
+function catalogMarket(baseAsset) {
+  return {
+    base_asset: baseAsset, quote_asset: 'USDT', enabled: true,
+    price_tick: '0.01', quantity_step: '0.001', min_quantity: '0.001',
+    min_notional: '1', min_limit_price: null, max_limit_price: null,
+  };
+}
 
 test('public USDT/USD FX route is exposed by the shared Vercel API handler', () => {
   const route = backend.indexOf("if (path === 'fx/usdt-usd' && method === 'GET')");
@@ -27,9 +59,22 @@ test('public spot-market catalogue is sourced from operator configuration', () =
   const marketRoute = backend.indexOf("if (path === 'market' && method === 'GET')");
   assert.ok(route >= 0 && marketRoute > route, 'catalogue route must precede ticker route');
   const routeBlock = backend.slice(route, marketRoute);
-  assert.ok(routeBlock.includes('readSpotMarketCatalog()'));
+  assert.ok(routeBlock.includes('readPublicSpotMarketCatalog()'));
   assert.ok(!routeBlock.includes('if (!user)'), 'public catalogue must not require a user session');
-  assert.ok(routeBlock.includes('markets.filter(market => market.enabled)'));
+  assert.ok(routeBlock.includes('catalog_source'));
+  assert.ok(backend.includes('async function readPublicSpotMarketCatalog()'));
+  assert.ok(backend.includes("const source = useCached ? 'stale-cache' : 'static-fallback'"));
+  assert.ok(backend.includes('PUBLIC_SPOT_CATALOG_CACHE_MAX_AGE_MS'));
+  assert.ok(backend.includes('DEFAULT_SYMBOLS.map'));
+  assert.ok(backend.includes('trading_enabled: false'), 'degraded catalogue pairs must be display-only');
+  assert.ok(routeBlock.includes('markets: catalog.markets'));
+  const catalogHelper = backend.slice(backend.indexOf('async function readPublicSpotMarketCatalog()'), backend.indexOf('// Keep this list aligned with spot pair support'));
+  assert.ok(catalogHelper.includes("const source = useCached ? 'stale-cache' : 'static-fallback'"));
+  assert.ok(catalogHelper.includes('tradingEnabled: false'), 'all degraded catalogue responses must disable trading');
+  assert.ok(catalogHelper.includes('trading_enabled: false'), 'degraded pairs must be explicitly read-only');
+  assert.ok(catalogHelper.includes('cached.markets'), 'a recent validated catalogue may be reused for display');
+  assert.ok(catalogHelper.includes('DEFAULT_SYMBOLS.map'), 'cold starts must have a bounded provider-independent display fallback');
+  assert.ok(catalogHelper.includes('Date.now() - cached.fetchedAt <= PUBLIC_SPOT_CATALOG_CACHE_MAX_AGE_MS'), 'stale cache must expire instead of becoming durable configuration');
   assert.ok(backend.includes("market.quote_asset !== 'USDT'"));
   assert.ok(backend.includes("quoteAsset !== 'USDT'"));
   assert.ok(!backend.includes("DEFAULT_SPOT_CATALOG"), "catalogue read failures must not activate a seeded market list");
@@ -44,9 +89,11 @@ test('market ticker, candles and depth are gated by enabled spot pairs', () => {
   const klineStart = backend.indexOf("if (path === 'kline' && method === 'GET')");
   const depthStart = backend.indexOf("if (path === 'depth' && method === 'GET')");
   assert.ok(marketStart >= 0 && klineStart >= 0 && depthStart >= 0);
-  assert.ok(backend.slice(marketStart, marketStart + 9000).includes('readSpotMarketCatalog()'));
+  assert.ok(backend.slice(marketStart, marketStart + 9000).includes('readPublicSpotMarketCatalog()'));
   assert.ok(backend.slice(marketStart, marketStart + 9000).includes('configured_empty'));
+  assert.ok(backend.slice(klineStart, klineStart + 5000).includes('readPublicSpotMarketCatalog()'));
   assert.ok(backend.slice(klineStart, klineStart + 5000).includes('SPOT_MARKET_DISABLED'));
+  assert.ok(backend.slice(depthStart, depthStart + 3000).includes('readPublicSpotMarketCatalog()'));
   assert.ok(backend.slice(depthStart, depthStart + 3000).includes('SPOT_MARKET_DISABLED'));
 });
 
@@ -56,9 +103,13 @@ test('user Trade Hub links only to configured pairs and Spot order submission ch
   assert.ok(pages.includes('getSpotMarketPairs(controller.signal)'));
   assert.ok(pages.includes('pair.base_asset+pair.quote_asset'));
   assert.ok(pages.includes('pair.base_asset===base&&pair.quote_asset==="USDT"'));
+  assert.ok(api.includes('trading_enabled?: boolean'));
+  assert.ok(pages.includes('pair.trading_enabled!==false'));
+  assert.ok(pages.includes('spotCatalogDegraded'));
+  assert.ok(pages.includes('if(spotCatalogDegraded&&!pendingIntent)'));
   assert.ok(pages.includes('if(!spotPairEnabled&&!pendingIntent)'));
   assert.ok(pages.includes('(!spotPairEnabled&&!pendingIntent)'));
-  assert.ok(pages.includes('setSpotPairEnabled(false);setSpotPairRules(null);setTradingStatus(null)'));
+  assert.ok(pages.includes('setSpotPairEnabled(false);setSpotCatalogDegraded(false);setSpotPairRules(null);setTradingStatus(null)'));
   assert.ok(pages.includes('(!spotPairEnabled&&!pendingIntent)||(!tradingStatus?.spot_order_entry_enabled&&!pendingIntent)'));
 });
 
@@ -95,7 +146,8 @@ test('market timestamps distinguish server snapshot time from provider-specific 
 test('public ticker snapshots use a short shared-cache window and clients bypass browser cache', () => {
   const marketStart = backend.indexOf("if (path === 'market' && method === 'GET')");
   assert.ok(marketStart >= 0);
-  const route = backend.slice(marketStart, marketStart + 9000);
+  const routeEnd = backend.indexOf('// Public capability snapshot', marketStart);
+  const route = backend.slice(marketStart, routeEnd);
   assert.ok(route.includes("'Cache-Control': 'public, max-age=0, s-maxage=2, stale-while-revalidate=1'"));
   assert.ok(api.includes('cache: "no-store"'));
   assert.ok(pages.includes('window.setInterval(refreshMarketData,5000)'));
@@ -158,4 +210,61 @@ test('legacy market and depth polling suppress overlapping requests and never re
   assert.ok(depth.includes('state.depthUnavailable=true;'));
   assert.ok(depth.includes('state.depthCache=null;'));
   assert.ok(tradeView.includes("state.depthUnavailable?'Order book unavailable"));
+});
+
+test('public catalogue recovers to database authority and degrades safely after a later outage', async () => {
+  let now = 1_000;
+  const harness = createSpotCatalogHarness(async () => { throw new Error('database unavailable'); }, () => now);
+
+  const coldFallback = await harness.read();
+  assert.equal(coldFallback.source, 'static-fallback');
+  assert.equal(coldFallback.tradingEnabled, false);
+
+  harness.setReader(async () => [catalogMarket('BTC')]);
+  const recovered = await harness.read();
+  assert.equal(recovered.source, 'database');
+  assert.equal(recovered.tradingEnabled, true);
+  assert.deepEqual(Array.from(recovered.markets, market => market.base_asset), ['BTC']);
+  assert.equal(recovered.markets[0].trading_enabled, true);
+
+  harness.setReader(async () => { throw new Error('database unavailable again'); });
+  const outage = await harness.read();
+  assert.equal(outage.source, 'stale-cache');
+  assert.equal(outage.tradingEnabled, false);
+  assert.deepEqual(Array.from(outage.markets, market => market.base_asset), ['BTC']);
+  assert.equal(outage.markets[0].trading_enabled, false);
+
+  now += 15 * 60 * 1000 + 1;
+  const expired = await harness.read();
+  assert.equal(expired.source, 'static-fallback');
+  assert.equal(expired.tradingEnabled, false);
+  assert.deepEqual(Array.from(expired.markets, market => market.base_asset), ['BTC', 'ETH']);
+});
+
+test('an older concurrent database response cannot overwrite a newer successful catalogue', async () => {
+  let resolveOlder;
+  let resolveNewer;
+  let requestCount = 0;
+  const harness = createSpotCatalogHarness(() => new Promise(resolve => {
+    requestCount += 1;
+    if (requestCount === 1) resolveOlder = resolve;
+    else resolveNewer = resolve;
+  }), () => 5_000);
+
+  const olderRequest = harness.read();
+  const newerRequest = harness.read();
+  assert.equal(requestCount, 2);
+
+  resolveNewer([catalogMarket('ETH')]);
+  const newerResult = await newerRequest;
+  assert.deepEqual(Array.from(newerResult.markets, market => market.base_asset), ['ETH']);
+
+  resolveOlder([catalogMarket('BTC')]);
+  const olderResult = await olderRequest;
+  assert.deepEqual(Array.from(olderResult.markets, market => market.base_asset), ['ETH']);
+
+  harness.setReader(async () => { throw new Error('database unavailable'); });
+  const afterOutage = await harness.read();
+  assert.equal(afterOutage.source, 'stale-cache');
+  assert.deepEqual(Array.from(afterOutage.markets, market => market.base_asset), ['ETH']);
 });

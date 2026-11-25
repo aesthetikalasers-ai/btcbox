@@ -5,7 +5,7 @@ const { authorizeSupabaseAdmin } = require('./admin-auth');
 const { hasAdminPermission } = require('./admin-rbac');
 const { isValidIban } = require('./bank-account-validation');
 const { hasActiveVersionedSecondsPolicy } = require('./seconds-policy-readiness');
-const { getUsdtUsd } = require('./market-gateway');
+const { getUsdtUsd, DEFAULT_SYMBOLS } = require('./market-gateway');
 
 const SESSION_COOKIE = 'session_token';
 const PBKDF2_ITER = 100000;
@@ -13,6 +13,10 @@ const PBKDF2_KEYLEN = 32;
 const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const LIVE_PRICE_CACHE_MS = 15000;
 let livePriceCache = { expiresAt: 0, prices: {} };
+let lastKnownSpotMarketCatalog = null;
+let spotMarketCatalogReadGeneration = 0;
+let lastSuccessfulSpotMarketCatalogReadGeneration = 0;
+const PUBLIC_SPOT_CATALOG_CACHE_MAX_AGE_MS = 15 * 60 * 1000;
 
 // Public, read-only endpoints must not be coupled to the account-state singleton.
 // Market prices and display FX can continue during a persistence incident;
@@ -568,6 +572,56 @@ async function readSpotMarketCatalog() {
     };
   });
   } catch (error) { throw new Error('Spot market catalogue unavailable: ' + (error && error.message ? error.message : 'storage read failed')); }
+}
+
+async function readPublicSpotMarketCatalog() {
+  // Requests can overlap on a warm serverless instance. Only the newest
+  // successful database read may replace the cached authoritative snapshot.
+  // If an older request finishes after a newer success, return the newer
+  // snapshot rather than regressing either the response or the cache.
+  const readGeneration = ++spotMarketCatalogReadGeneration;
+  try {
+    // The database remains the authoritative source whenever it is reachable.
+    // Cache only a fully validated snapshot; a successful empty catalogue is
+    // authoritative too and must never be replaced with seeded pairs.
+    const markets = await readSpotMarketCatalog();
+    if (readGeneration < lastSuccessfulSpotMarketCatalogReadGeneration && lastKnownSpotMarketCatalog) {
+      return {
+        source: 'database',
+        tradingEnabled: true,
+        markets: lastKnownSpotMarketCatalog.markets.filter(market => market.enabled).map(market => ({ ...market, trading_enabled: true })),
+      };
+    }
+    lastKnownSpotMarketCatalog = { fetchedAt: Date.now(), markets };
+    lastSuccessfulSpotMarketCatalogReadGeneration = readGeneration;
+    return {
+      source: 'database',
+      tradingEnabled: true,
+      markets: markets.filter(market => market.enabled).map(market => ({ ...market, trading_enabled: true })),
+    };
+  } catch (_) {
+    // A stale catalogue is useful for public display only. It must never enable
+    // order entry because an operator may have disabled a pair during the outage.
+    const cached = lastKnownSpotMarketCatalog;
+    const useCached = !!cached && Date.now() - cached.fetchedAt <= PUBLIC_SPOT_CATALOG_CACHE_MAX_AGE_MS;
+    const source = useCached ? 'stale-cache' : 'static-fallback';
+    const fallbackMarkets = useCached ? cached.markets : DEFAULT_SYMBOLS.map(baseAsset => ({
+      base_asset: baseAsset,
+      quote_asset: 'USDT',
+      enabled: true,
+      price_tick: '0.00000001',
+      quantity_step: '0.00000001',
+      min_quantity: '0.00000001',
+      min_notional: '1',
+      min_limit_price: null,
+      max_limit_price: null,
+    }));
+    return {
+      source,
+      tradingEnabled: false,
+      markets: fallbackMarkets.filter(market => market.enabled).map(market => ({ ...market, trading_enabled: false })),
+    };
+  }
 }
 
 // Keep this list aligned with spot pair support, manual-deposit assets, and admin asset controls.
@@ -1777,10 +1831,14 @@ async function handleRequest(event, context) {
     const interval = (event.queryStringParameters && event.queryStringParameters.interval) || '1m';
     if (!/^[A-Z0-9]{5,20}$/.test(symbol) || !symbol.endsWith('USDT') || symbol.length <= 4 || !['1m','3m','5m','15m','30m','1h','2h','4h','1d'].includes(interval)) return json({ ok: false, msg: 'Invalid USDT symbol or interval' }, 400);
     const base = symbol.slice(0, -4);
+    let catalogSource = 'database';
+    let catalogTradingEnabled = true;
     try {
-      const catalog = await readSpotMarketCatalog();
-      if (!catalog.some(market => market.enabled && market.base_asset === base && market.quote_asset === 'USDT')) {
-        return json({ ok: false, code: 'SPOT_MARKET_DISABLED', msg: 'This spot market is not enabled.', klines: [], data: [] }, 404);
+      const catalog = await readPublicSpotMarketCatalog();
+      catalogSource = catalog.source;
+      catalogTradingEnabled = catalog.tradingEnabled;
+      if (!catalog.markets.some(market => market.enabled && market.base_asset === base && market.quote_asset === 'USDT')) {
+        return json({ ok: false, code: 'SPOT_MARKET_DISABLED', msg: 'This spot market is not enabled for public display.', klines: [], data: [] }, 404);
       }
     } catch (_) {
       return json({ ok: false, code: 'MARKET_CATALOG_UNAVAILABLE', msg: 'Spot market catalogue is temporarily unavailable.', klines: [], data: {} }, 503);
@@ -1807,7 +1865,7 @@ async function handleRequest(event, context) {
       const ageSeconds = Date.now() / 1000 - latestOpenMs / 1000;
       return Number.isFinite(ageSeconds) && ageSeconds >= -30 && ageSeconds <= Math.max(intervalSeconds * 3, 180);
     };
-    const candleResponse = (rows, source) => json({ ok: true, source, klines: rows, data: rows });
+    const candleResponse = (rows, source) => json({ ok: true, source, catalog_source: catalogSource, trading_enabled: catalogTradingEnabled, klines: rows, data: rows });
 
     // Binance Vision is already the reachable public provider for production
     // ticker/depth requests and supports every interval exposed by this API.
@@ -1846,10 +1904,14 @@ async function handleRequest(event, context) {
     const symbol = ((event.queryStringParameters && event.queryStringParameters.symbol) || 'BTCUSDT').toUpperCase();
     if (!/^[A-Z0-9]{5,20}$/.test(symbol) || !symbol.endsWith('USDT') || symbol.length <= 4) return json({ ok: false, msg: 'Invalid USDT symbol' }, 400);
     const base = symbol.slice(0, -4);
+    let catalogSource = 'database';
+    let catalogTradingEnabled = true;
     try {
-      const catalog = await readSpotMarketCatalog();
-      if (!catalog.some(market => market.enabled && market.base_asset === base && market.quote_asset === 'USDT')) {
-        return json({ ok: false, code: 'SPOT_MARKET_DISABLED', msg: 'This spot market is not enabled.', bids: [], asks: [] }, 404);
+      const catalog = await readPublicSpotMarketCatalog();
+      catalogSource = catalog.source;
+      catalogTradingEnabled = catalog.tradingEnabled;
+      if (!catalog.markets.some(market => market.enabled && market.base_asset === base && market.quote_asset === 'USDT')) {
+        return json({ ok: false, code: 'SPOT_MARKET_DISABLED', msg: 'This spot market is not enabled for public display.', bids: [], asks: [] }, 404);
       }
     } catch (_) {
       return json({ ok: false, code: 'MARKET_CATALOG_UNAVAILABLE', msg: 'Spot market catalogue is temporarily unavailable.', bids: [], asks: [] }, 503);
@@ -1866,7 +1928,7 @@ async function handleRequest(event, context) {
       const normalizedBids = normalizeLevels(bids).sort((left, right) => Number(right[0]) - Number(left[0])).slice(0, 20);
       const normalizedAsks = normalizeLevels(asks).sort((left, right) => Number(left[0]) - Number(right[0])).slice(0, 20);
       if (!normalizedBids.length || !normalizedAsks.length) throw new Error('empty or malformed order book');
-      return json({ ok: true, source, snapshotTs: Math.floor(Date.now() / 1000), providerTs, bids: normalizedBids, asks: normalizedAsks });
+      return json({ ok: true, source, catalog_source: catalogSource, trading_enabled: catalogTradingEnabled, snapshotTs: Math.floor(Date.now() / 1000), providerTs, bids: normalizedBids, asks: normalizedAsks });
     };
     try {
       const book = await timeoutFetchJson('https://api.exchange.coinbase.com/products/' + encodeURIComponent(base + '-USDT') + '/book?level=2');
@@ -2666,8 +2728,13 @@ async function handleRequest(event, context) {
   // Public catalogue exposes only enabled, operator-configured USDT pairs.
   if (path === 'market/pairs' && method === 'GET') {
     try {
-      const markets = await readSpotMarketCatalog();
-      return json({ ok: true, markets: markets.filter(market => market.enabled) });
+      const catalog = await readPublicSpotMarketCatalog();
+      return json({
+        ok: true,
+        markets: catalog.markets,
+        catalog_source: catalog.source,
+        trading_enabled: catalog.tradingEnabled,
+      });
     } catch (_) {
       return json({ ok: false, code: 'MARKET_CATALOG_UNAVAILABLE', msg: 'Spot market catalogue is temporarily unavailable.', markets: [] }, 503);
     }
@@ -2689,13 +2756,17 @@ async function handleRequest(event, context) {
      * from exactly one provider and are never averaged across sources.
      */
     let bases;
+    let catalogSource = 'database';
+    let catalogTradingEnabled = true;
     try {
-      const catalog = await readSpotMarketCatalog();
-      bases = [...new Set(catalog.filter(market => market.enabled && market.quote_asset === 'USDT').map(market => market.base_asset))];
+      const catalog = await readPublicSpotMarketCatalog();
+      catalogSource = catalog.source;
+      catalogTradingEnabled = catalog.tradingEnabled;
+      bases = [...new Set(catalog.markets.filter(market => market.enabled && market.quote_asset === 'USDT').map(market => market.base_asset))];
     } catch (_) {
       return json({ ok: false, code: 'MARKET_CATALOG_UNAVAILABLE', msg: 'Spot market catalogue is temporarily unavailable.', markets: [], data: {} }, 503);
     }
-    if (!bases.length) return json({ ok: true, markets: [], data: {}, source: 'configured_empty' });
+    if (!bases.length) return json({ ok: true, markets: [], data: {}, source: 'configured_empty', catalog_source: catalogSource, trading_enabled: catalogTradingEnabled });
     const now = Math.floor(Date.now() / 1000);
     const finitePositive = value => Number.isFinite(Number(value)) && Number(value) > 0;
     const fetchJson = async url => {
@@ -2813,7 +2884,7 @@ async function handleRequest(event, context) {
     // Authenticated/private/financial endpoints retain the default no-store policy.
     const usedProviders = [...new Set(out.map(row => row.source).filter(Boolean))];
     const snapshotSource = usedProviders.length === 1 ? usedProviders[0] : usedProviders.length ? usedProviders.join('+') : 'unavailable';
-    return json({ ok: true, markets: out, data: dataObj, source: snapshotSource }, 200, { 'Cache-Control': 'public, max-age=0, s-maxage=2, stale-while-revalidate=1' });
+    return json({ ok: true, markets: out, data: dataObj, source: snapshotSource, catalog_source: catalogSource, trading_enabled: catalogTradingEnabled }, 200, { 'Cache-Control': 'public, max-age=0, s-maxage=2, stale-while-revalidate=1' });
   }
 
   // Public capability snapshot. Financial order writes remain fail-closed unless

@@ -1401,6 +1401,8 @@ export interface SpotMarketPair {
   base_asset: string;
   quote_asset: "USDT";
   enabled: true;
+  /** False when this pair is listed from a degraded public-only catalogue fallback. */
+  trading_enabled?: boolean;
   price_tick: string;
   quantity_step: string;
   min_quantity: string;

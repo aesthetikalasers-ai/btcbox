@@ -48,16 +48,17 @@ test('local integration serves real JSON APIs and SPA deep links on one origin',
   assert.equal(malformedStatus, 400);
   const health = await fetch(base + '/api/healthz');
   assert.equal((await health.json()).ok, true);
-  const market = await fetch(base + '/api/market');
-  // A local server without an explicitly configured market catalogue must not
-  // substitute seeded prices. The public market endpoint fails closed instead.
-  assert.equal(market.status, 503);
-  assert.match(market.headers.get('content-type'), /application\/json/);
-  const marketPayload = await market.json();
-  assert.equal(marketPayload.ok, false);
-  assert.equal(marketPayload.code, 'MARKET_CATALOG_UNAVAILABLE');
-  assert.deepEqual(marketPayload.markets, []);
-  assert.deepEqual(marketPayload.data, {});
+  const marketPairs = await fetch(base + '/api/market/pairs');
+  // Without Supabase, the public catalogue may use a bounded display-only
+  // fallback. It must never mark fallback pairs as eligible for order entry.
+  assert.equal(marketPairs.status, 200);
+  assert.match(marketPairs.headers.get('content-type'), /application\/json/);
+  const marketPayload = await marketPairs.json();
+  assert.equal(marketPayload.ok, true);
+  assert.equal(marketPayload.catalog_source, 'static-fallback');
+  assert.equal(marketPayload.trading_enabled, false);
+  assert.equal(marketPayload.markets.length, 24);
+  assert.ok(marketPayload.markets.every(pair => pair.enabled === true && pair.trading_enabled === false));
   const page = await fetch(base + '/trade/BTCUSDT');
   assert.equal(page.status, 200);
   assert.match(await page.text(), /id="root"/);
