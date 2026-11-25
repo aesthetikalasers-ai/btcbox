@@ -39,7 +39,7 @@ SELECT
   w.reviewed_at,
   w.amount,
   w.fee,
-  w.amount + w.fee AS reserved_total,
+  w.settlement_amount AS reserved_total,
   w.freeze_operation_id,
   w.review_operation_id,
   freeze_op.operation_type AS freeze_operation_type,
@@ -56,13 +56,13 @@ SELECT
       AND approve_op.id IS NOT NULL
       AND approve_op.operation_type = 'withdraw_approve'
       AND approve_op.ledger_rows = 1
-      AND approve_op.frozen_delta = -(w.amount + w.fee)
+      AND approve_op.frozen_delta = -w.settlement_amount
       THEN 'approved_at_0055'
     WHEN w.status = 'approved'
       AND (
         approve_op.id IS NULL
         OR approve_op.ledger_rows <> 1
-        OR approve_op.frozen_delta <> -(w.amount + w.fee)
+        OR approve_op.frozen_delta <> -w.settlement_amount
       )
       THEN 'legacy_approved_requires_manual_reconciliation'
     WHEN w.status = 'completed'
@@ -76,7 +76,7 @@ SELECT
       AND payout_op.id IS NOT NULL
       AND payout_op.operation_type IN ('withdraw_paid','withdraw_settle')
       AND payout_op.ledger_rows = 1
-      AND payout_op.frozen_delta = -(w.amount + w.fee)
+      AND payout_op.frozen_delta = -w.settlement_amount
       THEN 'legacy_completed_with_payout_debit'
     ELSE 'needs_manual_review'
   END AS reconciliation_classification
@@ -88,7 +88,7 @@ LEFT JOIN operation_ledger approve_op
 LEFT JOIN operation_ledger payout_op
   ON payout_op.id = w.payout_operation_id
 LEFT JOIN public.financial_accounts account
-  ON account.user_id = w.user_id AND account.asset = w.asset
+  ON account.user_id = w.user_id AND account.asset = w.settlement_asset
 WHERE w.status IN ('approved','completed')
 ORDER BY w.created_at, w.id;
 
@@ -104,7 +104,7 @@ WITH report AS (
           WHERE o.idempotency_key = 'withdraw-approve:' || w.id
             AND o.operation_type = 'withdraw_approve'
           GROUP BY o.id
-          HAVING count(*) = 1 AND sum(l.frozen_delta) = -(w.amount + w.fee)
+          HAVING count(*) = 1 AND sum(l.frozen_delta) = -w.settlement_amount
         )
         THEN 'approved_at_0055'
       WHEN w.status = 'approved'
