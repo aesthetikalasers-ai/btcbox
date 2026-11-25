@@ -1203,6 +1203,35 @@ function totalUsdt(balances, prices) {
   return total;
 }
 
+async function getFreshUsdcUsdtRate() {
+  const fetchJson = async url => {
+    const response = await fetch(url, { signal: AbortSignal.timeout(4000), headers: { Accept: 'application/json' } });
+    if (!response.ok) throw new Error('Live USDC/USDT quote provider unavailable');
+    return response.json();
+  };
+  // Never reuse an expired cached quote for a new financial reservation.
+  try {
+    const products = await fetchJson('https://api.exchange.coinbase.com/products');
+    const product = Array.isArray(products) && products.find(p =>
+      p && p.id === 'USDC-USDT' && p.quote_currency === 'USDT' &&
+      p.status === 'online' && p.trading_disabled !== true
+    );
+    if (product) {
+      const stats = await fetchJson('https://api.exchange.coinbase.com/products/USDC-USDT/stats');
+      const price = Number(stats && stats.last);
+      if (Number.isFinite(price) && price > 0) return price;
+    }
+  } catch (_) {}
+  try {
+    const payload = await fetchJson('https://api.bybit.com/v5/market/tickers?category=spot');
+    const rows = payload && payload.result && payload.result.list;
+    const row = Array.isArray(rows) && rows.find(item => item && item.symbol === 'USDCUSDT');
+    const price = Number(row && row.lastPrice);
+    if (Number.isFinite(price) && price > 0) return price;
+  } catch (_) {}
+  return null;
+}
+
 async function getLiveUsdtPrices(requestedBases) {
   const bases = Array.from(new Set((requestedBases || []).filter(x => /^[A-Z0-9]{2,12}$/.test(x) && x !== 'USDT'))).sort();
   if (!bases.length) return {};
@@ -2744,8 +2773,8 @@ async function handleRequest(event, context) {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
     let usdcUsdtRate = null;
     try {
-      const rates = await getLiveUsdtPrices(['USDC']);
-      if (Number.isFinite(Number(rates.USDC)) && Number(rates.USDC) > 0) usdcUsdtRate = Number(rates.USDC).toFixed(12);
+      const rate = await getFreshUsdcUsdtRate();
+      if (Number.isFinite(Number(rate)) && Number(rate) > 0) usdcUsdtRate = Number(rate).toFixed(12);
     } catch (_) {}
     return json({
       ok: true,
@@ -2835,8 +2864,7 @@ async function handleRequest(event, context) {
       let conversionRate = '1';
       let settlementAmount = addMoney(amount, fee);
       if (coin === 'USDC') {
-        const rates = await getLiveUsdtPrices(['USDC']);
-        const liveRate = Number(rates.USDC);
+        const liveRate = Number(await getFreshUsdcUsdtRate());
         settlementAsset = 'USDT';
         if (!Number.isFinite(liveRate) || liveRate <= 0) {
           // Still call the idempotent RPC with a null quote: an already-created
