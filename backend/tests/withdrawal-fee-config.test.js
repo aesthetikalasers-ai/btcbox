@@ -54,7 +54,7 @@ test('withdrawal fees are configurable in admin and the same server values are u
   assert.ok(api.includes('body.expected_fee === undefined ? fee : parseMoneyInput(body.expected_fee)'));
   assert.ok(api.includes('p_expected_fee: String(expectedFee)'));
   assert.ok(api.includes('WITHDRAWAL_FEE_CHANGED'));
-  assert.ok(pages.includes('expected_fee:String(config?.fees[intent.coin] ?? "")'));
+  assert.ok(pages.includes('expected_fee:intent.expected_fee'), 'submission must reuse the fee captured when the idempotency intent was created');
   assert.ok(pages.includes('selectedAddress?.coin==="USDC"?"USDT":selectedAddress?.coin'),
     'USDC payout must reserve USDT while other assets keep their own settlement asset');
   assert.ok(pages.includes('Estimated USDT deduction'),
