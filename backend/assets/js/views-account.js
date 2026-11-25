@@ -425,7 +425,7 @@ VIEWS.settings.afterRender = function(){
           return;
         }
         btn.disabled=false;btn.textContent=old;
-        if(r&&r.ok){state.settings.fundPwdSet=true;toast('Fund password set.','ok');close();router();}else toast((r&&(r.error||r.message||r.msg))||'Setup failed.','err');
+        if(r&&r.ok){state.settings.fundPwdSet=true;toast('Fund password set.','ok');close();if(state._fundPasswordReturnTo==='withdraw'){delete state._fundPasswordReturnTo;location.hash='#/withdraw';}else{router();}}else toast((r&&(r.error||r.message||r.msg))||'Setup failed.','err');
       };
     });
   };
@@ -470,6 +470,7 @@ VIEWS.settings.afterRender = function(){
     if(confirmed) router();
   };
   $('#pref-hide').onchange=function(e){state.settings.hideSmall=e.target.checked;toast('Preference saved.','ok');};
+  if(state._fundPasswordReturnTo==='withdraw'){var fundSetupButton=$('#set-fundpwd');if(fundSetupButton)fundSetupButton.click();}
 };
 
 /* ================= Admin ================= */
