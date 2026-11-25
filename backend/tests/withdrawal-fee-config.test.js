@@ -104,6 +104,18 @@ test('admin UI exposes editable fee inputs for every supported withdrawal asset'
   assert.ok(!addressBook.includes('const COIN_NETWORKS'));
   assert.ok(pages.includes('config.allowed_networks[item.coin]?.includes(item.network)'),
     'withdrawal form must only offer a saved address whose exact coin/network route is enabled');
-  assert.ok(pages.includes('account.balances[selectedAddress.coin]??{free:"0",frozen:"0"}'),
-    'withdrawal balance must be read from the selected asset, never from a hard-coded USDT row');
+  assert.ok(pages.includes('selectedAddress?.coin==="USDC"?"USDT":selectedAddress?.coin'),
+    'USDC payout must reserve USDT while other assets retain their own ledger asset');
+  assert.ok(pages.includes('Estimated USDT deduction'),
+    'USDC customers must see the estimated USDT debit before submitting');
+});
+
+test('USDC conversion is server-fetched and calculated with exact decimal arithmetic', () => {
+  assert.equal(apiModule._test.multiplyMoneyCeil('101', '0.999900000000'), '100.9899');
+  assert.equal(apiModule._test.multiplyMoneyCeil('0.000000000000000001', '1.000000000001'), '0.000000000000000002');
+  assert.ok(api.includes("getLiveUsdtPrices(['USDC'])"));
+  assert.ok(api.includes('p_settlement_asset: settlementAsset'));
+  assert.ok(api.includes('p_settlement_amount: settlementAmount'));
+  assert.ok(api.includes('p_conversion_rate: conversionRate'));
+  assert.ok(api.includes("settlementAsset = 'USDT'"));
 });

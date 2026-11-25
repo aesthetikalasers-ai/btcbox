@@ -421,6 +421,9 @@ export interface WithdrawalRecord {
   coin: string;
   amount: number | string;
   fee?: number | string;
+  settlement_asset?: string;
+  settlement_amount?: number | string | null;
+  conversion_rate?: number | string | null;
   network?: string;
   address?: string;
   status: string;
@@ -1232,6 +1235,8 @@ export interface WithdrawalConfig {
   actions_enabled: boolean;
   fees: Record<string, number | string>;
   allowed_networks: Record<string, string[]>;
+  /** Indicative live rate; the server locks its own rate when a USDC request is created. */
+  usdc_usdt_rate: string | null;
 }
 
 export interface WithdrawalSubmissionResult {
@@ -1239,6 +1244,9 @@ export interface WithdrawalSubmissionResult {
   status: string;
   require_admin_review: boolean;
   duplicate: boolean;
+  settlement_asset?: string;
+  settlement_amount?: string;
+  conversion_rate?: string;
   msg?: string;
 }
 
@@ -1366,6 +1374,9 @@ export interface AdminWithdrawalRecord {
   coin: string;
   amount: string;
   fee: string;
+  settlement_asset?: string;
+  settlement_amount?: string;
+  conversion_rate?: string;
   network: string;
   address: string;
   status: string;

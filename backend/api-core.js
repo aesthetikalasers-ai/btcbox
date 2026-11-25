@@ -1456,6 +1456,20 @@ function addMoney(a, b) {
   const fraction = digits.slice(-scale).replace(/0+$/, '');
   return fraction ? whole + '.' + fraction : whole;
 }
+function multiplyMoneyCeil(a, b) {
+  const left = parseMoneyInput(String(a)), right = parseMoneyInput(String(b));
+  if (left === null || right === null) return null;
+  const lp = left.split('.'), rp = right.split('.');
+  const ls = (lp[1] || '').length, rs = (rp[1] || '').length;
+  const product = moneyScaledInteger(left, ls) * moneyScaledInteger(right, rs);
+  const denominator = 10n ** BigInt(ls + rs);
+  const numerator = product * (10n ** 18n);
+  const scaled = (numerator + denominator - 1n) / denominator;
+  const digits = scaled.toString().padStart(19, '0');
+  const whole = digits.slice(0, -18);
+  const fraction = digits.slice(-18).replace(/0+$/, '');
+  return fraction ? whole + '.' + fraction : whole;
+}
 
 function genTotpSecret() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
@@ -2703,6 +2717,9 @@ async function handleRequest(event, context) {
           coin: String(row && row.coin || ''),
           amount: row && row.amount != null ? row.amount : '0',
           fee: row && row.fee != null ? row.fee : '0',
+          settlement_asset: String(row && row.settlement_asset || row && row.coin || ''),
+          settlement_amount: row && row.settlement_amount != null ? row.settlement_amount : null,
+          conversion_rate: row && row.conversion_rate != null ? row.conversion_rate : null,
           network: String(row && row.network || ''),
           address: String(row && row.address || ''),
           status: String(row && row.status || ''),
@@ -2725,11 +2742,17 @@ async function handleRequest(event, context) {
   // Expose only the public withdrawal form contract and fail-closed availability.
   if (path === 'withdrawal/config' && method === 'GET') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
+    let usdcUsdtRate = null;
+    try {
+      const rates = await getLiveUsdtPrices(['USDC']);
+      if (Number.isFinite(Number(rates.USDC)) && Number(rates.USDC) > 0) usdcUsdtRate = Number(rates.USDC).toFixed(12);
+    } catch (_) {}
     return json({
       ok: true,
       actions_enabled: financialWritesEnabled() && manualDepositRpcEnabled() && supabaseStorageConfigured(),
       fees: safeWithdrawalFees(db.withdrawal_fees),
-      allowed_networks: safeWithdrawalNetworks(db.withdrawal_networks)
+      allowed_networks: safeWithdrawalNetworks(db.withdrawal_networks),
+      usdc_usdt_rate: usdcUsdtRate
     });
   }
 
@@ -2808,12 +2831,27 @@ async function handleRequest(event, context) {
     if (!supabaseStorageConfigured()) return json({ ok: false, code: 'FINANCIAL_RPC_NOT_CONFIGURED', msg: 'Financial database not configured. Withdrawal was not submitted.' }, 503);
     const requestHash = crypto.createHash('sha256').update([String(user.uid), coin, network, String(amount), addr, requestId].join('|')).digest('hex');
     try {
+      let settlementAsset = coin;
+      let conversionRate = '1';
+      let settlementAmount = addMoney(amount, fee);
+      if (coin === 'USDC') {
+        const rates = await getLiveUsdtPrices(['USDC']);
+        const liveRate = Number(rates.USDC);
+        if (!Number.isFinite(liveRate) || liveRate <= 0) {
+          return json({ ok: false, code: 'USDC_RATE_UNAVAILABLE', msg: 'USDC/USDT conversion is temporarily unavailable. No withdrawal was submitted.' }, 503);
+        }
+        conversionRate = liveRate.toFixed(12);
+        settlementAsset = 'USDT';
+        settlementAmount = multiplyMoneyCeil(addMoney(amount, fee), conversionRate);
+        if (!settlementAmount) return json({ ok: false, code: 'USDC_RATE_UNAVAILABLE', msg: 'USDC/USDT conversion could not be calculated. No withdrawal was submitted.' }, 503);
+      }
       const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
       const rpc = await fetch(base + '/rest/v1/rpc/create_withdrawal_atomic', {
         method: 'POST', headers: supabaseHeaders(),
         body: JSON.stringify({ p_withdrawal_id: withdrawalId, p_user_id: String(user.uid), p_asset: coin,
           p_network: network, p_amount: String(amount), p_fee: String(fee), p_destination: addr,
-          p_request_id: requestId, p_request_hash: requestHash, p_require_admin_review: requireAdminReview, p_expected_fee: String(expectedFee) })
+          p_request_id: requestId, p_request_hash: requestHash, p_require_admin_review: requireAdminReview, p_expected_fee: String(expectedFee),
+          p_settlement_asset: settlementAsset, p_settlement_amount: settlementAmount, p_conversion_rate: conversionRate })
       });
       const result = await rpc.json().catch(() => null);
       if (!rpc.ok || !result || result.ok !== true || !result.withdrawal_id || !['pending', 'pending_admin_review', 'approved', 'rejected', 'broadcast', 'failed', 'completed'].includes(result.status) || typeof result.require_admin_review !== 'boolean') {
@@ -2826,7 +2864,10 @@ async function handleRequest(event, context) {
           msg: feeChanged ? 'The withdrawal fee changed. Refresh the current fee and review the request again.' : insufficient ? 'Insufficient available balance (including fees).' : 'Withdrawal request was not confirmed by the database. Please check your operation history before retrying.'
         }, feeChanged ? 409 : insufficient ? 400 : 503);
       }
-      return json({ ok: true, duplicate: result.duplicate === true, withdrawal_id: result.withdrawal_id, status: result.status, require_admin_review: result.require_admin_review, msg: result.duplicate === true ? 'This withdrawal request has already been received. Do not submit it again.' : (result.require_admin_review ? 'Withdrawal request submitted and flagged for admin review.' : 'Withdrawal request submitted. Funds will be sent after review.') });
+      return json({ ok: true, duplicate: result.duplicate === true, withdrawal_id: result.withdrawal_id, status: result.status,
+        require_admin_review: result.require_admin_review, settlement_asset: result.settlement_asset || settlementAsset,
+        settlement_amount: result.settlement_amount || settlementAmount, conversion_rate: result.conversion_rate || conversionRate,
+        msg: result.duplicate === true ? 'This withdrawal request has already been received. Do not submit it again.' : (result.require_admin_review ? 'Withdrawal request submitted and flagged for admin review.' : 'Withdrawal request submitted. Funds will be sent after review.') });
     } catch (e) {
       return json({ ok: false, code: 'FINANCIAL_RPC_UNAVAILABLE', msg: 'Financial database temporarily unavailable. Withdrawal is unconfirmed. Please check your operation history before retrying.' }, 503);
     }
@@ -5118,6 +5159,7 @@ exports._test = {
   clientIp: clientIp,
   compareMoney: compareMoney,
   addMoney: addMoney,
+  multiplyMoneyCeil: multiplyMoneyCeil,
   withdrawalAddressCheck: withdrawalAddressCheck,
   safeWithdrawalFees: safeWithdrawalFees,
   safeWithdrawalNetworks: safeWithdrawalNetworks,
