@@ -1404,7 +1404,7 @@ export function WithdrawPage(){
  const [needsSignIn,setNeedsSignIn]=useState(false);
  const submitLockRef=useRef(false);
  const [reload,setReload]=useState(0);
- const [historyFilter,setHistoryFilter]=useState<"all"|"pending"|"approved"|"rejected"|"completed">("all");
+ const [historyFilter,setHistoryFilter]=useState<"all"|"pending"|"review"|"processing"|"approved"|"rejected"|"completed"|"failed">("all");
 
  useEffect(()=>{
   const controller=new AbortController();
@@ -1554,7 +1554,7 @@ export function WithdrawPage(){
     <CardHeader className="gap-3 border-b border-brand-border bg-brand-surface-2/60 sm:flex-row sm:items-center sm:justify-between">
      <CardTitle>{t("Withdrawal history")}</CardTitle>
      <select aria-label={t("Withdrawal history")} value={historyFilter} onChange={event=>setHistoryFilter(event.target.value as typeof historyFilter)} className="min-h-10 w-full rounded-lg border border-brand-border bg-brand-surface px-3 text-sm text-brand-text sm:w-auto">
-      <option value="all">{t("All")}</option><option value="pending">{t("Pending")}</option><option value="approved">{t("Approved")}</option><option value="rejected">{t("Rejected")}</option><option value="completed">{t("Completed")}</option>
+      <option value="all">{t("All")}</option><option value="pending">{t("Pending")}</option><option value="review">{t("Under review")}</option><option value="processing">{t("Processing")}</option><option value="approved">{t("Approved")}</option><option value="rejected">{t("Rejected")}</option><option value="completed">{t("Completed")}</option><option value="failed">{t("Failed")}</option>
      </select>
     </CardHeader>
     <CardContent className="space-y-3 p-3 sm:p-4">
