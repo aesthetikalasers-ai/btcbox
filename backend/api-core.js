@@ -2244,7 +2244,7 @@ async function handleRequest(event, context) {
     } else {
       { const rl = await rateCheckShared('twofa_setup_password', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
       const currentPassword = String(body.current_password || '');
-      if (!currentPassword || hashPassword(currentPassword, user.salt) !== user.password_hash) return json({ ok: false, code: 'REAUTH_FAILED', msg: 'The current login password is incorrect.' }, 403);
+      if (!currentPassword || !verifyBtcboxLoginPassword(user, currentPassword)) return json({ ok: false, code: 'REAUTH_FAILED', msg: 'The current login password is incorrect.' }, 403);
     }
     if (!user.twofa_secret) { user.twofa_secret = genTotpSecret(); delete user.twofa_last_used_step; }
     try { await saveDB(db); }
