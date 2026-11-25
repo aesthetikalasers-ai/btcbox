@@ -952,6 +952,44 @@ END
 $legacy_approved_payout_guard$;
 
 
+DO $withdrawal_fee_quote_guard$
+DECLARE
+  v_result jsonb;
+  v_hash text;
+  v_available numeric;
+  v_frozen numeric;
+BEGIN
+  PERFORM pg_temp.test_credit(
+    'MD-CI-WITHDRAW-FEE-GUARD','withdraw-fee-guard-user','USDT',100,
+    'withdraw-fee-guard-credit-0001','withdraw-fee-guard-ref','withdrawal fee quote guard fixture'
+  );
+  v_hash := encode(extensions.digest(
+    'withdraw-fee-guard-user|USDT|TRC20|10|T123456789|withdraw-fee-guard-request-0001',
+    'sha256'
+  ),'hex');
+  BEGIN
+    PERFORM public.create_withdrawal_atomic(
+      'WD-CI-WITHDRAW-FEE-GUARD','withdraw-fee-guard-user','USDT','TRC20',10,2,
+      'T123456789','withdraw-fee-guard-request-0001',v_hash,true,1,
+      'USDT',12,1
+    );
+    RAISE EXCEPTION 'withdrawal accepted a fee different from the customer quote';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM = 'withdrawal accepted a fee different from the customer quote' THEN RAISE; END IF;
+    IF SQLERRM <> 'withdrawal fee changed' THEN RAISE; END IF;
+  END;
+  SELECT available,frozen INTO v_available,v_frozen
+  FROM public.financial_accounts
+  WHERE user_id='withdraw-fee-guard-user' AND asset='USDT';
+  IF v_available<>100 OR v_frozen<>0 THEN
+    RAISE EXCEPTION 'fee quote mismatch changed balances: available %, frozen %',v_available,v_frozen;
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.withdrawal_requests WHERE id='WD-CI-WITHDRAW-FEE-GUARD') THEN
+    RAISE EXCEPTION 'fee quote mismatch created a withdrawal request';
+  END IF;
+END
+$withdrawal_fee_quote_guard$;
+
 DO $usdc_settlement$
 DECLARE
   v_result jsonb;
