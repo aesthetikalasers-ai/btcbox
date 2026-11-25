@@ -16,6 +16,9 @@ test('withdrawal fees are configurable in admin and the same server values are u
   assert.match(api, /const DEFAULT_WITHDRAWAL_FEES = Object\.freeze\(\{[\s\S]*?USDT: '1'[\s\S]*?BTC: '0\.0001'[\s\S]*?USDC: '1'/);
   assert.ok(api.includes('fees: safeWithdrawalFees(db.withdrawal_fees)'));
   assert.ok(api.includes('const supportedFees = safeWithdrawalFees(db.withdrawal_fees)'));
+  assert.ok(api.includes('SUPPORTED_LEDGER_ASSETS.has(coin)'));
+  assert.ok(api.includes('function safeWithdrawalNetworks(networks)'));
+  assert.ok(api.includes('allowed_networks: safeWithdrawalNetworks(db.withdrawal_networks)'));
   assert.ok(api.includes('const fee = supportedFees[coin]'));
   assert.ok(api.includes('body.expected_fee === undefined ? fee : parseMoneyInput(body.expected_fee)'));
   assert.ok(api.includes('p_expected_fee: String(expectedFee)'));
@@ -39,9 +42,10 @@ test('admin fee writes validate supported assets and decimal amounts before audi
   assert.ok(start >= 0 && end > start);
   const route = api.slice(start, end);
   for (const contract of [
-    'body.withdrawal_fees', 'DEFAULT_WITHDRAWAL_FEES', 'parseMoneyInput',
+    'body.withdrawal_fees', 'SUPPORTED_LEDGER_ASSETS.has(coin)', 'parseMoneyInput',
     'compareMoney(value, \'1000000000000\')', 'changedFeeKeys',
     'if (nextFees[coin] !== value) changedFeeKeys.push(coin)',
+    'body.withdrawal_networks', 'changedNetworkKeys', 'safeWithdrawalNetworks(db.withdrawal_networks)',
     "auditAdmin('system_config_update'", 'await saveDB(db)'
   ]) assert.ok(route.includes(contract), 'missing configurable fee persistence contract: ' + contract);
   assert.ok(api.includes('withdrawal_fees: safeWithdrawalFees(db.withdrawal_fees)'));
@@ -49,10 +53,13 @@ test('admin fee writes validate supported assets and decimal amounts before audi
 
 test('admin UI exposes editable fee inputs for every supported withdrawal asset', () => {
   assert.match(apiTypes, /export interface AdminConfig \{[\s\S]*?withdrawal_fees: Record<string, string>/);
-  for (const coin of ['USDT', 'BTC', 'ETH', 'SOL', 'BNB', 'USDC']) {
+  for (const coin of ['USDT', 'BTC', 'ETH', 'SOL', 'BNB', 'USDC', 'XRP', 'DOGE', 'ADA', 'AVAX', 'LINK', 'DOT', 'TRX', 'LTC', 'BCH', 'NEAR', 'UNI', 'ATOM', 'ETC', 'APT', 'ARB', 'OP', 'SUI', 'INJ', 'TIA', 'FIL']) {
     assert.ok(admin.includes(coin), 'missing admin fee asset ' + coin);
   }
   assert.ok(admin.includes('config.withdrawal_fees?.[coin]'));
+  assert.ok(admin.includes('config.withdrawal_networks?.[coin]'));
+  assert.ok(admin.includes('withdrawal_networks:{...current.withdrawal_networks,[coin]:'));
+  assert.ok(admin.includes('const assets = ["USDT", "USDC", "BTC", "ETH", "SOL", "BNB", "XRP"'));
   assert.ok(admin.includes('withdrawal_fees:{...current.withdrawal_fees,[coin]:event.target.value}'));
   assert.ok(admin.includes('saveAdminConfig(token, config)'));
 });
