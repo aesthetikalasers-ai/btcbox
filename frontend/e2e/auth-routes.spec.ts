@@ -111,7 +111,7 @@ test("email and password login remains available through Supabase Auth", async (
   await page.goto("/login");
   await page.getByLabel("Username or email").fill("email-user@example.invalid");
   await page.getByLabel("Password", { exact: true }).fill("StrongPassphrase123");
-  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await page.locator("form").getByRole("button", { name: "Sign in", exact: true }).click();
 
   await expect.poll(() => authRequests.length).toBe(1);
   await expect(page).toHaveURL(/\/home$/);
@@ -244,6 +244,17 @@ test("email registration uses Supabase confirmation and does not bypass BTCBOX p
 });
 
 test("confirmed email registration exchanges the Supabase identity and provisions the BTCBOX account", async ({ page }) => {
+  await page.route("**/api/auth-client-config", route => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      ok: true,
+      supabase_url: "https://btcbox-e2e.supabase.co",
+      publishable_key: "e2e-anon-key-not-valid-for-production",
+      google_enabled: false,
+      wallet_enabled: true,
+    }),
+  }));
   let exchangeCalls = 0;
   let exchangedAccessToken = "";
   let directRegistrationCalls = 0;
@@ -294,7 +305,7 @@ test("confirmed email registration exchanges the Supabase identity and provision
 });
 
 test("email signup explains Supabase confirmation rate limits without weakening protection", async ({ page }) => {
-  await page.route("**/auth/v1/signup", route => route.fulfill({
+  await page.route("**/auth/v1/signup**", route => route.fulfill({
     status: 429,
     contentType: "application/json",
     body: JSON.stringify({
@@ -396,6 +407,17 @@ test("Google sign-in completes the PKCE callback and provisions one BTCBOX sessi
 });
 
 test("Google-linked Supabase identity can add an email password through recovery without creating a second BTCBOX account", async ({ page }) => {
+  await page.route("**/api/auth-client-config", route => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      ok: true,
+      supabase_url: "https://btcbox-e2e.supabase.co",
+      publishable_key: "e2e-anon-key-not-valid-for-production",
+      google_enabled: false,
+      wallet_enabled: true,
+    }),
+  }));
   const supabaseUserId = "33333333-3333-4333-8333-333333333333";
   const accessToken = "e2e-google-linked-recovery-access-token";
   const linkedUser = {
@@ -1670,7 +1692,7 @@ test("login screen switches to native Japanese copy without changing authenticat
   await expect(page.getByRole("heading", { name: "お帰りなさい", exact: true })).toBeVisible();
   await expect(page.getByLabel("ユーザー名またはメールアドレス")).toBeVisible();
   await expect(page.getByLabel("パスワード", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "ログイン", exact: true })).toBeVisible();
+  await expect(page.locator("form").getByRole("button", { name: "ログイン", exact: true })).toBeVisible();
   await expect(page.getByText("Googleログインは一時的に利用できません。")).toBeVisible();
 
   await page.reload();
