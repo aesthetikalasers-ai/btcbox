@@ -44,7 +44,7 @@ export function AddressBookPage() {
   const [formMessage, setFormMessage] = useState("");
 
   useEffect(() => {
-    if (status !== "authenticated") { setLoading(false); setItems([]); return; }
+    if (status !== "authenticated") { setLoading(false); setItems([]); setWithdrawalConfig(null); return; }
     const controller = new AbortController();
     setLoading(true); setError("");
     Promise.all([getSavedCryptoAddresses(controller.signal), getWithdrawalConfig(controller.signal)])
@@ -61,9 +61,12 @@ export function AddressBookPage() {
     return () => controller.abort();
   }, [status, reload]);
 
-  const coins = useMemo(() => Object.keys(withdrawalConfig?.allowed_networks ?? {}).filter((asset) =>
-    withdrawalConfig?.fees[asset] !== undefined && (withdrawalConfig.allowed_networks[asset]?.length ?? 0) > 0
-  ), [withdrawalConfig]);
+  const coins = useMemo(() => {
+    if (!withdrawalConfig) return [];
+    return Object.keys(withdrawalConfig.allowed_networks).filter((asset) =>
+      withdrawalConfig.fees[asset] !== undefined && (withdrawalConfig.allowed_networks[asset]?.length ?? 0) > 0
+    );
+  }, [withdrawalConfig]);
   const networks = useMemo(() => withdrawalConfig?.allowed_networks[coin] ?? [], [withdrawalConfig, coin]);
 
   useEffect(() => {
@@ -148,10 +151,10 @@ export function AddressBookPage() {
                   <div className="grid gap-4 sm:grid-cols-2">
                     {!coins.length ? <p className="text-xs text-brand-text-muted sm:col-span-2">{t("No withdrawal assets and networks are currently configured.")}</p> : null}
                     <label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Asset")}</span>
-                      <select value={coin} onChange={(e) => setCoin(e.target.value)} className={inputCls}>{coins.map((c) => <option key={c} value={c}>{c}</option>)}</select>
+                      <select value={coin} disabled={!coins.length} onChange={(e) => setCoin(e.target.value)} className={inputCls}>{coins.map((c) => <option key={c} value={c}>{c}</option>)}</select>
                     </label>
                     <label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Network")}</span>
-                      <select value={network} onChange={(e) => setNetwork(e.target.value)} className={inputCls}>{networks.map((n) => <option key={n} value={n}>{n}</option>)}</select>
+                      <select value={network} disabled={!networks.length} onChange={(e) => setNetwork(e.target.value)} className={inputCls}>{networks.map((n) => <option key={n} value={n}>{n}</option>)}</select>
                     </label>
                     <label className="space-y-1.5 text-sm sm:col-span-2"><span className="text-brand-text-muted">{t("Address")}</span>
                       <input value={address} onChange={(e) => setAddress(e.target.value)} required placeholder={t("Paste the destination address")} className={inputCls} />
