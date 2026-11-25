@@ -11,6 +11,25 @@ const apiTypes = fs.readFileSync(path.resolve(root, '../frontend/src/lib/api.ts'
 const admin = fs.readFileSync(path.resolve(root, '../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
 const pages = fs.readFileSync(path.resolve(root, '../frontend/src/features/pages/Pages.tsx'), 'utf8');
 const withdrawalSql = fs.readFileSync(path.join(root, 'supabase/sql/0029_withdrawal_fee_quote_idempotency_v1.sql'), 'utf8');
+const apiModule = require(path.join(root, 'api-core.js'));
+
+test('default withdrawal fees stay unchanged while configured ledger assets are accepted dynamically', () => {
+  const fees = apiModule._test.safeWithdrawalFees({
+    USDT: '1', XRP: '0.25', DOGE: '2.5', UNKNOWN: '9', BAD: '-1'
+  });
+  assert.deepEqual(fees, {
+    USDT: '1', BTC: '0.0001', ETH: '0.001', SOL: '0.01', BNB: '0.0005', USDC: '1',
+    XRP: '0.25', DOGE: '2.5'
+  });
+  const networks = apiModule._test.safeWithdrawalNetworks({
+    XRP: ['ERC20', 'UNSUPPORTED'], DOGE: [], UNKNOWN: ['BTC']
+  });
+  assert.deepEqual(networks.XRP, ['ERC20']);
+  assert.deepEqual(networks.DOGE, []);
+  assert.deepEqual(networks.BTC, ['BTC']);
+  assert.equal(apiModule._test.isValidWithdrawalAddress('XRP', 'ERC20', '0x1234567890123456789012345678901234567890'), true);
+  assert.equal(apiModule._test.isValidWithdrawalAddress('DOGE', 'DOGE', 'D123456789012345678901234567890'), false);
+});
 
 test('withdrawal fees are configurable in admin and the same server values are used for user quote and debit', () => {
   assert.match(api, /const DEFAULT_WITHDRAWAL_FEES = Object\.freeze\(\{[\s\S]*?USDT: '1'[\s\S]*?BTC: '0\.0001'[\s\S]*?USDC: '1'/);
@@ -24,6 +43,7 @@ test('withdrawal fees are configurable in admin and the same server values are u
   assert.ok(api.includes('p_expected_fee: String(expectedFee)'));
   assert.ok(api.includes('WITHDRAWAL_FEE_CHANGED'));
   assert.ok(pages.includes('expected_fee:String(config?.fees[intent.coin] ?? "")'));
+  assert.ok(pages.includes('account.balances[selectedAddress.coin]??{free:"0",frozen:"0"}'));
   assert.ok(pages.includes('reason.code==="WITHDRAWAL_FEE_CHANGED"'));
   const duplicateAt = withdrawalSql.indexOf('if found then');
   const quoteCheckAt = withdrawalSql.indexOf('if p_expected_fee is distinct from p_fee then');
