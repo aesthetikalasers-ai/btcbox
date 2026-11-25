@@ -71,6 +71,7 @@ FILES=(
   0051_perpetual_market_min_notional_v1.sql
   0052_perpetual_two_source_median_bootstrap_v1.sql
   0053_perpetual_two_source_live_mark_v1.sql
+  0054_admin_manual_debit_negative_balance_v1.sql
 )
 
 for file in "${FILES[@]}"; do
