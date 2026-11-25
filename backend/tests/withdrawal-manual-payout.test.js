@@ -154,3 +154,20 @@ test('withdrawal application number is generated server-side and displayed as a 
     assert.ok(!history.includes(field), 'customer history must not display ' + field);
   }
 });
+
+
+test('manual payout references remain admin-internal and are never described as blockchain TXIDs', () => {
+  const admin = fs.readFileSync(path.resolve(root, '../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
+  const queueStart = admin.indexOf('tab === "withdrawals"');
+  const queueEnd = admin.indexOf('tab === "kyc"', queueStart);
+  assert.ok(queueStart >= 0 && queueEnd > queueStart);
+  const queue = admin.slice(queueStart, queueEnd);
+  assert.ok(queue.includes('adminText("Manual payout reference (internal)")'));
+  assert.doesNotMatch(queue, /TxID|transaction hash/i);
+  assert.ok(admin.includes('Enter a valid internal payout reference (1–160 characters).'));
+  const customerHistoryStart = fs.readFileSync(path.resolve(root, '../frontend/src/features/pages/Pages.tsx'), 'utf8');
+  const withdrawStart = customerHistoryStart.indexOf('export function WithdrawPage');
+  const withdrawEnd = customerHistoryStart.indexOf('</PageFrame>;', withdrawStart);
+  const customer = customerHistoryStart.slice(withdrawStart, withdrawEnd);
+  assert.doesNotMatch(customer, /txid|payout_reference|payout_note|paid_by|paid_at/i);
+});
