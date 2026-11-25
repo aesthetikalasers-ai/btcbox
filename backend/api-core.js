@@ -1156,23 +1156,37 @@ const WITHDRAWAL_NETWORK_ADDRESS_VALIDATORS = Object.freeze({
   TRC20: /^T[1-9A-HJ-NP-Za-km-z]{33}$/,
   SOL: /^[1-9A-HJ-NP-Za-km-z]{32,44}$/
 });
+// Only pairs with an explicitly reviewed asset/network route and matching
+// destination-address format may be enabled. A generic EVM address regex does
+// not prove that an asset is withdrawable on every EVM-compatible chain.
 const DEFAULT_WITHDRAWAL_NETWORKS = Object.freeze({
   BTC:['BTC'], ETH:['ERC20'], USDT:['TRC20','ERC20','BEP20'],
   SOL:['SOL'], BNB:['BEP20'], USDC:['ERC20']
 });
+const WITHDRAWAL_ASSET_NETWORKS = Object.freeze({
+  BTC:Object.freeze(['BTC']),
+  ETH:Object.freeze(['ERC20']),
+  USDT:Object.freeze(['TRC20','ERC20','BEP20']),
+  SOL:Object.freeze(['SOL']),
+  BNB:Object.freeze(['BEP20']),
+  USDC:Object.freeze(['ERC20'])
+});
 function safeWithdrawalNetworks(networks) {
   const source = networks && typeof networks === 'object' && !Array.isArray(networks) ? networks : {};
-  const result = Object.fromEntries(Object.entries(DEFAULT_WITHDRAWAL_NETWORKS).map(([coin, values]) => [coin, values.slice()]));
+  const result = Object.fromEntries(Array.from(SUPPORTED_LEDGER_ASSETS, coin => [coin, []]));
+  for (const [coin, values] of Object.entries(DEFAULT_WITHDRAWAL_NETWORKS)) result[coin] = values.slice();
   for (const coin of Object.keys(source)) {
     if (!SUPPORTED_LEDGER_ASSETS.has(coin) || !/^[A-Z0-9]{2,16}$/.test(coin) || !Array.isArray(source[coin])) continue;
+    const compatible = WITHDRAWAL_ASSET_NETWORKS[coin] || [];
     result[coin] = Array.from(new Set(source[coin].filter(network =>
-      typeof network === 'string' && Object.prototype.hasOwnProperty.call(WITHDRAWAL_NETWORK_ADDRESS_VALIDATORS, network)
+      typeof network === 'string' && compatible.includes(network) &&
+      Object.prototype.hasOwnProperty.call(WITHDRAWAL_NETWORK_ADDRESS_VALIDATORS, network)
     )));
   }
   return result;
 }
 function isValidWithdrawalAddress(coin, network, address) {
-  if (!SUPPORTED_LEDGER_ASSETS.has(coin)) return false;
+  if (!SUPPORTED_LEDGER_ASSETS.has(coin) || !(WITHDRAWAL_ASSET_NETWORKS[coin] || []).includes(network)) return false;
   const validator = WITHDRAWAL_NETWORK_ADDRESS_VALIDATORS[network];
   return !!validator && typeof address === 'string' && validator.test(address);
 }
@@ -4589,8 +4603,9 @@ async function handleRequest(event, context) {
             return json({ ok: false, msg: 'Invalid withdrawal network configuration: ' + coin }, 400);
           }
           const networks = networkUpdates[coin];
-          if (networks.some(network => typeof network !== 'string' || !Object.prototype.hasOwnProperty.call(WITHDRAWAL_NETWORK_ADDRESS_VALIDATORS, network))) {
-            return json({ ok: false, msg: 'Unsupported withdrawal network for ' + coin }, 400);
+          const compatibleNetworks = WITHDRAWAL_ASSET_NETWORKS[coin] || [];
+          if (networks.some(network => typeof network !== 'string' || !compatibleNetworks.includes(network) || !Object.prototype.hasOwnProperty.call(WITHDRAWAL_NETWORK_ADDRESS_VALIDATORS, network))) {
+            return json({ ok: false, msg: 'Unsupported or unverified withdrawal network for ' + coin }, 400);
           }
           const normalized = Array.from(new Set(networks));
           if (JSON.stringify(nextNetworks[coin] || []) !== JSON.stringify(normalized)) changedNetworkKeys.push(coin);
