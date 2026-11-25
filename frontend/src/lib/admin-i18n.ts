@@ -26,7 +26,7 @@ const messages: Record<string, string> = {
   "KYC review queue could not be refreshed.": "无法刷新身份审核队列。",
   "Withdrawal approved. Staff must still transfer the funds manually.": "提现已批准，工作人员仍需手动转账。",
   "Withdrawal approved. Frozen amount and fee deducted; staff must still transfer the funds manually.": "提现已批准，冻结的提现金额及手续费已正式扣除；工作人员仍需单独完成实际转账。",
-  "Approve or reject requests. Approval deducts the frozen amount and fee; record the external payout separately after funds are actually sent.": "批准或拒绝提现申请。批准时正式扣除冻结金额及手续费；实际转账完成后再单独登记付款凭证。",
+  "Approve or reject requests. Approval deducts the frozen amount and fee; record the internal payout reference separately after funds are actually sent.": "批准或拒绝提现申请。批准时正式扣除冻结金额及手续费；实际人工转账完成后再单独登记内部付款参考编号。",
   "Confirm withdrawal approval": "确认批准提现",
   "Approval will deduct the frozen withdrawal amount and fee from the user's account. The actual external payout remains a separate manual step.": "批准后将从用户账户中正式扣除已冻结的提现金额及手续费。实际转账仍是独立的人工操作。",
   "Net amount": "预计到账",
@@ -165,7 +165,7 @@ const messages: Record<string, string> = {
   "Customer announcement": "客户公告",
   "Save configuration": "保存配置",
   "Withdrawal queue": "提现队列",
-  "Approve or reject requests. After staff actually transfer funds, mark paid with the TxID/reference.": "批准或拒绝申请。工作人员实际完成转账后，填写交易哈希或付款凭证并标记已付款。",
+  
   "Refreshing…": "正在刷新…",
   "Refresh queue": "刷新队列",
   "ID": "编号",
