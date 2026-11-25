@@ -1572,13 +1572,12 @@ export function WithdrawPage(){
        <div className="mt-3 flex min-w-0 items-center justify-between gap-2"><p className="min-w-0 truncate font-mono text-xs text-brand-text-muted">{masked}</p>
         <details className="shrink-0"><summary className="min-h-9 cursor-pointer rounded-md border border-brand-border px-3 py-2 text-xs font-medium text-brand-text">{t("Details")}</summary>
          <div className="mt-2 w-[min(78vw,34rem)] max-w-full space-y-2 rounded-lg border border-brand-border bg-brand-surface p-3 text-xs sm:w-[min(60vw,34rem)]">
-          <div><p className="text-brand-text-muted">{t("ID")}</p><p className="mt-1 break-all font-mono text-brand-text">{item.id}</p></div>
+          <div className="flex min-w-0 items-start justify-between gap-2"><div className="min-w-0"><p className="text-brand-text-muted">{t("Application ID")}</p><p className="mt-1 break-all font-mono text-brand-text">{item.id}</p></div><button type="button" className="min-h-8 shrink-0 text-brand-accent" onClick={()=>void navigator.clipboard?.writeText(item.id)}>{t("Copy")}</button></div>
           <div><p className="text-brand-text-muted">{t("Address")}</p><p className="mt-1 break-all font-mono text-brand-text">{destination}</p><button type="button" className="mt-1 min-h-8 text-brand-accent" onClick={()=>{if(destination!=="—")void navigator.clipboard?.writeText(destination);}}>{t("Copy")}</button></div>
           {item.reviewed_at?<div><p className="text-brand-text-muted">Reviewed</p><p className="mt-1 break-all text-brand-text">{item.reviewed_at}</p></div>:null}
           {item.reviewed_by?<div><p className="text-brand-text-muted">Reviewed by</p><p className="mt-1 break-all text-brand-text">{item.reviewed_by}</p></div>:null}
           {item.rejection_reason?<div><p className="text-brand-text-muted">{t("Rejection reason")}</p><p className="mt-1 break-words text-brand-text">{item.rejection_reason}</p></div>:null}
-          {item.paid_at?<div><p className="text-brand-text-muted">{t("Completed")}</p><p className="mt-1 break-all text-brand-text">{item.paid_at}</p></div>:null}
-          {item.payout_reference||item.txid?<div><p className="text-brand-text-muted">TXID / reference</p><p className="mt-1 break-all font-mono text-brand-text">{item.payout_reference||item.txid}</p><button type="button" className="mt-1 min-h-8 text-brand-accent" onClick={()=>void navigator.clipboard?.writeText(item.payout_reference||item.txid||"")}>{t("Copy")}</button></div>:null}
+
          </div>
         </details>
        </div>
