@@ -355,18 +355,14 @@
   "Sending…": "发送中…",
   "Send message": "发送消息",
   "Deposit address": "充值地址",
-  "Always verify the asset and network before sending funds.": "转账前请务必核对资产和网络。",
   "Network": "网络",
   "Loading configured deposit address…": "正在加载已配置的充值地址…",
-  "Verified network destination": "已验证的网络收款地址",
   "Copy address": "复制地址",
   "Important": "重要提示",
-  "Send only the selected asset on the selected network. Sending unsupported assets or using another network may result in permanent loss. After the transfer, BTCBOX staff verify receipt and manually credit the account. This page does not create a deposit order or automatically credit funds.": "请仅通过所选网络发送所选资产。发送不支持的资产或使用其他网络可能导致资金永久损失。转账后由 BTCBOX 工作人员核实到账并手动入账。本页面不会创建充值订单，也不会自动增加余额。",
   "Deposit history": "充值记录",
   "Track deposits verified and credited by BTCBOX staff.": "查看经 BTCBOX 工作人员核实并入账的充值记录。",
   "Loading deposit history…": "正在加载充值记录…",
   "Reference": "参考编号",
-  "No deposit records have been returned for this account.": "该账户暂无充值记录。",
   "BTCBOX Earn": "BTCBOX Earn",
   "Live catalog · account-backed positions": "实时产品目录 · 账户持仓",
   "Loading Earn products and positions…": "正在加载 Earn 产品和持仓…",
@@ -1864,5 +1860,7 @@
   "Estimated USDT deduction": "预计扣除 USDT",
   "Final rate is locked when you submit.": "最终汇率将在提交时锁定。",
   "USDC/USDT conversion is temporarily unavailable.": "USDC/USDT 汇率暂时不可用。",
-  "Balance debit": "余额扣款"
+  "Balance debit": "余额扣款",
+  "Only send the selected asset on the selected network. Incorrect deposits may be lost. BTCBOX verifies deposits and credits them manually.": "仅向此地址发送所选币种，并使用所选网络。错误充值可能导致资产损失。BTCBOX 会核实充值并进行人工入账。",
+  "No deposit history yet.": "暂无充值记录"
 }
