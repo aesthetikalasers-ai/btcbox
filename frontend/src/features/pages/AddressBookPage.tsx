@@ -5,21 +5,11 @@ import { useAuth } from "../../lib/auth";
 import { DEV_OPEN_ACCOUNT_PAGES } from "../../lib/devAccess";
 import { useI18n, localeTags } from "../../lib/i18n";
 import { cn } from "../../lib/utils";
-import { addAddress, getSavedCryptoAddresses, type SavedAddress, type SavedCryptoAddress, type BankAddress } from "../../lib/api";
+import { addAddress, getSavedCryptoAddresses, getWithdrawalConfig, type SavedAddress, type SavedCryptoAddress, type BankAddress, type WithdrawalConfig } from "../../lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { PageFrame } from "./Pages";
-
-const COIN_NETWORKS: Record<string, string[]> = {
-  BTC: ["BTC"],
-  ETH: ["ERC20"],
-  USDT: ["TRC20", "ERC20", "BEP20"],
-  SOL: ["SOL"],
-  BNB: ["BEP20"],
-  USDC: ["ERC20"],
-};
-const COINS = Object.keys(COIN_NETWORKS);
 
 function statusBadge(item: SavedAddress, t: (key: string) => string) {
   if (item.blocked) return <Badge variant="destructive">{t("Blocked")}</Badge>;
@@ -31,6 +21,7 @@ export function AddressBookPage() {
   const { t, language } = useI18n();
   const { status } = useAuth();
   const [items, setItems] = useState<SavedAddress[]>([]);
+  const [withdrawalConfig, setWithdrawalConfig] = useState<WithdrawalConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [reload, setReload] = useState(0);
@@ -56,17 +47,28 @@ export function AddressBookPage() {
     if (status !== "authenticated") { setLoading(false); setItems([]); return; }
     const controller = new AbortController();
     setLoading(true); setError("");
-    getSavedCryptoAddresses(controller.signal)
-      .then((list) => { if (!controller.signal.aborted) setItems(list); })
+    Promise.all([getSavedCryptoAddresses(controller.signal), getWithdrawalConfig(controller.signal)])
+      .then(([list, config]) => {
+        if (controller.signal.aborted) return;
+        setItems(list);
+        setWithdrawalConfig(config);
+      })
       .catch((reason: unknown) => {
         if (reason instanceof Error && reason.name === "AbortError") return;
-        if (!controller.signal.aborted) { setItems([]); setError(reason instanceof Error ? reason.message : "Address book is temporarily unavailable."); }
+        if (!controller.signal.aborted) { setItems([]); setWithdrawalConfig(null); setError(reason instanceof Error ? reason.message : "Address book is temporarily unavailable."); }
       })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [status, reload]);
 
-  const networks = useMemo(() => COIN_NETWORKS[coin] ?? [], [coin]);
+  const coins = useMemo(() => Object.keys(withdrawalConfig?.allowed_networks ?? {}).filter((asset) =>
+    withdrawalConfig?.fees[asset] !== undefined && (withdrawalConfig.allowed_networks[asset]?.length ?? 0) > 0
+  ), [withdrawalConfig]);
+  const networks = useMemo(() => withdrawalConfig?.allowed_networks[coin] ?? [], [withdrawalConfig, coin]);
+
+  useEffect(() => {
+    if (coins.length && !coins.includes(coin)) setCoin(coins[0]);
+  }, [coins, coin]);
 
   useEffect(() => {
     if (!networks.includes(network)) setNetwork(networks[0] ?? "");
@@ -144,8 +146,9 @@ export function AddressBookPage() {
               <form onSubmit={submit} className="space-y-4">
                 {tab === "crypto" ? (
                   <div className="grid gap-4 sm:grid-cols-2">
+                    {!coins.length ? <p className="text-xs text-brand-text-muted sm:col-span-2">{t("No withdrawal assets and networks are currently configured.")}</p> : null}
                     <label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Asset")}</span>
-                      <select value={coin} onChange={(e) => setCoin(e.target.value)} className={inputCls}>{COINS.map((c) => <option key={c} value={c}>{c}</option>)}</select>
+                      <select value={coin} onChange={(e) => setCoin(e.target.value)} className={inputCls}>{coins.map((c) => <option key={c} value={c}>{c}</option>)}</select>
                     </label>
                     <label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Network")}</span>
                       <select value={network} onChange={(e) => setNetwork(e.target.value)} className={inputCls}>{networks.map((n) => <option key={n} value={n}>{n}</option>)}</select>
@@ -219,7 +222,7 @@ export function AddressBookPage() {
                 {formError ? <p role="alert" className="text-sm text-brand-danger">{t(formError)}</p> : null}
                 {formMessage ? <p role="status" className="text-sm text-brand-success">{formMessage}</p> : null}
 
-                <Button type="submit" disabled={submitting} className="min-h-12 w-full bg-primary text-primary-foreground hover:bg-primary/90 sm:w-auto">
+                <Button type="submit" disabled={submitting || (tab === "crypto" && (!coins.length || !networks.length))} className="min-h-12 w-full bg-primary text-primary-foreground hover:bg-primary/90 sm:w-auto">
                   {submitting ? t("Submitting…") : t("Add address")}
                 </Button>
               </form>
