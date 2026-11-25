@@ -34,7 +34,7 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
       - name: Verify authentication, registration and recovery flows
-        run: npm run test:e2e -- --grep 'login route exposes|email and password login|Google sign-in|wallet sign-in failures|registration|email signup|email password recovery|Google-linked Supabase identity|OAuth callback|provider-authenticated users|homepage authentication|Google and Wallet provider entries|language preference|first-time visitor|login screen switches'
+        run: npm run test:e2e -- --grep 'login route exposes|email and password login|Google sign-in|wallet sign-in failures|registration route offers|registration keeps Supabase email signup|email registration uses Supabase confirmation|confirmed email registration|email signup explains Supabase confirmation rate limits|email password recovery sends|Google-linked Supabase identity|OAuth callback cancellation|OAuth callback failure|provider-authenticated users|registration experience stays clear|registration layout adapts|Google and Wallet provider entries|language preference updates the document locale|first-time visitor sees Japanese|login screen switches to native Japanese copy|homepage authentication opens an in-place dialog'
       - name: Verify critical SPA routes on the production bundle
         run: npm run test:e2e -- --grep "@routing|responsive visual QA /(home|markets|trade/BTCUSDT|assets|me|contract) at V1.0 widths|continuous responsive sweep /(home|markets|trade/BTCUSDT|assets)|trade interaction QA|degraded public catalogue"
       - name: Upload mobile responsive QA screenshots
