@@ -341,18 +341,14 @@
   "Sending…": "Wird gesendet …",
   "Send message": "Nachricht senden",
   "Deposit address": "Einzahlungsadresse",
-  "Always verify the asset and network before sending funds.": "Prüfen Sie vor einer Überweisung immer den Vermögenswert und das Netzwerk.",
   "Network": "Netzwerk",
   "Loading configured deposit address…": "Konfigurierte Einzahlungsadresse wird geladen …",
-  "Verified network destination": "Bestätigte Netzwerkadresse",
   "Copy address": "Adresse kopieren",
   "Important": "Wichtig",
-  "Send only the selected asset on the selected network. Sending unsupported assets or using another network may result in permanent loss. After the transfer, BTCBOX staff verify receipt and manually credit the account. This page does not create a deposit order or automatically credit funds.": "Senden Sie ausschließlich den ausgewählten Vermögenswert über das ausgewählte Netzwerk. Nicht unterstützte Vermögenswerte oder ein anderes Netzwerk können zu einem dauerhaften Verlust führen. Nach der Überweisung prüft das BTCBOX-Team den Eingang und schreibt den Betrag manuell gut. Auf dieser Seite wird keine Einzahlungsorder erstellt und keine automatische Gutschrift vorgenommen.",
   "Deposit history": "Einzahlungsverlauf",
   "Track deposits verified and credited by BTCBOX staff.": "Verfolgen Sie Einzahlungen, die vom BTCBOX-Team geprüft und gutgeschrieben wurden.",
   "Loading deposit history…": "Einzahlungsverlauf wird geladen …",
   "Reference": "Referenz",
-  "No deposit records have been returned for this account.": "Für dieses Konto wurden keine Einzahlungsdatensätze zurückgegeben.",
   "BTCBOX Earn": "BTCBOX Earn",
   "Live catalog · account-backed positions": "Live-Katalog · kontogestützte Positionen",
   "Loading Earn products and positions…": "Earn-Produkte und Positionen werden geladen …",
@@ -1864,5 +1860,7 @@
   "Estimated USDT deduction": "Voraussichtlicher USDT-Abzug",
   "Final rate is locked when you submit.": "Der endgültige Kurs wird beim Absenden festgeschrieben.",
   "USDC/USDT conversion is temporarily unavailable.": "Die USDC/USDT-Umrechnung ist vorübergehend nicht verfügbar.",
-  "Balance debit": "Kontobelastung"
+  "Balance debit": "Kontobelastung",
+  "Only send the selected asset on the selected network. Incorrect deposits may be lost. BTCBOX verifies deposits and credits them manually.": "Senden Sie ausschließlich den ausgewählten Vermögenswert über das ausgewählte Netzwerk. Falsche Einzahlungen können verloren gehen. BTCBOX prüft Einzahlungen und schreibt sie manuell gut.",
+  "No deposit history yet.": "Noch keine Einzahlungshistorie."
 }
