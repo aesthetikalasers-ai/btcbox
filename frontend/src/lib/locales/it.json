@@ -1859,5 +1859,6 @@
   "Internal payout reference": "Riferimento interno del pagamento",
   "A payout request is still pending with a different internal reference. Enter the exact saved reference; do not replace it.": "È ancora in sospeso una richiesta di pagamento con un riferimento interno diverso. Inserisci esattamente il riferimento salvato; non sostituirlo.",
   "Load more": "Carica altro",
-  "Withdrawal history is temporarily unavailable.": "La cronologia dei prelievi non è temporaneamente disponibile."
+  "Withdrawal history is temporarily unavailable.": "La cronologia dei prelievi non è temporaneamente disponibile.",
+  "Reviewed": "Esaminato"
 }
