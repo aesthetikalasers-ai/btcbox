@@ -1417,7 +1417,7 @@ export function WithdrawPage(){
   Promise.all([getAccount(controller.signal),getSavedCryptoAddresses(controller.signal),getWithdrawalConfig(controller.signal),getWithdrawalHistoryPage(null,controller.signal).catch(()=>null)])
    .then(([snapshot,book,withdrawalConfig,historyPage])=>{
     if(controller.signal.aborted)return;
-    setAccount(snapshot);setAddresses(book.filter((item):item is SavedCryptoAddress=>item.type==="crypto"));setConfig(withdrawalConfig);if(historyPage){setHistoryRecords(historyPage.withdrawals);setHistoryCursor(historyPage.next_cursor);setHistoryHasMore(historyPage.has_more&&!!historyPage.next_cursor);}else{setHistoryError(t("Withdrawal history is temporarily unavailable."));}
+    setAccount(snapshot);setAddresses(book.filter((item):item is SavedCryptoAddress=>item.type==="crypto"));setConfig(withdrawalConfig);if(historyPage){setHistoryRecords(historyPage.withdrawals);setHistoryCursor(historyPage.next_cursor);setHistoryHasMore(historyPage.has_more&&!!historyPage.next_cursor);}else{setHistoryError("Withdrawal history is temporarily unavailable.");}
     const usable=book.filter((item):item is SavedCryptoAddress=>item.type==="crypto"&&!item.blocked&&!item.unbound);
     const storageKey="btcbox.withdraw.pending.v1."+snapshot.uid;
     try{
@@ -1533,7 +1533,7 @@ export function WithdrawPage(){
    const page=await getWithdrawalHistoryPage(historyCursor);
    setHistoryRecords(current=>{const seen=new Set(current.map(item=>item.id));return [...current,...page.withdrawals.filter(item=>!seen.has(item.id))];});
    setHistoryCursor(page.next_cursor);setHistoryHasMore(page.has_more&&!!page.next_cursor);
-  }catch{setHistoryError(t("Withdrawal history is temporarily unavailable."));}
+  }catch{setHistoryError("Withdrawal history is temporarily unavailable.");}
   finally{setHistoryLoading(false);}
  };
  return <PageFrame title="Withdraw" tone="assets" backTo="/assets">
