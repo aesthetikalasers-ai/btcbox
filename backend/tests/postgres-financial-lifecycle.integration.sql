@@ -216,6 +216,43 @@ BEGIN
     RAISE EXCEPTION 'rejected withdrawal is not linked to its withdraw_reject operation';
   END IF;
 
+  -- Cursor history: records are user-scoped, stable across pages, and expose only customer-safe review details.
+  v_hash := encode(extensions.digest(
+    'deposit-user|USDT|TRC20|2|T12345678|withdrawal-ci-request-0003','sha256'
+  ),'hex');
+  v_result := public.create_withdrawal_atomic(
+    'WD-CI-0003','deposit-user','USDT','TRC20',2,1,'T12345678',
+    'withdrawal-ci-request-0003',v_hash,true,1
+  );
+  IF v_result->>'ok'<>'true' THEN RAISE EXCEPTION 'paginated withdrawal creation failed: %',v_result; END IF;
+  v_result := public.review_withdrawal_atomic('WD-CI-0003','admin-ci',false,'cursor pagination reject reason');
+  IF v_result->>'status'<>'rejected' THEN RAISE EXCEPTION 'paginated withdrawal rejection failed: %',v_result; END IF;
+
+  v_snapshot := public.read_withdrawal_history_page_v1('deposit-user',NULL,NULL,1);
+  IF v_snapshot->>'ok'<>'true' OR v_snapshot->>'has_more'<>'true'
+     OR jsonb_array_length(v_snapshot->'withdrawals')<>1
+     OR v_snapshot->'withdrawals'->0->>'id'<>'WD-CI-0003'
+     OR v_snapshot->'withdrawals'->0->>'rejection_reason'<>'cursor pagination reject reason'
+     OR coalesce(v_snapshot->'withdrawals'->0->>'reviewed_at','')='' THEN
+    RAISE EXCEPTION 'first withdrawal history page did not return the newest customer-safe row and cursor: %',v_snapshot;
+  END IF;
+  v_snapshot := public.read_withdrawal_history_page_v1(
+    'deposit-user',
+    (v_snapshot->'next_cursor'->>'created_at')::timestamptz,
+    v_snapshot->'next_cursor'->>'id',
+    1
+  );
+  IF v_snapshot->>'ok'<>'true' OR v_snapshot->>'has_more'<>'false'
+     OR jsonb_array_length(v_snapshot->'withdrawals')<>1
+     OR v_snapshot->'withdrawals'->0->>'id'<>'WD-CI-0001'
+     OR v_snapshot->'withdrawals'->0->>'status'<>'completed' THEN
+    RAISE EXCEPTION 'second withdrawal history page did not continue after the stable cursor: %',v_snapshot;
+  END IF;
+  v_snapshot := public.read_withdrawal_history_page_v1('unrelated-user',NULL,NULL,20);
+  IF jsonb_array_length(v_snapshot->'withdrawals')<>0 THEN
+    RAISE EXCEPTION 'withdrawal history returned another user records: %',v_snapshot;
+  END IF;
+
   -- 3) Spot: match at maker price, then cancel with durable request-key binding.
   PERFORM pg_temp.test_credit(
     'MD-CI-0005','spot-seller','BTC',1,'deposit-ci-request-0003','deposit-ref-ci-3','postgres-ci'
