@@ -80,17 +80,30 @@ test('withdrawalAddressCheck: 未绑定地址拒绝（ADDRESS_NOT_BOUND）', () 
   assert.equal(r.code, 'ADDRESS_NOT_BOUND');
 });
 
-test('withdrawalAddressCheck: 已绑定且过冷却期允许；新绑定 24h 内拒绝（ADDRESS_COOLDOWN）', () => {
-  const now = Date.now();
-  const oldAddr = { type: 'crypto', coin: 'USDT', network: 'TRC20', address: 'TQqCNQ5X29x1JvzyWaX68VP5eRHzTVoyDD', created_at: '2020-01-01 00:00:00' };
-  const userOld = { addresses: [oldAddr] };
-  assert.equal(_test.withdrawalAddressCheck(userOld, 'TQqCNQ5X29x1JvzyWaX68VP5eRHzTVoyDD', 'USDT', 'TRC20', now, 24 * 3600 * 1000).allowed, true);
-  // 1 小时前绑定 → 冷却中
-  const recent = new Date(now - 3600 * 1000).toISOString().slice(0, 19).replace('T', ' ');
-  const userNew = { addresses: [{ type: 'crypto', coin: 'USDT', network: 'TRC20', address: 'TQqCNQ5X29x1JvzyWaX68VP5eRHzTVoyDD', created_at: recent }] };
-  const r = _test.withdrawalAddressCheck(userNew, 'TQqCNQ5X29x1JvzyWaX68VP5eRHzTVoyDD', 'USDT', 'TRC20', now, 24 * 3600 * 1000);
+test('withdrawalAddressCheck: 新绑定地址立即允许提交（不设置 24 小时冷却）', () => {
+  const recent = new Date().toISOString().slice(0, 19).replace('T', ' ');
+  const user = { addresses: [{ type: 'crypto', coin: 'USDT', network: 'TRC20', address: 'TQqCNQ5X29x1JvzyWaX68VP5eRHzTVoyDD', created_at: recent }] };
+  const r = _test.withdrawalAddressCheck(user, 'TQqCNQ5X29x1JvzyWaX68VP5eRHzTVoyDD', 'USDT', 'TRC20');
+  assert.equal(r.allowed, true);
+  assert.equal(r.bound.created_at, recent);
+  assert.equal(r.code, undefined);
+});
+
+test('withdrawalAddressCheck: 不因币种不同或绑定时间而添加冷却限制', () => {
+  const recent = new Date().toISOString().slice(0, 19).replace('T', ' ');
+  for (const coin of ['USDT', 'BTC', 'ETH', 'SOL', 'BNB', 'USDC']) {
+    const network = coin === 'USDT' ? 'TRC20' : coin === 'BTC' ? 'BTC' : coin === 'ETH' || coin === 'USDC' ? 'ERC20' : coin === 'SOL' ? 'SOL' : 'BEP20';
+    const address = coin === 'USDT' ? 'TQqCNQ5X29x1JvzyWaX68VP5eRHzTVoyDD' : coin === 'BTC' ? 'bc1qexampleaddress' : coin === 'SOL' ? 'EC2dRbTBaNGih5oCYyNSCXF4PK8QH7aJgdhffd2JB7nj' : '0xC52985De12ed0EB4dA3DDC861dE84E28213751E8';
+    const user = { addresses: [{ type: 'crypto', coin, network, address, created_at: recent }] };
+    assert.equal(_test.withdrawalAddressCheck(user, address, coin, network).allowed, true, coin);
+  }
+});
+
+test('withdrawalAddressCheck: 禁用地址仍拒绝', () => {
+  const user = { addresses: [{ type: 'crypto', coin: 'USDT', network: 'TRC20', address: 'TQqCNQ5X29x1JvzyWaX68VP5eRHzTVoyDD', blocked: true }] };
+  const r = _test.withdrawalAddressCheck(user, 'TQqCNQ5X29x1JvzyWaX68VP5eRHzTVoyDD', 'USDT', 'TRC20');
   assert.equal(r.allowed, false);
-  assert.equal(r.code, 'ADDRESS_COOLDOWN');
+  assert.equal(r.code, 'ADDRESS_BLOCKED');
 });
 
 test('withdrawal review value estimate stays conservative when the reference quote is unavailable', () => {
