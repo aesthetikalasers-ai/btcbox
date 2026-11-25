@@ -1327,8 +1327,18 @@ export interface AdminUserRecord {
   financial_balance_source?: "postgres_financial_ledger" | "legacy_state_retention_limited" | "unverified";
   deposit_history?: DepositRecord[];
   deposit_history_source?: "postgres_financial_ledger" | "legacy_state_retention_limited";
-  withdrawal_history?: WithdrawalRecord[];
+  withdrawal_history?: AdminUserWithdrawalRecord[];
   withdrawal_history_source?: "postgres_financial_ledger" | "legacy_state_retention_limited";
+}
+/** Expanded withdrawal shape used only in the authenticated admin user-detail view. */
+export interface AdminUserWithdrawalRecord extends WithdrawalRecord {
+  txid?: string;
+  payout_reference?: string;
+  paid_at?: string;
+  reviewed_by?: string;
+  freeze_operation_id?: string;
+  review_operation_id?: string;
+  payout_operation_id?: string;
 }
 export interface AdminWithdrawalRecord {
   id: string;
