@@ -272,7 +272,7 @@ test("confirmed email registration exchanges the Supabase identity and provision
   let accountReady = false;
   await page.route("**/api/supabase-login", async route => {
     exchangeCalls += 1;
-    exchangedAccessToken = String(route.request().postDataJSON()?.access_token || "");
+    exchangedAccessToken = String(route.request().postDataJSON()?.supabase_access_token || "");
     accountReady = true;
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) });
   });
@@ -323,6 +323,143 @@ test("email password recovery sends a Supabase reset request", async ({ page }) 
   await page.getByRole("button", { name: "Send reset link" }).click();
   await expect(page.getByRole("status")).toContainText("If an account exists for this email");
   await expect.poll(() => recoveryRequests.length).toBe(1);
+});
+
+
+test("Google sign-in completes the PKCE callback and provisions one BTCBOX session", async ({ page }) => {
+  let authorizationRedirect = "";
+  let tokenExchangeCalls = 0;
+  let provisioningCalls = 0;
+  let exchangedAccessToken = "";
+  let accountReady = false;
+  await page.route("**/api/auth-client-config", route => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      ok: true,
+      supabase_url: "https://btcbox-e2e.invalid",
+      publishable_key: "e2e-anon-key-not-valid-for-production",
+      google_enabled: true,
+      wallet_enabled: true,
+    }),
+  }));
+  await page.route("**/auth/v1/authorize**", async route => {
+    const authorizeUrl = new URL(route.request().url());
+    authorizationRedirect = authorizeUrl.searchParams.get("redirect_to") || "";
+    await route.fulfill({
+      status: 302,
+      headers: { location: "http://127.0.0.1:4173/auth/react-callback?intent=login&code=e2e-google-code" },
+    });
+  });
+  await page.route("**/auth/v1/token**", async route => {
+    tokenExchangeCalls += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        access_token: "e2e-google-access-token",
+        token_type: "bearer",
+        expires_in: 3600,
+        refresh_token: "e2e-google-refresh-token",
+        user: {
+          id: "22222222-2222-4222-8222-222222222222",
+          aud: "authenticated",
+          role: "authenticated",
+          email: "google-user@example.invalid",
+          email_confirmed_at: "2026-11-23T00:00:00.000Z",
+          app_metadata: { provider: "google", providers: ["google"] },
+          user_metadata: {},
+          identities: [{ provider: "google" }],
+        },
+      }),
+    });
+  });
+  await page.route("**/api/supabase-login", async route => {
+    provisioningCalls += 1;
+    exchangedAccessToken = String(route.request().postDataJSON()?.supabase_access_token || "");
+    accountReady = true;
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) });
+  });
+  await page.route("**/api/account", route => accountReady
+    ? route.fulfill({ status: 200, json: authenticatedAccountFixture })
+    : route.fulfill({ status: 401, json: { ok: false, need_login: true } }));
+
+  await page.goto("/login");
+  await expect(page.getByRole("button", { name: "Google", exact: true })).toBeEnabled();
+  await page.getByRole("button", { name: "Google", exact: true }).click();
+
+  await expect(page).toHaveURL(/\\/home$/);
+  expect(authorizationRedirect).toMatch(/\\/auth\\/react-callback\\?intent=login$/);
+  expect(tokenExchangeCalls).toBe(1);
+  expect(provisioningCalls).toBe(1);
+  expect(exchangedAccessToken).toBe("e2e-google-access-token");
+});
+
+test("Google-linked Supabase identity can add an email password through recovery without creating a second BTCBOX account", async ({ page }) => {
+  const supabaseUserId = "33333333-3333-4333-8333-333333333333";
+  const accessToken = "e2e-google-linked-recovery-access-token";
+  const linkedUser = {
+    id: supabaseUserId,
+    aud: "authenticated",
+    role: "authenticated",
+    email: "google-user@example.invalid",
+    email_confirmed_at: "2026-11-23T00:00:00.000Z",
+    app_metadata: { provider: "email", providers: ["email", "google"] },
+    user_metadata: {},
+    identities: [{ provider: "email" }, { provider: "google" }],
+  };
+  let updatedPassword = "";
+  let updatedUserId = "";
+  let signupCalls = 0;
+  let provisioningCalls = 0;
+  let exchangedAccessToken = "";
+  let accountReady = false;
+  page.on("request", request => {
+    if (new URL(request.url()).pathname === "/auth/v1/signup") signupCalls += 1;
+  });
+  await page.route("**/auth/v1/token**", async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        access_token: accessToken,
+        token_type: "bearer",
+        expires_in: 3600,
+        refresh_token: "e2e-google-linked-recovery-refresh-token",
+        user: linkedUser,
+      }),
+    });
+  });
+  await page.route("**/auth/v1/user**", async route => {
+    if (route.request().method() === "PUT") {
+      updatedPassword = String(route.request().postDataJSON()?.password || "");
+      updatedUserId = linkedUser.id;
+    }
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(linkedUser) });
+  });
+  await page.route("**/api/supabase-login", async route => {
+    provisioningCalls += 1;
+    exchangedAccessToken = String(route.request().postDataJSON()?.supabase_access_token || "");
+    accountReady = true;
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) });
+  });
+  await page.route("**/api/account", route => accountReady
+    ? route.fulfill({ status: 200, json: authenticatedAccountFixture })
+    : route.fulfill({ status: 401, json: { ok: false, need_login: true } }));
+
+  await page.addInitScript(() => localStorage.setItem("sb-btcbox-e2e-auth-token-code-verifier", "e2e-pkce-code-verifier"));
+  await page.goto("/auth/react-callback?flow=recovery&code=e2e-google-linked-recovery-code");
+  await expect(page.getByRole("heading", { name: "Reset your password" })).toBeVisible();
+  await page.getByLabel("New password").fill("NewEmailPassphrase123!");
+  await page.getByLabel("Confirm new password").fill("NewEmailPassphrase123!");
+  await page.getByRole("button", { name: "Update password" }).click();
+
+  await expect(page).toHaveURL(/\\/home$/);
+  expect(updatedPassword).toBe("NewEmailPassphrase123!");
+  expect(updatedUserId).toBe(supabaseUserId);
+  expect(signupCalls).toBe(0);
+  expect(provisioningCalls).toBe(1);
+  expect(exchangedAccessToken).toBe(accessToken);
 });
 
 test("unauthenticated customer sees an in-place sign-in gate on protected routes", async ({ page }) => {
