@@ -2674,7 +2674,7 @@ async function handleRequest(event, context) {
         if (!decoded || typeof decoded.created_at !== 'string' ||
             !Number.isFinite(Date.parse(decoded.created_at)) ||
             typeof decoded.id !== 'string' || !decoded.id || decoded.id.length > 100 ||
-            /[\\u0000-\\u001f\\u007f]/.test(decoded.id)) throw new Error('invalid cursor');
+            /[\u0000-\u001f\u007f]/.test(decoded.id)) throw new Error('invalid cursor');
         cursor = { created_at: decoded.created_at, id: decoded.id };
       } catch (_) {
         return json({ ok: false, code: 'INVALID_WITHDRAWAL_HISTORY_CURSOR', msg: 'Withdrawal history cursor is invalid.' }, 400);
@@ -2682,7 +2682,7 @@ async function handleRequest(event, context) {
     }
 
     try {
-      const response = await fetch(process.env.SUPABASE_URL.replace(/\\/+$/, '') + '/rest/v1/rpc/read_withdrawal_history_page_v1', {
+      const response = await fetch(process.env.SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/rpc/read_withdrawal_history_page_v1', {
         method: 'POST',
         headers: supabaseHeaders(),
         body: JSON.stringify({
