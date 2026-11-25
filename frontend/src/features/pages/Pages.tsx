@@ -1488,7 +1488,7 @@ export function WithdrawPage(){
  const settlementWithinBalance=estimatedSettlement!==null&&availableRaw!==null&&compareDecimalStrings(estimatedSettlement,availableRaw)!==undefined&&compareDecimalStrings(estimatedSettlement,availableRaw)!==1;
  const pendingStorageKey=account?.uid?"btcbox.withdraw.pending.v1."+account.uid:"";
  const clearPending=()=>{if(pendingStorageKey){try{window.localStorage.removeItem(pendingStorageKey);}catch{}}setPendingIntent(null);setPendingIntentInvalid(false);};
- const canSubmit=!!config?.actions_enabled&&!pendingIntentInvalid&&!!selectedAddress&&available!==null&&Number.isFinite(available)&&available>=0&&feeVerified&&(conversionVerified||!!pendingIntent)&&(estimatedSettlement!==null?settlementWithinBalance:!!pendingIntent)&&!!fundPassword.trim()&&(!account?.twofa_enabled||/^\d{6}$/.test(twofaCode))&&!submitting&&!loading;
+ const canSubmit=!!config?.actions_enabled&&!pendingIntentInvalid&&!!selectedAddress&&available!==null&&Number.isFinite(available)&&available>=0&&feeVerified&&(conversionVerified||!!pendingIntent)&&(!!pendingIntent||(estimatedSettlement!==null&&settlementWithinBalance))&&!!fundPassword.trim()&&(!account?.twofa_enabled||/^\d{6}$/.test(twofaCode))&&!submitting&&!loading;
 
  const submit=async(event:FormEvent<HTMLFormElement>)=>{
   event.preventDefault();
@@ -1588,7 +1588,6 @@ export function WithdrawPage(){
         <div className="min-w-0 rounded-md bg-brand-surface-2 p-2"><p className="text-[11px] text-brand-text-muted">{t("Amount")}</p><p className="mt-1 break-all text-sm font-semibold tabular-nums">{item.amount} {item.coin}</p></div>
         <div className="min-w-0 rounded-md bg-brand-surface-2 p-2"><p className="text-[11px] text-brand-text-muted">{t("Withdrawal fee")}</p><p className="mt-1 break-all text-sm tabular-nums">{item.fee??"—"} {item.coin}</p></div>
         <div className="min-w-0 rounded-md bg-brand-surface-2 p-2"><p className="text-[11px] text-brand-text-muted">{t("Net amount")}</p><p className="mt-1 break-all text-sm font-semibold tabular-nums">{net===null?"—":net+" "+item.coin}</p></div>
-         {item.settlement_asset&&item.settlement_asset!==item.coin?<div className="min-w-0 rounded-md bg-brand-surface-2 p-2"><p className="text-[11px] text-brand-text-muted">{t("Balance debit")}</p><p className="mt-1 break-all text-sm font-semibold tabular-nums">{item.settlement_amount} {item.settlement_asset}</p><p className="mt-1 text-[11px] text-brand-text-muted">Rate {item.conversion_rate}</p></div>:null}
          {item.settlement_asset&&item.settlement_asset!==item.coin?<div className="min-w-0 rounded-md bg-brand-surface-2 p-2"><p className="text-[11px] text-brand-text-muted">{t("Balance debit")}</p><p className="mt-1 break-all text-sm font-semibold tabular-nums">{item.settlement_amount} {item.settlement_asset}</p><p className="mt-1 text-[11px] text-brand-text-muted">Rate {item.conversion_rate}</p></div>:null}
         <div className="min-w-0 rounded-md bg-brand-surface-2 p-2"><p className="text-[11px] text-brand-text-muted">{t("Status")}</p><p className="mt-1 text-sm">{withdrawalStatusLabel(normalized,t)}</p></div>
        </div>
