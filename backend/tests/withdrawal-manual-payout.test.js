@@ -178,3 +178,11 @@ test('manual payout references remain admin-internal and are never described as 
   const customer = customerHistoryStart.slice(withdrawStart, withdrawEnd);
   assert.doesNotMatch(customer, /txid|payout_reference|payout_note|paid_by|paid_at/i);
 });
+
+test('an unconfirmed idempotent retry is not blocked by a refreshed USDC quote', () => {
+  const pages = fs.readFileSync(path.resolve(root, '../frontend/src/features/pages/Pages.tsx'), 'utf8');
+  assert.ok(pages.includes('(!!pendingIntent||(estimatedSettlement!==null&&settlementWithinBalance))'));
+  assert.ok(pages.includes('conversionVerified||!!pendingIntent'));
+  const settlementPanel = '{item.settlement_asset&&item.settlement_asset!==item.coin?<div className="min-w-0 rounded-md bg-brand-surface-2 p-2">';
+  assert.equal(pages.split(settlementPanel).length - 1, 1, 'customer history should render one settlement debit panel');
+});
