@@ -158,8 +158,8 @@ test('withdrawal application number is generated server-side and displayed as a 
 
 test('manual payout references remain admin-internal and are never described as blockchain TXIDs', () => {
   const admin = fs.readFileSync(path.resolve(root, '../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
-  const queueStart = admin.indexOf('tab === "withdrawals"');
-  const queueEnd = admin.indexOf('tab === "kyc"', queueStart);
+  const queueStart = admin.indexOf('!loading && tab === "withdrawals"');
+  const queueEnd = admin.indexOf('!loading && tab === "kyc"', queueStart);
   assert.ok(queueStart >= 0 && queueEnd > queueStart);
   const queue = admin.slice(queueStart, queueEnd);
   assert.ok(queue.includes('adminText("Manual payout reference (internal)")'));
