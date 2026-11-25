@@ -177,6 +177,7 @@ const messages: Record<string, string> = {
   "Approve": "批准",
   "Reject": "拒绝",
   "Manual payout reference (internal)": "人工出币内部付款参考编号",
+  "Internal payout reference": "内部人工出币付款参考编号",
   "Mark paid": "标记已付款",
   "KYC review": "身份审核",
   "Name": "姓名",
