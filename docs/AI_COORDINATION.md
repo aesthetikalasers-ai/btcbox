@@ -75,3 +75,62 @@ PR #102 只有在下列項目全部完成後才可提出合併：
 - Auth rate-limit errors (`over_email_send_rate_limit`) must be translated to a clear wait/check-inbox message. Do not disable email confirmation or raise live rate limits just to make tests pass.
 - Read-only Supabase log audit on 2026-11-23 found 7 confirmation-mail send events and 18 email-send rate-limit events (13 confirmation, 5 recovery). No Supabase settings were changed.
 - Feature branches run the full frontend/backend checks through their PR; push-triggered CI is restricted to `main` to avoid running the same suite twice for each PR commit.
+
+
+## 2026-11-25 integration continuation — current-state supersession
+
+> 本節更新並取代本文件第 1 節中已過期的分支/PR 狀態；第 2–6 節的產品、安全、角色及合併/部署邊界繼續有效。這是協調與源碼審查記錄，不是生產驗收或部署批准。
+
+### 1. 協調來源、基線與分支
+
+- 本次先嘗試讀取指定 ref `chore/shared-ai-coordination` 的 `docs/AI_COORDINATION.md`，GitHub 回覆 404（ref 不存在）。
+- 因此讀取當前 `main` 的 `docs/AI_COORDINATION.md`，Blob SHA：`0ae2655558aaf361e15ace049645ffddb48d80ac`；此文件是本次採用的最新可讀協調規則。較舊 `working` 版本日期為 2026-11-16，不覆蓋 main 上 2026-11-23 的規則。
+- 當前 main 基線：`32c8788976cb9d9971b072c01db1430e13ed69fa`。
+- PR #102 所用 `integration/btcbox-acceptance-20261123` 已合併且落後 main 321 commits；舊 `integration/btcbox-mainline-consolidation-20261108` ref 已不存在。
+- 先前 `integration/btcbox-acceptance-20261124` HEAD 為 `cff30c85377b7e0eefb00726cbad1630e9f05ec1`，相對當前 main 落後 222 commits；精確 SHA 的 Actions runs 為 0，唯一 Check Run 是 Supabase Preview skipped。不得把它當成當前整合基線。
+- 本次建立接續整合分支 `integration/btcbox-mainline-consolidation-20261125`，從 main SHA `32c8788976cb9d9971b072c01db1430e13ed69fa` 起始。僅更新本協調文件，沒有修改應用、API、SQL 或交易頁。
+
+### 2. PR #67、#102 及舊整合線的實際狀態
+
+- PR #67：Closed、Merged=true、Draft=false；HEAD `c53fa948a599b560c1319726adfb57be6828b0fa`，merge commit `fbf301f88c5c19db94ea1546c590667a8818e842`。舊 head 的 Backend CI `42498936887`、PostgreSQL Schema CI `42498936856`、Frontend CI `42498936859` 均 PASS；精確 head 的 4 個 Check Runs 均成功（含 Vercel Preview Comments）。merge commit 的 3 個 CI Check Runs 亦均 PASS。PR review submissions 為 0。PR body 中「仍為 Draft」的歷史文字已過期；PR 已合併，不能再保持 Draft，也沒有嘗試回退。
+- PR #102：Closed、Merged=true；HEAD `92a32c2d2c40ad8bfd1d53785411d4cdc67424ca`，merge commit `f6d62d21e94a234044221320158eeab0d230e1f4`。精確 head 的 Backend CI `45215510605` PASS、PostgreSQL Schema CI `45215510558` PASS、Change Guard `45215510283` PASS，但 Frontend CI `45215510322` FAIL；失敗步驟是 production bundle 的 mobile route/core-flow Playwright，lint、i18n、decimal、build 均通過。PR review submissions 為 0。這是合併閘門未被遵守的流程偏差，不能因後續 PR 通過而改寫歷史。
+- PR #113：Closed、Merged=true；精確 head `054384739bef4a7cfa517fa8b654e88ce6421387` 的 Frontend CI `45362786944`、PostgreSQL Schema CI `45362787010`、Change Guard `45362787284`、Backend CI `45362787299` 全部 PASS；review submissions 為 0。Frontend workflow 的 production-bundle Playwright step 覆蓋 `@routing`、V1.0 responsive widths、continuous responsive sweep、trade interaction QA，並成功上傳 screenshot artifact。這是自動化技術驗證，不等同所有者視覺簽收。
+- PR #114、#116、#117、#119 的精確 head 亦有對應 CI 證據：#114 HEAD `78dd45da459d475a0dcc8ed2edce9a214e5b5dbc` 的 Backend/Change Guard/PostgreSQL 均 PASS；#116 HEAD `78ccb1408e27fe24b399caf2ed1f56cc16e7e762` 的 Backend/Frontend/Change Guard/PostgreSQL/Exchange-filter-audit 均 PASS（Supabase Preview skipped）；#117 HEAD `92c6be1f273660f9b922e88b6a8b00665f29f7b5` 的 Backend/Change Guard/PostgreSQL 均 PASS；#119 HEAD `674820e425cf0effeffe13d7c816c639049e20c0` 的 Backend/Change Guard/PostgreSQL 均 PASS。這些是各 PR head 的驗證，不宣稱 hosted Supabase 已與所有 migration 同步。
+- PR #67 的「保持 Draft」要求已被 GitHub 實際合併狀態取代；後續整合工作應保持新 PR Draft，直到當前 CI、review、驗收及所有者批准均滿足。
+
+### 3. 當前 main 精確 SHA 的 CI
+
+驗證對象：`32c8788976cb9d9971b072c01db1430e13ed69fa`。
+
+- Backend CI `45476412273` PASS：backend dependencies、unified build、backend tests、backend/frontend integration tests、fail-closed deployment preflight、unified output/entrypoint checks 均成功。
+- Frontend CI `45476412162` PASS：lint、`npm run check:i18n`、exact-decimal tests、build、production-bundle Playwright route/responsive/trade-interaction QA、screenshot upload 均成功。
+- Change Guard `45476412141` PASS。
+- Scheduled mirror sync `45510704490` PASS。
+- Check Runs 共 5 個：上述 4 個成功，Supabase Preview `138750188728` skipped。
+- Combined commit status 的 Vercel context 為 success。
+- **此 exact main SHA 沒有獨立 PostgreSQL Schema CI run**；最近相關 PR head 的 PostgreSQL Schema CI（#113/#114/#116/#117/#119）均 PASS。不得將 PR head 的 schema PASS 說成 main SHA 的獨立 schema run。
+- 另有開放 PR #131（HEAD `c4d377bd25617afa0a4b966dbcebe119c22a77f6`）：Change Guard PASS、Frontend CI PASS、Backend CI `45480428308` FAIL（backend tests 步驟失敗）。該 PR 尚未合併，不屬於本次變更範圍。
+
+### 4. 當前 main 的 SQL/API 合約核對
+
+- 當前 main 的規範 migration 序列包括 `0041_perpetual_contract_v1.sql`、`0046_perpetual_funding_atomic_clearing_v1.sql`、`0047_perpetual_liquidation_accounting_closure_v1.sql`、`0048_perpetual_funding_rate_producer_v1.sql`、`0049_btcbox_complete_26_asset_registry_v1.sql`、`0050_perpetual_bootstrap_mark_price_v1.sql`、`0051_perpetual_market_min_notional_v1.sql`、`0052_perpetual_two_source_median_bootstrap_v1.sql`、`0053_perpetual_two_source_live_mark_v1.sql`。舊 integration 線的 0042–0044 編號/內容不是當前 main 的 canonical migration 序列；不可從落後分支盲目 cherry-pick。
+- `0051` 已明確將既有 perpetual market rows 設為 `enabled=false,status='paused'`；order RPC 對非 reduce-only 開倉拒絕非 `trading/open_only` 狀態；reduce-only 可在 paused/liquidation-only 狀態執行；缺少正數 `max_position_notional` 時開倉 fail closed。當前 `perpetual-sql-contract.test.js` 有對 paused cutover、max exposure cap、reduce-only、close-position flag idempotency 的源碼合同斷言。
+- 因此 `docs/PR-116-PERPETUAL-INTEGRATION-REVIEW-2026-11-24.md` 中「0051 未將既有 market 暫停」「liquidation-only 阻止 reduce-only」「max cap guard 不可達」三項靜態阻塞，已被當前 main 的 0051 實際內容修正；該 review 文件這三項結論已過期。仍須保留它對全 RPC 重寫、撮合 maker/taker、部分成交、撤單、margin/ledger invariant 的測試提醒。
+- Funding worker 現在以單一 `perp_settle_funding_market` RPC 原子結算市場，檢查 REST/RPC HTTP 狀態，遇到市場失敗會非零退出；funding rate producer 是獨立的 snapshot 生產程序，不直接改餘額。Liquidation worker 使用有界分頁，REST 讀取錯誤不會被當成空倉位。Worker runtime 文件要求 dedicated always-on container，四個 worker 成功完成 pass、監控/告警驗證後才設定 `FINANCIAL_PERPETUAL_WORKERS_READY=1`；API 寫入還要求 `FINANCIAL_PERPETUAL_ENGINE_ENABLED=1` 及完整 financial Postgres cutover。沒有證據證明該 container 已部署或 production readiness flag 已開啟。
+- `backend/.env.example` 有 `FINANCIAL_PERPETUAL_ENGINE_ENABLED=0`，但沒有列出 `FINANCIAL_PERPETUAL_WORKERS_READY=0`；建議 Core/Backend owner 補上預設關閉的文件示例，避免部署人員漏掉 API 的第二道 gate。這是文件/配置示例缺口，不代表 hosted flag 狀態已知。
+
+### 5. 尚未解決的跨團隊風險（本次只記錄，不越權修改）
+
+1. **Perpetual close-position API 幂等重試與限流**：當前 `backend/api-core.js` Blob `964cba213d25d3e40963fa651038954d6a1ab20e`，第 3180–3199 行先讀當前 position；無倉位就於 SQL RPC 前回 `NO_POSITION`；有倉位則把當前動態 quantity/side 傳給 `perp_submit_order`。全平倉後的相同 client_order_id 重試會被提前擋下；部分成交後 quantity 改變，可能與原始 order payload mismatch。此 route 也沒有像 order/cancel 一樣顯式呼叫 `rateCheckShared`。現有 `perpetual-api-contract.test.js` 只斷言 NO_POSITION 與 reduce-only/close-position 參數，沒有覆蓋全平/部分成交後同 ID replay，也沒有 close-position rate-limit fail-closed 測試。路由由其他 AI 負責，2號 AI 不修改 route；建議 route owner 與 DB owner 設計以穩定 close intent 為基礎的重放合同（最好由 DB 原子鎖倉、取量、保存結果），加入 `perp_close_position` shared rate limit，並測試 full-close replay、partial-fill replay、不同 symbol/intent 重用 ID、限流服務不可用。
+2. **Perpetual admin market upsert 缺少 request-id replay contract**：前端 `saveAdminPerpMarket` 的型別/請求不含 `request_id`；後端 `POST admin/perpetual/market` 以 symbol upsert，強制 `status='paused'`、要求有界 reason 並做 `system_config.write` 權限檢查，但沒有 durable request-id/hash/replay response。重試會保持 market 最終值（symbol upsert），但可能重複寫 audit event/更新時間。建議 Admin UI/API owner 一起加入 request_id、canonical request hash、同 ID 同 payload replay、同 ID 不同 payload reject，保留 audit reason 與 paused-only 行為。
+3. **Worker readiness 示例**：`perpetualEngineEnabled()` 要求 `FINANCIAL_PERPETUAL_WORKERS_READY='1'`；`.env.example` 未列其預設值。由 Core/Backend owner 補齊文件與測試。Worker runtime 文檔所述「先部署並驗證 workers，再設 readiness」是既定運行順序，不可把 worker 尚未部署說成已驗收。
+4. **管理流程**：PR #102 在 Frontend Playwright 失敗且沒有 review submissions 的情況下仍被合併。後續 PR #113 的 route/responsive CI 已通過，但沒有 review submissions。未來新 PR 必須遵守本文件第 5 節的全部 CI/review/owner approval 閘門。
+5. **驗收邊界**：目前只證明源碼、PR CI 及 disposable PostgreSQL 的相應測試。Hosted Supabase 全 schema parity、Email/Google staging 真實登入、production worker deployment/readiness、production financial flags、真實金融執行、所有者獨立視覺簽收仍為 NOT VERIFIED。
+
+### 6. 下一步唯一優先工作
+
+- **API/路由 owner + DB owner**：先修正 close-position 穩定幂等重放合同與 shared rate limit，增加 full-close/partial-fill replay 及限流 fail-closed 測試。
+- **Admin UI/API owner**：為 perpetual market config upsert 加 request-id/hash replay，避免操作回應丟失後產生重複 audit。
+- **Core/Backend owner**：將 `FINANCIAL_PERPETUAL_WORKERS_READY=0` 補入 env 示例與部署核對，並保留獨立 worker runtime 驗收。
+- **整合驗收**：在當前 main 衍生分支執行對應 Backend、Frontend production-preview Playwright 及 disposable PostgreSQL schema/integration tests；每個 PR 必須以精確 HEAD SHA 核對所有 CI。
+- 未經所有者批准不合併、不部署、不修改 Vercel、不對 hosted Supabase 執行 DDL/DML/Auth/flags、不執行真實金融操作、不改動鎖定交易頁布局。整體狀態仍為 **NOT READY**。
