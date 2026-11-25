@@ -910,6 +910,7 @@ function defaultDB() {
       "USDC-ERC20": depositAddressFromEnv("USDC-ERC20"),
     },
     withdrawal_fees: Object.assign({}, DEFAULT_WITHDRAWAL_FEES),
+    withdrawal_networks: Object.fromEntries(Object.entries(DEFAULT_WITHDRAWAL_NETWORKS).map(([coin, networks]) => [coin, networks.slice()])),
     captcha: {},
   };
 }
@@ -1140,11 +1141,40 @@ const DEFAULT_WITHDRAWAL_FEES = Object.freeze({
 function safeWithdrawalFees(fees) {
   const source = fees && typeof fees === 'object' && !Array.isArray(fees) ? fees : {};
   const result = Object.assign({}, DEFAULT_WITHDRAWAL_FEES);
-  for (const coin of Object.keys(DEFAULT_WITHDRAWAL_FEES)) {
+  for (const coin of Object.keys(source)) {
+    if (!SUPPORTED_LEDGER_ASSETS.has(coin) || !/^[A-Z0-9]{2,16}$/.test(coin)) continue;
     const value = typeof source[coin] === 'string' ? parseMoneyInput(source[coin]) : null;
     if (value !== null && compareMoney(value, '1000000000000') <= 0) result[coin] = value;
   }
   return result;
+}
+
+const WITHDRAWAL_NETWORK_ADDRESS_VALIDATORS = Object.freeze({
+  BTC: /^(bc1[a-z0-9]{25,90}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})$/,
+  ERC20: /^0x[a-fA-F0-9]{40}$/,
+  BEP20: /^0x[a-fA-F0-9]{40}$/,
+  TRC20: /^T[1-9A-HJ-NP-Za-km-z]{33}$/,
+  SOL: /^[1-9A-HJ-NP-Za-km-z]{32,44}$/
+});
+const DEFAULT_WITHDRAWAL_NETWORKS = Object.freeze({
+  BTC:['BTC'], ETH:['ERC20'], USDT:['TRC20','ERC20','BEP20'],
+  SOL:['SOL'], BNB:['BEP20'], USDC:['ERC20']
+});
+function safeWithdrawalNetworks(networks) {
+  const source = networks && typeof networks === 'object' && !Array.isArray(networks) ? networks : {};
+  const result = Object.fromEntries(Object.entries(DEFAULT_WITHDRAWAL_NETWORKS).map(([coin, values]) => [coin, values.slice()]));
+  for (const coin of Object.keys(source)) {
+    if (!SUPPORTED_LEDGER_ASSETS.has(coin) || !/^[A-Z0-9]{2,16}$/.test(coin) || !Array.isArray(source[coin])) continue;
+    result[coin] = Array.from(new Set(source[coin].filter(network =>
+      typeof network === 'string' && Object.prototype.hasOwnProperty.call(WITHDRAWAL_NETWORK_ADDRESS_VALIDATORS, network)
+    )));
+  }
+  return result;
+}
+function isValidWithdrawalAddress(coin, network, address) {
+  if (!SUPPORTED_LEDGER_ASSETS.has(coin)) return false;
+  const validator = WITHDRAWAL_NETWORK_ADDRESS_VALIDATORS[network];
+  return !!validator && typeof address === 'string' && validator.test(address);
 }
 function totalUsdt(balances, prices) {
   let total = balances.USDT ? (balances.USDT.free + balances.USDT.frozen) : 0;
@@ -2472,14 +2502,9 @@ async function handleRequest(event, context) {
       const coin = String(body.coin || '').toUpperCase();
       const network = String(body.network || '').toUpperCase();
       const address = String(body.address || '').trim();
-      const allowed = { BTC:['BTC'], ETH:['ERC20'], USDT:['TRC20','ERC20','BEP20'], SOL:['SOL'], BNB:['BEP20'], USDC:['ERC20'] };
+      const allowed = safeWithdrawalNetworks(db.withdrawal_networks);
       if (!allowed[coin] || allowed[coin].indexOf(network) < 0) return json({ok:false,msg:'Operation failed: coin and network do not match.'},400);
-      let valid = false;
-      if (coin === 'BTC') valid = /^(bc1[a-z0-9]{25,90}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})$/.test(address);
-      else if (network === 'ERC20' || network === 'BEP20') valid = /^0x[a-fA-F0-9]{40}$/.test(address);
-      else if (network === 'TRC20') valid = /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(address);
-      else if (coin === 'SOL') valid = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address);
-      if (!valid) return json({ok:false,msg:'Operation failed: invalid address format.'},400);
+      if (!isValidWithdrawalAddress(coin, network, address)) return json({ok:false,msg:'Operation failed: invalid address format.'},400);
       record = { id:'A'+Date.now()+crypto.randomBytes(3).toString('hex'), type:type, coin:coin, network:network, address:address, note:note, created_at:nowStr(), flagged:false, blocked:false };
     } else {
       const holder=String(body.account_holder||'').trim().slice(0,120), bank=String(body.bank_name||'').trim().slice(0,120);
@@ -2610,7 +2635,7 @@ async function handleRequest(event, context) {
       ok: true,
       actions_enabled: financialWritesEnabled() && manualDepositRpcEnabled() && supabaseStorageConfigured(),
       fees: safeWithdrawalFees(db.withdrawal_fees),
-      allowed_networks: { BTC:['BTC'], ETH:['ERC20'], USDT:['TRC20','ERC20','BEP20'], SOL:['SOL'], BNB:['BEP20'], USDC:['ERC20'] }
+      allowed_networks: safeWithdrawalNetworks(db.withdrawal_networks)
     });
   }
 
@@ -2634,14 +2659,9 @@ async function handleRequest(event, context) {
     // the legacy state document for a replay decision; it may be stale after cutover.
     if (!addr) return json({ ok: false, msg: 'Please enter a withdrawal address.' }, 400);
     if (amount === null || compareMoney(amount, '0') <= 0 || compareMoney(amount, '1000000000000') > 0) return json({ ok: false, msg: 'Invalid amount.' }, 400);
-    const allowedNetworks = { BTC:['BTC'], ETH:['ERC20'], USDT:['TRC20','ERC20','BEP20'], SOL:['SOL'], BNB:['BEP20'], USDC:['ERC20'] };
+    const allowedNetworks = safeWithdrawalNetworks(db.withdrawal_networks);
     if (!allowedNetworks[coin] || allowedNetworks[coin].indexOf(network) < 0) return json({ok:false,msg:'Operation failed: coin and network do not match.'},400);
-    let addressValid = false;
-    if (coin === 'BTC') addressValid = /^(bc1[a-z0-9]{25,90}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})$/.test(addr);
-    else if (network === 'ERC20' || network === 'BEP20') addressValid = /^0x[a-fA-F0-9]{40}$/.test(addr);
-    else if (network === 'TRC20') addressValid = /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(addr);
-    else if (coin === 'SOL') addressValid = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(addr);
-    if (!addressValid) return json({ok:false,msg:'Operation failed: invalid address format.'},400);
+    if (!isValidWithdrawalAddress(coin, network, addr)) return json({ok:false,msg:'Operation failed: invalid address format.'},400);
     // 提现地址只校验已绑定/未禁用，不按绑定时间设置冷却；提交后由数据库决定请求状态。
     const addrCheck = withdrawalAddressCheck(user, addr, coin, network);
     if (!addrCheck.allowed) return json({ ok: false, code: addrCheck.code, msg: addrCheck.msg }, 403);
@@ -4510,7 +4530,7 @@ async function handleRequest(event, context) {
 
     // GET /api/admin/config
     if (sub === 'config' && method === 'GET') {
-      return json({ ok: true, deposit_addresses: safeDepositAddresses(db.deposit_addresses), withdrawal_fees: safeWithdrawalFees(db.withdrawal_fees), announcement: db.announcement || '' });
+      return json({ ok: true, deposit_addresses: safeDepositAddresses(db.deposit_addresses), withdrawal_fees: safeWithdrawalFees(db.withdrawal_fees), withdrawal_networks: safeWithdrawalNetworks(db.withdrawal_networks), announcement: db.announcement || '' });
     }
 
     // POST /api/admin/config 更新充值地址和公告。只接受已知网络且格式有效的地址，
@@ -4551,7 +4571,7 @@ async function handleRequest(event, context) {
         if (!feeUpdates || typeof feeUpdates !== 'object' || Array.isArray(feeUpdates)) return json({ ok: false, msg: 'Invalid withdrawal fee configuration format.' }, 400);
         const nextFees = safeWithdrawalFees(db.withdrawal_fees);
         for (const coin of Object.keys(feeUpdates)) {
-          if (!Object.prototype.hasOwnProperty.call(DEFAULT_WITHDRAWAL_FEES, coin)) return json({ ok: false, msg: 'Unsupported withdrawal fee asset.' }, 400);
+          if (!SUPPORTED_LEDGER_ASSETS.has(coin)) return json({ ok: false, msg: 'Unsupported withdrawal fee asset.' }, 400);
           const value = typeof feeUpdates[coin] === 'string' ? parseMoneyInput(feeUpdates[coin].trim()) : null;
           if (value === null || compareMoney(value, '1000000000000') > 0) return json({ ok: false, msg: 'Invalid withdrawal fee: ' + coin }, 400);
           if (nextFees[coin] !== value) changedFeeKeys.push(coin);
@@ -4559,14 +4579,33 @@ async function handleRequest(event, context) {
         }
         db.withdrawal_fees = nextFees;
       }
+      const networkUpdates = body.withdrawal_networks;
+      const changedNetworkKeys = [];
+      if (networkUpdates !== undefined) {
+        if (!networkUpdates || typeof networkUpdates !== 'object' || Array.isArray(networkUpdates)) return json({ ok: false, msg: 'Invalid withdrawal network configuration format.' }, 400);
+        const nextNetworks = safeWithdrawalNetworks(db.withdrawal_networks);
+        for (const coin of Object.keys(networkUpdates)) {
+          if (!SUPPORTED_LEDGER_ASSETS.has(coin) || !Array.isArray(networkUpdates[coin]) || networkUpdates[coin].length > 8) {
+            return json({ ok: false, msg: 'Invalid withdrawal network configuration: ' + coin }, 400);
+          }
+          const networks = networkUpdates[coin];
+          if (networks.some(network => typeof network !== 'string' || !Object.prototype.hasOwnProperty.call(WITHDRAWAL_NETWORK_ADDRESS_VALIDATORS, network))) {
+            return json({ ok: false, msg: 'Unsupported withdrawal network for ' + coin }, 400);
+          }
+          const normalized = Array.from(new Set(networks));
+          if (JSON.stringify(nextNetworks[coin] || []) !== JSON.stringify(normalized)) changedNetworkKeys.push(coin);
+          nextNetworks[coin] = normalized;
+        }
+        db.withdrawal_networks = nextNetworks;
+      }
       if (typeof body.announcement === 'string') {
         if (body.announcement.length > 2000) return json({ ok: false, msg: 'Announcement cannot exceed 2,000 characters.' }, 400);
         db.announcement = body.announcement.trim();
       }
-      await auditAdmin('system_config_update', 'system', JSON.stringify({ deposit_address_keys: changedKeys, withdrawal_fee_assets: changedFeeKeys, announcement_updated: typeof body.announcement === 'string' }), adminUserId);
+      await auditAdmin('system_config_update', 'system', JSON.stringify({ deposit_address_keys: changedKeys, withdrawal_fee_assets: changedFeeKeys, withdrawal_network_assets: changedNetworkKeys, announcement_updated: typeof body.announcement === 'string' }), adminUserId);
       await saveDB(db);
       const auditFlush = await flushAdminAuditOutbox();
-      return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'Configuration updated.', deposit_addresses: safeDepositAddresses(db.deposit_addresses), withdrawal_fees: safeWithdrawalFees(db.withdrawal_fees), announcement: db.announcement });
+      return json({ ok: true, audit_sync_pending: auditFlush.pending, msg: 'Configuration updated.', deposit_addresses: safeDepositAddresses(db.deposit_addresses), withdrawal_fees: safeWithdrawalFees(db.withdrawal_fees), withdrawal_networks: safeWithdrawalNetworks(db.withdrawal_networks), announcement: db.announcement });
     }
 
 
