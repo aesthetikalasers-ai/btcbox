@@ -25,7 +25,24 @@ BEGIN
     p_deposit_id,'admin-ci',p_user_id,p_asset,p_amount,p_request_id,v_hash,p_reference,p_note
   );
 END;
-$$;
+$;
+
+CREATE OR REPLACE FUNCTION pg_temp.fail_withdrawal_approval_audit()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $
+BEGIN
+  IF NEW.action = 'withdrawal_approved' AND NEW.object_id = 'WD-CI-ROLLBACK' THEN
+    RAISE EXCEPTION 'simulated withdrawal approval audit failure';
+  END IF;
+  RETURN NEW;
+END;
+$;
+
+DROP TRIGGER IF EXISTS ci_fail_withdrawal_approval_audit ON public.financial_audit_log;
+CREATE TRIGGER ci_fail_withdrawal_approval_audit
+BEFORE INSERT ON public.financial_audit_log
+FOR EACH ROW EXECUTE FUNCTION pg_temp.fail_withdrawal_approval_audit();
 
 DO $financial_tests$
 DECLARE
@@ -251,6 +268,40 @@ BEGIN
   v_snapshot := public.read_withdrawal_history_page_v1('unrelated-user',NULL,NULL,20);
   IF jsonb_array_length(v_snapshot->'withdrawals')<>0 THEN
     RAISE EXCEPTION 'withdrawal history returned another user records: %',v_snapshot;
+  END IF;
+
+  -- A failed approval audit must roll back the approval ledger debit and status update.
+  PERFORM pg_temp.test_credit(
+    'MD-CI-ROLLBACK','rollback-user','USDT',30,'deposit-ci-rollback-0001','rollback-credit','postgres-ci'
+  );
+  v_hash := encode(extensions.digest(
+    'rollback-user|USDT|TRC20|5|T12345678|withdrawal-ci-rollback-0001','sha256'
+  ),'hex');
+  v_result := public.create_withdrawal_atomic(
+    'WD-CI-ROLLBACK','rollback-user','USDT','TRC20',5,1,'T12345678',
+    'withdrawal-ci-rollback-0001',v_hash,true,1
+  );
+  IF v_result->>'ok'<>'true' THEN RAISE EXCEPTION 'rollback fixture withdrawal creation failed: %',v_result; END IF;
+  v_failed := false;
+  BEGIN
+    PERFORM public.review_withdrawal_atomic('WD-CI-ROLLBACK','admin-ci',true,'rollback audit failure');
+  EXCEPTION WHEN OTHERS THEN
+    v_failed := SQLERRM LIKE '%simulated withdrawal approval audit failure%';
+  END;
+  IF NOT v_failed THEN RAISE EXCEPTION 'approval unexpectedly succeeded when its audit insert failed'; END IF;
+  SELECT available,frozen INTO v_balance,v_frozen FROM public.financial_accounts
+  WHERE user_id='rollback-user' AND asset='USDT';
+  IF v_balance<>24 OR v_frozen<>6 THEN
+    RAISE EXCEPTION 'approval audit failure did not roll back the debit: available %, frozen %',v_balance,v_frozen;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.withdrawal_requests
+    WHERE id='WD-CI-ROLLBACK' AND status='pending_admin_review'
+  ) OR EXISTS (
+    SELECT 1 FROM public.financial_operations
+    WHERE idempotency_key='withdraw-approve:WD-CI-ROLLBACK'
+  ) THEN
+    RAISE EXCEPTION 'approval audit failure left a partial status or ledger operation';
   END IF;
 
   -- 3) Spot: match at maker price, then cancel with durable request-key binding.
