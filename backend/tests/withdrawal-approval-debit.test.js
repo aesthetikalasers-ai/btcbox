@@ -52,27 +52,6 @@ test('API uses admin-internal payout reference wording', () => {
   assert.ok(!api.includes("msg: 'TxID / payout reference is required.'"));
 });
 
-test('USDC settlement is debited from the locked USDT amount, not the payout asset', () => {
-  const migration56 = fs.readFileSync(path.join(root, 'supabase/sql/0056_usdc_withdrawal_settlement_in_usdt_v1.sql'), 'utf8');
-  assert.match(migration56, /p_asset = 'USDC'[\s\S]*?p_settlement_asset <> 'USDT'/);
-  assert.match(migration56, /p_settlement_amount IS DISTINCT FROM v_expected_settlement/);
-  assert.match(migration56, /'withdraw-freeze:' \|\| p_request_id,[\s\S]*?p_settlement_asset,[\s\S]*?-p_settlement_amount,[\s\S]*?p_settlement_amount/);
-  assert.match(migration56, /v_w\.settlement_asset,[\s\S]*?'withdraw_approve',[\s\S]*?0, -v_w\.settlement_amount/);
-  assert.match(migration56, /v_w\.settlement_asset,[\s\S]*?'withdraw_reject',[\s\S]*?v_w\.settlement_amount, -v_w\.settlement_amount/);
-  assert.match(migration56, /o\.asset = v_w\.settlement_asset/);
-  assert.match(migration56, /sum\(l\.frozen_delta\) = -v_w\.settlement_amount/);
-});
-
-test('USDC settlement is debited from the locked USDT amount, not the payout asset', () => {
-  const migration56 = fs.readFileSync(path.join(root, 'supabase/sql/0056_usdc_withdrawal_settlement_in_usdt_v1.sql'), 'utf8');
-  assert.match(migration56, /p_asset = 'USDC'[\s\S]*?p_settlement_asset <> 'USDT'/);
-  assert.match(migration56, /p_settlement_amount IS DISTINCT FROM v_expected_settlement/);
-  assert.match(migration56, /'withdraw-freeze:' \|\| p_request_id,[\s\S]*?p_settlement_asset,[\s\S]*?-p_settlement_amount,[\s\S]*?p_settlement_amount/);
-  assert.match(migration56, /v_w\.settlement_asset,[\s\S]*?'withdraw_approve',[\s\S]*?0, -v_w\.settlement_amount/);
-  assert.match(migration56, /v_w\.settlement_asset,[\s\S]*?'withdraw_reject',[\s\S]*?v_w\.settlement_amount, -v_w\.settlement_amount/);
-  assert.match(migration56, /o\.asset = v_w\.settlement_asset/);
-  assert.match(migration56, /sum\(l\.frozen_delta\) = -v_w\.settlement_amount/);
-});
 
 test('USDC settlement is debited from the locked USDT amount, not the payout asset', () => {
   const migration56 = fs.readFileSync(path.join(root, 'supabase/sql/0056_usdc_withdrawal_settlement_in_usdt_v1.sql'), 'utf8');

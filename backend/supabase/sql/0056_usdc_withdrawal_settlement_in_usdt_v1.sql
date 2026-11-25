@@ -89,7 +89,23 @@ BEGIN
 
   -- Idempotent retries are resolved before needing a fresh market quote.
   -- If the request already exists, return its originally locked settlement values.
-  IF coalesce(p_settlement_asset, '') !~ '^[A-Z0-9]{2,16}
+  IF coalesce(p_settlement_asset, '') !~ '^[A-Z0-9]{2,16}$'
+     OR p_settlement_amount IS NULL OR p_settlement_amount <= 0
+     OR p_conversion_rate IS NULL OR p_conversion_rate <= 0 THEN
+    RAISE EXCEPTION 'USDC conversion rate unavailable or invalid settlement quote';
+  END IF;
+  IF p_asset = 'USDC' THEN
+    IF p_settlement_asset <> 'USDT' THEN RAISE EXCEPTION 'USDC withdrawals must settle in USDT'; END IF;
+    v_expected_settlement := ceil((p_amount + p_fee) * p_conversion_rate * 1000000000000000000) / 1000000000000000000;
+  ELSE
+    IF p_settlement_asset <> p_asset OR p_conversion_rate <> 1 THEN
+      RAISE EXCEPTION 'non-USDC withdrawals must settle in their payout asset';
+    END IF;
+    v_expected_settlement := p_amount + p_fee;
+  END IF;
+  IF p_settlement_amount IS DISTINCT FROM v_expected_settlement THEN
+    RAISE EXCEPTION 'withdrawal settlement amount does not match locked conversion';
+  END IF;
 
   -- Retain the database-authoritative first-successful-withdrawal review guard.
   v_require_admin_review := p_require_admin_review OR NOT EXISTS (

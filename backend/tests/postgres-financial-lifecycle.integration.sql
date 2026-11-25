@@ -143,7 +143,7 @@ BEGIN
   ),'hex');
   v_result := public.create_withdrawal_atomic(
     'WD-CI-0001','deposit-user','USDT','TRC20',10,1,'T12345678',
-    'withdrawal-ci-request-0001',v_hash,false,1
+    'withdrawal-ci-request-0001',v_hash,false,1,'USDT',11,1
   );
   IF v_result->>'ok'<>'true' OR v_result->>'duplicate'<>'false' THEN
     RAISE EXCEPTION 'withdrawal creation failed: %',v_result;
@@ -152,7 +152,7 @@ BEGIN
   -- Current fee changed to 2, but the exact old request must replay its stored fee of 1.
   v_result := public.create_withdrawal_atomic(
     'WD-CI-RETRY','deposit-user','USDT','TRC20',10,2,'T12345678',
-    'withdrawal-ci-request-0001',v_hash,false,2
+    'withdrawal-ci-request-0001',v_hash,false,2,'USDT',12,1
   );
   IF v_result->>'duplicate'<>'true' OR (v_result->>'fee')::numeric<>1 THEN
     RAISE EXCEPTION 'withdrawal retry did not preserve its original fee snapshot: %',v_result;
@@ -226,7 +226,7 @@ BEGIN
   ),'hex');
   v_result := public.create_withdrawal_atomic(
     'WD-CI-0002','reject-user','USDT','TRC20',5,1,'T87654321',
-    'withdrawal-ci-request-0002',v_hash,false,1
+    'withdrawal-ci-request-0002',v_hash,false,1,'USDT',6,1
   );
   IF v_result->>'ok'<>'true' THEN RAISE EXCEPTION 'rejected withdrawal creation failed: %',v_result; END IF;
   v_result := public.review_withdrawal_atomic('WD-CI-0002','admin-ci',false,'postgres-ci reject');
@@ -256,7 +256,7 @@ BEGIN
   ),'hex');
   v_result := public.create_withdrawal_atomic(
     'WD-CI-0003','deposit-user','USDT','TRC20',2,1,'T12345678',
-    'withdrawal-ci-request-0003',v_hash,true,1
+    'withdrawal-ci-request-0003',v_hash,true,1,'USDT',3,1
   );
   IF v_result->>'ok'<>'true' THEN RAISE EXCEPTION 'paginated withdrawal creation failed: %',v_result; END IF;
   v_result := public.review_withdrawal_atomic('WD-CI-0003','admin-ci',false,'cursor pagination reject reason');
@@ -296,7 +296,7 @@ BEGIN
   ),'hex');
   v_result := public.create_withdrawal_atomic(
     'WD-CI-ROLLBACK','rollback-user','USDT','TRC20',5,1,'T12345678',
-    'withdrawal-ci-rollback-0001',v_hash,true,1
+    'withdrawal-ci-rollback-0001',v_hash,true,1,'USDT',6,1
   );
   IF v_result->>'ok'<>'true' THEN RAISE EXCEPTION 'rollback fixture withdrawal creation failed: %',v_result; END IF;
   v_failed := false;
@@ -332,7 +332,7 @@ BEGIN
   ),'hex');
   v_result := public.create_withdrawal_atomic(
     'WD-CI-LEDGER-ROLLBACK','ledger-rollback-user','USDT','TRC20',5,1,'T12345678',
-    'withdrawal-ci-ledger-rollback-0001',v_hash,true,1
+    'withdrawal-ci-ledger-rollback-0001',v_hash,true,1,'USDT',6,1
   );
   IF v_result->>'ok'<>'true' THEN
     RAISE EXCEPTION 'ledger rollback fixture withdrawal creation failed: %',v_result;
@@ -913,7 +913,7 @@ BEGIN
   ),'hex');
   v_result := public.create_withdrawal_atomic(
     'WD-CI-LEGACY-APPROVED','legacy-approved-user','USDT','TRC20',5,1,
-    'T12345678','legacy-approved-withdrawal-0001',v_hash,false,1
+    'T12345678','legacy-approved-withdrawal-0001',v_hash,false,1,'USDT',6,1
   );
   IF v_result->>'ok'<>'true' THEN
     RAISE EXCEPTION 'legacy approval guard fixture creation failed: %',v_result;
@@ -950,5 +950,104 @@ BEGIN
   END IF;
 END
 $legacy_approved_payout_guard$;
+
+
+DO $usdc_settlement$
+DECLARE
+  v_result jsonb;
+  v_hash text;
+  v_available numeric;
+  v_frozen numeric;
+  v_asset text;
+  v_settlement_asset text;
+  v_settlement_amount numeric;
+  v_rate numeric;
+BEGIN
+  PERFORM pg_temp.test_credit(
+    'MD-CI-USDC-SETTLEMENT','usdc-settlement-user','USDT',1000,
+    'usdc-settlement-credit-0001','usdc-settlement-ref','USDC settlement fixture'
+  );
+  v_hash := encode(extensions.digest(
+    'usdc-settlement-user|USDC|ERC20|100|0x1111111111111111111111111111111111111111|withdrawal-usdc-settlement-0001',
+    'sha256'
+  ),'hex');
+  v_result := public.create_withdrawal_atomic(
+    'WD-CI-USDC-SETTLEMENT','usdc-settlement-user','USDC','ERC20',100,1,
+    '0x1111111111111111111111111111111111111111','withdrawal-usdc-settlement-0001',
+    v_hash,true,1,'USDT',100.9899,0.9999
+  );
+  IF v_result->>'ok'<>'true' OR v_result->>'duplicate'<>'false'
+     OR v_result->>'settlement_asset'<>'USDT'
+     OR (v_result->>'settlement_amount')::numeric<>100.9899
+     OR (v_result->>'conversion_rate')::numeric<>0.9999 THEN
+    RAISE EXCEPTION 'USDC withdrawal did not persist its locked USDT settlement quote: %',v_result;
+  END IF;
+
+  -- A retry replays its original locked rate even if the market feed is now down.
+  v_result := public.create_withdrawal_atomic(
+    'WD-CI-USDC-RETRY','usdc-settlement-user','USDC','ERC20',100,1,
+    '0x1111111111111111111111111111111111111111','withdrawal-usdc-settlement-0001',
+    v_hash,true,1,NULL,NULL,NULL
+  );
+  IF v_result->>'duplicate'<>'true'
+     OR (v_result->>'settlement_amount')::numeric<>100.9899
+     OR (v_result->>'conversion_rate')::numeric<>0.9999 THEN
+    RAISE EXCEPTION 'USDC idempotent retry did not replay its original locked quote: %',v_result;
+  END IF;
+
+  SELECT available,frozen INTO v_available,v_frozen
+  FROM public.financial_accounts WHERE user_id='usdc-settlement-user' AND asset='USDT';
+  IF v_available<>899.0101 OR v_frozen<>100.9899 THEN
+    RAISE EXCEPTION 'USDC request did not freeze the exact converted USDT amount: available %, frozen %',v_available,v_frozen;
+  END IF;
+
+  SELECT asset,settlement_asset,settlement_amount,conversion_rate
+  INTO v_asset,v_settlement_asset,v_settlement_amount,v_rate
+  FROM public.withdrawal_requests WHERE id='WD-CI-USDC-SETTLEMENT';
+  IF v_asset<>'USDC' OR v_settlement_asset<>'USDT' OR v_settlement_amount<>100.9899 OR v_rate<>0.9999 THEN
+    RAISE EXCEPTION 'USDC payout asset and USDT settlement asset were not kept separate';
+  END IF;
+
+  v_result := public.review_withdrawal_atomic('WD-CI-USDC-SETTLEMENT','admin-ci',true,'USDC settlement approve');
+  IF v_result->>'status'<>'approved' THEN RAISE EXCEPTION 'USDC settlement approval failed: %',v_result; END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.financial_operations
+    WHERE idempotency_key='withdraw-approve:WD-CI-USDC-SETTLEMENT'
+      AND asset='USDT' AND operation_type='withdraw_approve'
+  ) THEN RAISE EXCEPTION 'USDC approval did not debit the USDT ledger'; END IF;
+
+  SELECT available,frozen INTO v_available,v_frozen
+  FROM public.financial_accounts WHERE user_id='usdc-settlement-user' AND asset='USDT';
+  IF v_available<>899.0101 OR v_frozen<>0 THEN
+    RAISE EXCEPTION 'USDC approval did not consume the locked USDT reservation: available %, frozen %',v_available,v_frozen;
+  END IF;
+
+  v_result := public.mark_withdrawal_paid_atomic(
+    'WD-CI-USDC-SETTLEMENT','admin-ci','internal-usdc-ref','manual USDC payout'
+  );
+  IF v_result->>'status'<>'completed' THEN RAISE EXCEPTION 'USDC manual payout completion failed: %',v_result; END IF;
+  SELECT available,frozen INTO v_available,v_frozen
+  FROM public.financial_accounts WHERE user_id='usdc-settlement-user' AND asset='USDT';
+  IF v_available<>899.0101 OR v_frozen<>0 THEN RAISE EXCEPTION 'USDC mark-paid applied a second USDT debit'; END IF;
+
+  v_hash := encode(extensions.digest(
+    'usdc-settlement-user|USDC|ERC20|20|0x2222222222222222222222222222222222222222|withdrawal-usdc-reject-0001',
+    'sha256'
+  ),'hex');
+  v_result := public.create_withdrawal_atomic(
+    'WD-CI-USDC-REJECT','usdc-settlement-user','USDC','ERC20',20,1,
+    '0x2222222222222222222222222222222222222222','withdrawal-usdc-reject-0001',
+    v_hash,true,1,'USDT',20.9979,0.9999
+  );
+  IF v_result->>'ok'<>'true' THEN RAISE EXCEPTION 'USDC reject fixture creation failed: %',v_result; END IF;
+  v_result := public.review_withdrawal_atomic('WD-CI-USDC-REJECT','admin-ci',false,'USDC settlement reject');
+  IF v_result->>'status'<>'rejected' THEN RAISE EXCEPTION 'USDC settlement rejection failed: %',v_result; END IF;
+  SELECT available,frozen INTO v_available,v_frozen
+  FROM public.financial_accounts WHERE user_id='usdc-settlement-user' AND asset='USDT';
+  IF v_available<>899.0101 OR v_frozen<>0 THEN
+    RAISE EXCEPTION 'USDC rejection did not release the exact USDT reservation: available %, frozen %',v_available,v_frozen;
+  END IF;
+END
+$usdc_settlement$;
 
 ROLLBACK;

@@ -113,17 +113,8 @@ test('admin UI exposes editable fee inputs for every supported withdrawal asset'
     'USDC customers must see the estimated USDT debit before submitting');
 });
 
-test('USDC conversion is server-fetched and calculated with exact decimal arithmetic', () => {
-  assert.equal(apiModule._test.multiplyMoneyCeil('101', '0.999900000000'), '100.9899');
-  assert.equal(apiModule._test.multiplyMoneyCeil('0.000000000000000001', '1.000000000001'), '0.000000000000000002');
-  assert.ok(api.includes("getLiveUsdtPrices(['USDC'])"));
-  assert.ok(api.includes('p_settlement_asset: settlementAsset'));
-  assert.ok(api.includes('p_settlement_amount: settlementAmount'));
-  assert.ok(api.includes('p_conversion_rate: conversionRate'));
-  assert.ok(api.includes("settlementAsset = 'USDT'"));
-});
 
-test('USDC conversion uses server-fetched live rate and exact decimal rounding', () => {
+test('USDC conversion is server-fetched and calculated with exact decimal arithmetic', () => {
   assert.equal(apiModule._test.multiplyMoneyCeil('101', '0.999900000000'), '100.9899');
   assert.equal(apiModule._test.multiplyMoneyCeil('0.000000000000000001', '1.000000000001'), '0.000000000000000002');
   assert.ok(api.includes("getLiveUsdtPrices(['USDC'])"));
