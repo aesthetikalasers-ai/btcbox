@@ -128,6 +128,8 @@ VIEWS.assets.afterRender = function(){
 const DW_COINS=['USDT','BTC','ETH','SOL','BNB','USDC'];
 const NETWORKS={USDT:['ERC20','TRC20','BEP20'],BTC:['BTC'],ETH:['ERC20'],SOL:['SOL'],BNB:['BEP20'],USDC:['ERC20']};
 const WITHDRAW_FEES={USDT:1,BTC:0.0001,ETH:0.001,SOL:0.01,BNB:0.0005,USDC:1};
+let WITHDRAWAL_COINS=DW_COINS.slice();
+let WITHDRAWAL_NETWORKS=Object.assign({},NETWORKS);
 function renderQR(addr,elId){
   const el=document.getElementById(elId); if(!el)return;
   try{
@@ -278,7 +280,7 @@ VIEWS.withdraw = function(){
       '<div class="va-step-panel active" data-wpanel="1">'+
         '<div class="va-card"><div class="va-card-body">'+
           '<div class="va-form-grid">'+
-            '<div><label class="auth-label">Coin</label><select id="wd-coin" class="auth-input" style="appearance:none">'+DW_COINS.map(c=>'<option>'+c+'</option>').join('')+'</select></div>'+
+            '<div><label class="auth-label">Coin</label><select id="wd-coin" class="auth-input" style="appearance:none">'+WITHDRAWAL_COINS.map(c=>'<option>'+c+'</option>').join('')+'</select></div>'+
             '<div><label class="auth-label">Network</label><select id="wd-network" class="auth-input" style="appearance:none"></select></div>'+
           '</div>'+
           '<div class="va-field"><label class="auth-label">Withdrawal Address</label><input id="wd-addr" class="auth-input num" placeholder="Paste destination address" required></div>'+
@@ -299,7 +301,7 @@ VIEWS.withdraw = function(){
           '<div class="va-field"><label class="auth-label">Fund Password (at least 8 characters, letters and numbers)</label><input id="wd-fundpwd" class="auth-input" type="password" minlength="8" maxlength="128" autocomplete="current-password" placeholder="Enter your fund password" required></div>'+
           '<div class="va-field"><label class="auth-label">2FA Code '+(state.settings.twofa?'':'(disabled — optional)')+'</label><input id="wd-2fa" class="auth-input num" maxlength="6" placeholder="000000"></div>'+
           '<div class="va-info" style="margin-bottom:16px">Your withdrawal request will be processed after submission. Double-check the address and network before continuing.</div>'+
-          '<div class="va-info" style="margin-bottom:16px;border-color:var(--warning);color:var(--text-primary)"><b>提币规则：</b>提币地址需先绑定并通过审核；新绑定地址 24 小时后可提币；首次提现或较大金额提现可能需要更长处理时间。</div>'+
+          '<div class="va-info" style="margin-bottom:16px">Withdrawal addresses must be saved and available in your address book. After submission, the backend determines the request status and any required review.</div>'+
           '<div class="va-nav-row"><button type="button" class="btn btn-ghost" id="wd-back3">Back</button><button type="submit" id="wd-submit" class="btn btn-primary" style="flex:2;padding:13px;font-size:15px">Submit Withdrawal</button></div>'+
         '</div></div>'+
       '</div>'+
@@ -367,7 +369,7 @@ VIEWS.withdraw.afterRender = function(){
     window.scrollTo({top:0,behavior:'smooth'});
   }
   function refresh(){
-    const coin=$('#wd-coin').value, nets=NETWORKS[coin]||['ERC20'];
+    const coin=$('#wd-coin').value, nets=WITHDRAWAL_NETWORKS[coin]||[];
     const prevNet=$('#wd-network').value;
     $('#wd-network').innerHTML=nets.map(n=>'<option>'+escapeHtml(n)+'</option>').join('');
     if(nets.indexOf(prevNet)>=0) $('#wd-network').value=prevNet;
@@ -468,11 +470,21 @@ VIEWS.withdraw.afterRender = function(){
     .then(response=>response.json().then(payload=>({ok:response.ok,payload})))
     .then(({ok,payload})=>{
       if(!ok||!payload||payload.ok!==true||!payload.fees||typeof payload.fees!=='object') throw new Error('Withdrawal fee configuration unavailable');
-      for(const coin of DW_COINS){
-        const fee=Number(payload.fees[coin]);
-        if(!Number.isFinite(fee)||fee<0) throw new Error('Invalid withdrawal fee configuration');
-        WITHDRAW_FEES[coin]=fee;
-      }
+      if(!payload.allowed_networks||typeof payload.allowed_networks!=='object') throw new Error('Withdrawal network configuration unavailable');
+      const configuredCoins=Object.keys(payload.allowed_networks).filter(coin=>
+        /^[A-Z0-9]{2,16}$/.test(coin)&&Array.isArray(payload.allowed_networks[coin])&&payload.allowed_networks[coin].length>0&&
+        Object.prototype.hasOwnProperty.call(payload.fees,coin)&&Number.isFinite(Number(payload.fees[coin]))&&Number(payload.fees[coin])>=0
+      );
+      if(!configuredCoins.length) throw new Error('No withdrawal assets are configured');
+      WITHDRAWAL_COINS=configuredCoins;
+      WITHDRAWAL_NETWORKS={};
+      configuredCoins.forEach(coin=>{
+        WITHDRAW_FEES[coin]=Number(payload.fees[coin]);
+        WITHDRAWAL_NETWORKS[coin]=payload.allowed_networks[coin].slice();
+      });
+      const coinSelect=$('#wd-coin'), selectedCoin=coinSelect.value;
+      coinSelect.innerHTML=WITHDRAWAL_COINS.map(coin=>'<option>'+escapeHtml(coin)+'</option>').join('');
+      coinSelect.value=WITHDRAWAL_COINS.indexOf(selectedCoin)>=0?selectedCoin:WITHDRAWAL_COINS[0];
       withdrawalFeeConfigReady=true;
       refresh();
       if(withdrawalRetryAllowed&&$('#wd-submit')){$('#wd-submit').disabled=false;$('#wd-submit').textContent='Retry Same Request';}
