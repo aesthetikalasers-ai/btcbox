@@ -1046,19 +1046,13 @@ function secCounterRecordFailure(counters, key, maxFailures, lockMs, now) {
 }
 function secCounterReset(counters, key) { if (counters && counters[key]) delete counters[key]; }
 
-// ===== 提现白名单+冷却校验（纯函数）=====
-// ①提现地址必须在用户已绑定地址列表内（未绑定→拒绝）；②新绑定地址冷却期内禁止提现。
-// bound_at 取地址记录的 created_at（格式 'YYYY-MM-DD HH:MM:SS'）。
-function withdrawalAddressCheck(user, addr, coin, network, now, cooldownMs) {
+// ===== 提现地址簿校验（纯函数）=====
+// 地址必须已绑定且未被禁用；绑定时间不构成提现限制，提交后由后端决定审核/处理状态。
+function withdrawalAddressCheck(user, addr, coin, network) {
   const list = Array.isArray(user && user.addresses) ? user.addresses : [];
   const bound = list.find(function (a) { return a && a.type === 'crypto' && a.address === addr && a.coin === coin && a.network === network; });
   if (!bound) return { allowed: false, code: 'ADDRESS_NOT_BOUND', msg: 'Withdrawal address must be added and verified in your address book first.' };
   if (bound.blocked || bound.unbound) return { allowed: false, code: 'ADDRESS_BLOCKED', msg: 'This withdrawal address is not available.' };
-  const boundAt = Date.parse(String(bound.created_at || '').replace(' ', 'T') + 'Z');
-  if (Number.isFinite(boundAt) && (now - boundAt) < cooldownMs) {
-    const hours = Math.ceil((cooldownMs - (now - boundAt)) / 3600000);
-    return { allowed: false, code: 'ADDRESS_COOLDOWN', msg: 'Newly bound withdrawal address is in cooldown. Please try again in about ' + hours + ' hour(s).' };
-  }
   return { allowed: true, bound: bound };
 }
 // 估算提现金额的 USDT 等值；价格不可用时返回 null（调用方应保守视为大额，强制审核）。
@@ -2648,9 +2642,8 @@ async function handleRequest(event, context) {
     else if (network === 'TRC20') addressValid = /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(addr);
     else if (coin === 'SOL') addressValid = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(addr);
     if (!addressValid) return json({ok:false,msg:'Operation failed: invalid address format.'},400);
-    // 提现白名单+冷却：地址必须已绑定（未绑定→拒绝），新绑定地址冷却期内禁止提现。
-    const cooldownMs = (Number(process.env.WITHDRAWAL_ADDRESS_COOLDOWN_HOURS) || 24) * 3600 * 1000;
-    const addrCheck = withdrawalAddressCheck(user, addr, coin, network, Date.now(), cooldownMs);
+    // 提现地址只校验已绑定/未禁用，不按绑定时间设置冷却；提交后由数据库决定请求状态。
+    const addrCheck = withdrawalAddressCheck(user, addr, coin, network);
     if (!addrCheck.allowed) return json({ ok: false, code: addrCheck.code, msg: addrCheck.msg }, 403);
     const supportedFees = safeWithdrawalFees(db.withdrawal_fees);
     if (!Object.prototype.hasOwnProperty.call(supportedFees, coin)) return json({ ok: false, msg: 'Operation failed: withdrawals for this coin are not supported.' }, 400);
