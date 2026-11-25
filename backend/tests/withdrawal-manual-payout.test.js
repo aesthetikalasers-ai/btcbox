@@ -124,3 +124,32 @@ test('admin manual credit uses a per-asset synchronous lock and fails closed wit
   assert.ok(handler.includes('Secure manual-credit request IDs are unavailable in this browser.'));
   assert.ok(handler.includes('finally { manualCreditLocksRef.current[coin] = false; setBusy(false); }'));
 });
+
+
+test('customer account API exposes only public withdrawal fields and never manual payout metadata', () => {
+  const start = api.indexOf("if (path === 'account' && method === 'GET')");
+  const end = api.indexOf("// ---------- GET /api/addresses", start);
+  assert.ok(start >= 0 && end > start);
+  const route = api.slice(start, end);
+  assert.ok(route.includes("withdrawals: (financialSnapshot ? financialSnapshot.withdrawals : user.withdrawals.slice(-20)).map"));
+  for (const field of ['payout_reference', 'payout_note', 'paid_by', 'paid_at', 'txid', 'payout_operation_id']) {
+    assert.doesNotMatch(route, new RegExp(field));
+  }
+  for (const field of ['id:', 'coin:', 'amount:', 'fee:', 'network:', 'address:', 'status:', 'time:']) {
+    assert.ok(route.includes(field), 'public withdrawal field missing: ' + field);
+  }
+});
+
+test('withdrawal application number is generated server-side and displayed as a copyable application ID', () => {
+  const pages = fs.readFileSync(path.resolve(root, '../../frontend/src/features/pages/Pages.tsx'), 'utf8');
+  assert.ok(api.includes("const withdrawalId = 'W' + Date.now() + crypto.randomBytes(8).toString('hex');"));
+  assert.ok(pages.includes('t("Application ID")'));
+  assert.ok(pages.includes('navigator.clipboard?.writeText(item.id)'));
+  const historyStart = pages.indexOf('const [historyFilter', pages.indexOf('export function WithdrawPage'));
+  const historyEnd = pages.indexOf('</PageFrame>;', historyStart);
+  assert.ok(historyStart >= 0 && historyEnd > historyStart);
+  const history = pages.slice(historyStart, historyEnd);
+  for (const field of ['item.txid', 'item.payout_reference', 'item.paid_at']) {
+    assert.ok(!history.includes(field), 'customer history must not display ' + field);
+  }
+});
