@@ -2469,7 +2469,20 @@ async function handleRequest(event, context) {
       unpriced_assets: unpricedAssets,
       orders: user.orders.slice(-50),
       deposits: financialSnapshot ? financialSnapshot.deposits : user.deposits.slice(-20),
-      withdrawals: financialSnapshot ? financialSnapshot.withdrawals : user.withdrawals.slice(-20),
+      // Customer withdrawal history is a strict public projection. Internal manual-payout
+      // references, notes, staff identity and payout timestamps must never reach the user API.
+      withdrawals: (financialSnapshot ? financialSnapshot.withdrawals : user.withdrawals.slice(-20)).map(function (row) {
+        return {
+          id: String(row && row.id || ''),
+          coin: String(row && (row.coin || row.asset) || ''),
+          amount: row && row.amount != null ? row.amount : '0',
+          fee: row && row.fee != null ? row.fee : '0',
+          network: String(row && row.network || ''),
+          address: String(row && (row.address || row.destination) || ''),
+          status: String(row && row.status || ''),
+          time: row && (row.time || row.created_at) || null
+        };
+      }),
       earn_records: financialSnapshot ? financialSnapshot.earn_records : user.earn_records,
       fund_password_set: !!(user.fund_password_hash || user.fund_password),
       // 2FA is optional. Password accounts re-enter their BTCBOX password;
