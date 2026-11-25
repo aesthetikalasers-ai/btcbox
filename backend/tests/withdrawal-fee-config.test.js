@@ -87,7 +87,7 @@ test('admin UI exposes editable fee inputs for every supported withdrawal asset'
   assert.ok(admin.includes('withdrawal_networks:{...current.withdrawal_networks,[coin]:'));
   assert.ok(admin.includes('const assets = ["USDT", "USDC", "BTC", "ETH", "SOL", "BNB", "XRP"'));
   assert.ok(admin.includes('withdrawal_fees:{...current.withdrawal_fees,[coin]:event.target.value}'));
-  assert.ok(admin.includes('saveAdminConfig(token, config)'));
+  assert.ok(admin.includes('saveAdminConfig(token, { ...config, withdrawal_fees: configuredFees })'));
   assert.ok(addressBook.includes('getWithdrawalConfig(controller.signal)'));
   assert.ok(addressBook.includes('allowed_networks[coin]'));
   assert.ok(addressBook.includes('withdrawalConfig.fees[asset] !== undefined'));
