@@ -10,6 +10,7 @@ const api = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
 const apiTypes = fs.readFileSync(path.resolve(root, '../frontend/src/lib/api.ts'), 'utf8');
 const admin = fs.readFileSync(path.resolve(root, '../frontend/src/features/admin/AdminPage.tsx'), 'utf8');
 const pages = fs.readFileSync(path.resolve(root, '../frontend/src/features/pages/Pages.tsx'), 'utf8');
+const addressBook = fs.readFileSync(path.resolve(root, '../frontend/src/features/pages/AddressBookPage.tsx'), 'utf8');
 const withdrawalSql = fs.readFileSync(path.join(root, 'supabase/sql/0029_withdrawal_fee_quote_idempotency_v1.sql'), 'utf8');
 const apiModule = require(path.join(root, 'api-core.js'));
 
@@ -82,4 +83,8 @@ test('admin UI exposes editable fee inputs for every supported withdrawal asset'
   assert.ok(admin.includes('const assets = ["USDT", "USDC", "BTC", "ETH", "SOL", "BNB", "XRP"'));
   assert.ok(admin.includes('withdrawal_fees:{...current.withdrawal_fees,[coin]:event.target.value}'));
   assert.ok(admin.includes('saveAdminConfig(token, config)'));
+  assert.ok(addressBook.includes('getWithdrawalConfig(controller.signal)'));
+  assert.ok(addressBook.includes('withdrawalConfig.allowed_networks[coin]'));
+  assert.ok(addressBook.includes('withdrawalConfig.fees[asset] !== undefined'));
+  assert.ok(!addressBook.includes('const COIN_NETWORKS'));
 });
