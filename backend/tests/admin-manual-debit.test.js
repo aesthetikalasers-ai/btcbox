@@ -39,6 +39,9 @@ test('negative available balance is narrowly guarded by the manual-debit marker'
   assert.ok(migration.includes('DROP CONSTRAINT IF EXISTS financial_accounts_available_check'));
   assert.ok(migration.includes('DROP CONSTRAINT IF EXISTS financial_ledger_available_after_check'));
   assert.ok(migration.includes("p_metadata->>'reason' = 'admin_manual_debit'"));
+  assert.ok(migration.includes("'withdraw_paid'"));
+  assert.ok(migration.includes("'spot_trade'"));
+  assert.ok(migration.includes("'seconds_settle'"));
   assert.ok(migration.includes("p_operation_type = 'deposit_credit'"));
   assert.ok(migration.includes('p_frozen_delta = 0'));
   assert.ok(migration.includes('v_frozen + p_frozen_delta < 0'));
