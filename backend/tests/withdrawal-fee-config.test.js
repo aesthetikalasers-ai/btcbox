@@ -81,6 +81,8 @@ test('admin UI exposes editable fee inputs for every supported withdrawal asset'
     assert.ok(admin.includes(coin), 'missing admin fee asset ' + coin);
   }
   assert.ok(admin.includes('config.withdrawal_fees?.[coin]'));
+  assert.ok(admin.includes('Object.entries(config.withdrawal_fees || {}).filter(([, value]) => String(value).trim() !== "")'),
+    'blank fee inputs must be omitted so partial config saves do not fail');
   assert.ok(admin.includes('config.withdrawal_networks?.[coin]'));
   assert.ok(admin.includes('withdrawal_networks:{...current.withdrawal_networks,[coin]:'));
   assert.ok(admin.includes('const assets = ["USDT", "USDC", "BTC", "ETH", "SOL", "BNB", "XRP"'));
