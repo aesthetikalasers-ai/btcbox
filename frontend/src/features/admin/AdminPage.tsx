@@ -366,7 +366,7 @@ export function AdminPage() {
         setUsers(snapshot.users);
       }
       if (tab === "deposits") {
-        setConfig({ deposit_addresses: {}, withdrawal_fees: {}, announcement: "" });
+        setConfig({ deposit_addresses: {}, withdrawal_fees: {}, withdrawal_networks: {}, announcement: "" });
         const snapshot = await getAdminConfig(token);
         if (requestId !== tabLoadRequestRef.current) return;
         setConfig(snapshot);
