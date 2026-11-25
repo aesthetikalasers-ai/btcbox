@@ -24,6 +24,7 @@ test('withdrawal history RPC uses stable user-scoped keyset pagination', () => {
   assert.match(fn, /'rejection_reason', rejection_reason/);
   assert.doesNotMatch(fn, /payout_reference|payout_note|paid_by|paid_at|txid/i);
   assert.ok(migration.includes('ADD COLUMN IF NOT EXISTS rejection_reason text'));
+  assert.match(migration, /withdrawal_requests_user_history_idx[\\s\\S]*?ON public\\.withdrawal_requests \\(user_id, created_at DESC, id DESC\\)/);
 });
 
 test('history RPC is executable only by the trusted backend service role', () => {
