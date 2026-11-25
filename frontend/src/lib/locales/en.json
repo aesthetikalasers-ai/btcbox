@@ -1857,5 +1857,7 @@
   "A saved internal payout reference could not be read. Check the withdrawal status before entering a new reference.": "A saved internal payout reference could not be read. Check the withdrawal status before entering a new reference.",
   "Approve or reject requests. Approval deducts the frozen amount and fee; record the internal payout reference separately after funds are actually sent.": "Approve or reject requests. Approval deducts the frozen amount and fee; record the internal payout reference separately after funds are actually sent.",
   "Internal payout reference": "Internal payout reference",
-  "A payout request is still pending with a different internal reference. Enter the exact saved reference; do not replace it.": "A payout request is still pending with a different internal reference. Enter the exact saved reference; do not replace it."
+  "A payout request is still pending with a different internal reference. Enter the exact saved reference; do not replace it.": "A payout request is still pending with a different internal reference. Enter the exact saved reference; do not replace it.",
+  "Load more": "Load more",
+  "Withdrawal history is temporarily unavailable.": "Withdrawal history is temporarily unavailable."
 }
