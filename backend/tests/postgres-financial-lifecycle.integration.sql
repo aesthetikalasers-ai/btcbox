@@ -892,4 +892,63 @@ BEGIN
 END
 $perpetual_order_filter_tests$;
 
+-- Legacy approvals from the 0039/0044 contract still hold frozen funds.
+-- The 0055 payout-completion RPC must fail closed and leave the row untouched.
+DO $legacy_approved_payout_guard$
+DECLARE
+  v_result jsonb;
+  v_failed boolean := false;
+  v_status text;
+  v_frozen numeric;
+  v_payout_reference text;
+  v_hash text;
+BEGIN
+  PERFORM pg_temp.test_credit(
+    'MD-CI-LEGACY-WD','legacy-approved-user','USDT',20,
+    'legacy-approved-credit-0001','legacy-approved-ref','legacy approved guard'
+  );
+  v_hash := encode(extensions.digest(
+    'legacy-approved-user|USDT|TRC20|5|T12345678|legacy-approved-withdrawal-0001',
+    'sha256'
+  ),'hex');
+  v_result := public.create_withdrawal_atomic(
+    'WD-CI-LEGACY-APPROVED','legacy-approved-user','USDT','TRC20',5,1,
+    'T12345678','legacy-approved-withdrawal-0001',v_hash,false,1
+  );
+  IF v_result->>'ok'<>'true' THEN
+    RAISE EXCEPTION 'legacy approval guard fixture creation failed: %',v_result;
+  END IF;
+
+  -- Simulate legacy approval linked to the original freeze, not a 0055 debit.
+  UPDATE public.withdrawal_requests
+  SET status='approved',
+      reviewed_by='admin-ci-legacy',
+      reviewed_at=clock_timestamp(),
+      review_operation_id=freeze_operation_id
+  WHERE id='WD-CI-LEGACY-APPROVED';
+
+  BEGIN
+    PERFORM public.mark_withdrawal_paid_atomic(
+      'WD-CI-LEGACY-APPROVED','admin-ci-legacy',
+      'legacy-must-not-complete','legacy payout guard test'
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_failed := SQLERRM LIKE '%withdrawal approval debit not verified%';
+  END;
+  IF NOT v_failed THEN
+    RAISE EXCEPTION 'legacy approved withdrawal was incorrectly allowed to complete';
+  END IF;
+
+  SELECT status,payout_reference INTO v_status,v_payout_reference
+  FROM public.withdrawal_requests WHERE id='WD-CI-LEGACY-APPROVED';
+  SELECT frozen INTO v_frozen FROM public.financial_accounts
+  WHERE user_id='legacy-approved-user' AND asset='USDT';
+
+  IF v_status<>'approved' OR v_payout_reference IS NOT NULL OR v_frozen<>6 THEN
+    RAISE EXCEPTION 'legacy approved row changed after blocked completion: status %, reference %, frozen %',
+      v_status,v_payout_reference,v_frozen;
+  END IF;
+END
+$legacy_approved_payout_guard$;
+
 ROLLBACK;

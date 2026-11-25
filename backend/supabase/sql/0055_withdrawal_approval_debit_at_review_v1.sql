@@ -181,6 +181,23 @@ BEGIN
     RAISE EXCEPTION 'withdrawal must be approved before manual payout completion';
   END IF;
 
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.financial_operations o
+    JOIN public.financial_ledger l ON l.operation_id = o.id
+    WHERE o.id = v_w.review_operation_id
+      AND o.idempotency_key = 'withdraw-approve:' || v_w.id
+      AND o.operation_type = 'withdraw_approve'
+      AND o.user_id = v_w.user_id
+      AND o.asset = v_w.asset
+    GROUP BY o.id
+    HAVING count(*) = 1
+       AND sum(l.available_delta) = 0
+       AND sum(l.frozen_delta) = -(v_w.amount + v_w.fee)
+  ) THEN
+    RAISE EXCEPTION 'withdrawal approval debit not verified; manual reconciliation required';
+  END IF;
+
   -- IMPORTANT: approval already consumed the frozen funds. This function
   -- records staff-entered payout completion only; no financial operation,
   -- balance update, ledger debit, or chain broadcast belongs here.
