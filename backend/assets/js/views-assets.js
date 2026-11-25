@@ -320,6 +320,13 @@ VIEWS.withdraw = function(){
 VIEWS.withdraw.afterRender = function(){
   const withdrawalUserKey=state.user&&String(state.user.uid||state.user.email||'')||'';
   const withdrawalPendingStorageKey=withdrawalUserKey?'btcbox.withdrawal.pending.v1.'+encodeURIComponent(withdrawalUserKey):'';
+  let hasSavedWithdrawalIntent=false;
+  try{hasSavedWithdrawalIntent=!!(withdrawalPendingStorageKey&&localStorage.getItem(withdrawalPendingStorageKey));}catch(_){hasSavedWithdrawalIntent=true;}
+  if(!state.settings.fundPwdSet&&!hasSavedWithdrawalIntent&&!(withdrawalUserKey&&state._withdrawUnknownUserKey===withdrawalUserKey)){
+    state._fundPasswordReturnTo='withdraw';
+    location.hash='#/settings';
+    return;
+  }
   function readPendingWithdrawal(){
     if(!withdrawalPendingStorageKey)return null;
     try{
@@ -500,6 +507,11 @@ VIEWS.withdraw.afterRender = function(){
       // the original row if the first RPC is still completing.
       withdrawalOutcomeUnknown=false;
       withdrawalRetryAllowed=true;
+      if(!state.settings.fundPwdSet){
+        state._fundPasswordReturnTo='withdraw';
+        location.hash='#/settings';
+        return;
+      }
       $('#wd-coin').value=intent.coin;
       refresh();
       $('#wd-network').value=intent.network;
