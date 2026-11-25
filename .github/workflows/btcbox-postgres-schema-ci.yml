@@ -9,6 +9,7 @@ on:
       - 'backend/scripts/test-postgres-schema-bootstrap.sh'
       - 'backend/tests/postgres-financial-lifecycle.integration.sql'
       - 'backend/scripts/test-withdrawal-concurrency.sh'
+      - 'backend/supabase/diagnostics/**'
       - '.github/workflows/btcbox-postgres-schema-ci.yml'
   push:
     branches:
@@ -20,6 +21,7 @@ on:
       - 'backend/scripts/test-postgres-schema-bootstrap.sh'
       - 'backend/tests/postgres-financial-lifecycle.integration.sql'
       - 'backend/scripts/test-withdrawal-concurrency.sh'
+      - 'backend/supabase/diagnostics/**'
       - '.github/workflows/btcbox-postgres-schema-ci.yml'
 
 permissions:
