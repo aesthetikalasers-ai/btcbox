@@ -76,4 +76,7 @@ test('admin finance settings can save withdrawal fees while unconfigured deposit
     'blank address clears must be audited only when an address was configured');
   assert.ok(route.includes("return json({ ok: false, msg: 'Invalid deposit address format: ' + key }, 400)"),
     'non-empty malformed addresses must still be rejected');
+  assert.ok(route.includes('body.withdrawal_networks'));
+  assert.ok(route.includes('WITHDRAWAL_NETWORK_ADDRESS_VALIDATORS'));
+  assert.ok(route.includes('withdrawal_network_assets: changedNetworkKeys'));
 });
