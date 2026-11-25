@@ -23,13 +23,16 @@ test('default withdrawal fees stay unchanged while configured ledger assets are 
     XRP: '0.25', DOGE: '2.5'
   });
   const networks = apiModule._test.safeWithdrawalNetworks({
-    XRP: ['ERC20', 'UNSUPPORTED'], DOGE: [], UNKNOWN: ['BTC']
+    XRP: ['ERC20', 'UNSUPPORTED'], DOGE: ['BTC'], USDT: ['TRC20', 'ERC20'], UNKNOWN: ['BTC']
   });
-  assert.deepEqual(networks.XRP, ['ERC20']);
+  assert.deepEqual(networks.XRP, []);
   assert.deepEqual(networks.DOGE, []);
   assert.deepEqual(networks.BTC, ['BTC']);
-  assert.equal(apiModule._test.isValidWithdrawalAddress('XRP', 'ERC20', '0x1234567890123456789012345678901234567890'), true);
-  assert.equal(apiModule._test.isValidWithdrawalAddress('DOGE', 'DOGE', 'D123456789012345678901234567890'), false);
+  assert.deepEqual(networks.USDT, ['TRC20', 'ERC20']);
+  assert.equal(apiModule._test.isValidWithdrawalAddress('XRP', 'ERC20', '0x1234567890123456789012345678901234567890'), false);
+  assert.equal(apiModule._test.isValidWithdrawalAddress('USDT', 'ERC20', '0x1234567890123456789012345678901234567890'), true);
+  assert.equal(apiModule._test.isValidWithdrawalAddress('USDT', 'BEP20', '0x1234567890123456789012345678901234567890'), true);
+  assert.equal(apiModule._test.isValidWithdrawalAddress('DOGE', 'BTC', '1BoatSLRHtKNngkdXEeobR76b53LETtpyT'), false);
 });
 
 test('withdrawal fees are configurable in admin and the same server values are used for user quote and debit', () => {
