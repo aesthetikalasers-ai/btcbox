@@ -1851,5 +1851,6 @@
   "Choose a saved address and enter the amount you want to withdraw. You can track the request status in withdrawal history.": "Chọn địa chỉ đã lưu và nhập số tiền muốn rút. Bạn có thể theo dõi trạng thái yêu cầu trong lịch sử rút tiền.",
   "No withdrawal assets and networks are currently configured.": "Hiện chưa có tài sản và mạng lưới rút tiền nào được cấu hình.",
   "Net amount": "Số tiền thực nhận",
-  "Application ID": "Mã yêu cầu"
+  "Application ID": "Mã yêu cầu",
+  "Showing the latest 20 requests": "Đang hiển thị 20 yêu cầu gần nhất"
 }
