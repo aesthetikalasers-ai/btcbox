@@ -178,7 +178,7 @@ BEGIN
     RAISE EXCEPTION 'manual deposit RPC grants are not service-role-only';
   END IF;
 
-  v_proc := to_regprocedure('public.create_withdrawal_atomic(text,text,text,text,numeric,numeric,text,text,text,boolean,numeric)');
+  v_proc := to_regprocedure('public.create_withdrawal_atomic(text,text,text,text,numeric,numeric,text,text,text,boolean,numeric,text,numeric,numeric)');
   IF v_proc IS NULL OR NOT has_function_privilege('service_role',v_proc,'EXECUTE')
      OR has_function_privilege('anon',v_proc,'EXECUTE')
      OR has_function_privilege('authenticated',v_proc,'EXECUTE') THEN
