@@ -86,7 +86,7 @@ test('manual payout audit binds the verified actor, withdrawal subject and payou
   const approvedGuard = sql.indexOf("IF v_w.status <> 'approved' THEN", completedBranchStart);
   assert.ok(completedBranchStart >= 0 && approvedGuard > completedBranchStart);
   const retryBranch = sql.slice(completedBranchStart, approvedGuard);
-  assert.ok(retryBranch.includes("'duplicate',true"));
+  assert.ok(retryBranch.includes("'duplicate', true"));
   assert.ok(!retryBranch.includes('financial_audit_log'), 'an exact retry must not append a second audit event');
 
   const paidFunctionStart = sql.indexOf('CREATE OR REPLACE FUNCTION public.mark_withdrawal_paid_atomic');
