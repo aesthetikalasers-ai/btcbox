@@ -1860,5 +1860,9 @@
   "A payout request is still pending with a different internal reference. Enter the exact saved reference; do not replace it.": "È ancora in sospeso una richiesta di pagamento con un riferimento interno diverso. Inserisci esattamente il riferimento salvato; non sostituirlo.",
   "Load more": "Carica altro",
   "Withdrawal history is temporarily unavailable.": "La cronologia dei prelievi non è temporaneamente disponibile.",
-  "Reviewed": "Esaminato"
+  "Reviewed": "Esaminato",
+  "Estimated USDT deduction": "Addebito stimato in USDT",
+  "Final rate is locked when you submit.": "Il tasso finale viene bloccato al momento dell'invio.",
+  "USDC/USDT conversion is temporarily unavailable.": "La conversione USDC/USDT non è temporaneamente disponibile.",
+  "Balance debit": "Addebito sul saldo"
 }

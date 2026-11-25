@@ -30,6 +30,8 @@ const messages: Record<string, string> = {
   "Confirm withdrawal approval": "确认批准提现",
   "Approval will deduct the frozen withdrawal amount and fee from the user's account. The actual external payout remains a separate manual step.": "批准后将从用户账户中正式扣除已冻结的提现金额及手续费。实际转账仍是独立的人工操作。",
   "Net amount": "预计到账",
+  "USDT balance debit": "USDT 余额扣款",
+  "Conversion rate": "换算汇率",
   "Confirm approval": "确认批准",
   "Withdrawal request is no longer in the queue. Refresh before continuing.": "该提现申请已不在当前队列中，请刷新后再继续。",
   "Approval was not confirmed.": "尚未确认审批结果。",

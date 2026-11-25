@@ -1860,5 +1860,9 @@
   "A payout request is still pending with a different internal reference. Enter the exact saved reference; do not replace it.": "A payout request is still pending with a different internal reference. Enter the exact saved reference; do not replace it.",
   "Load more": "Load more",
   "Withdrawal history is temporarily unavailable.": "Withdrawal history is temporarily unavailable.",
-  "Reviewed": "Reviewed"
+  "Reviewed": "Reviewed",
+  "Estimated USDT deduction": "Estimated USDT deduction",
+  "Final rate is locked when you submit.": "Final rate is locked when you submit.",
+  "USDC/USDT conversion is temporarily unavailable.": "USDC/USDT conversion is temporarily unavailable.",
+  "Balance debit": "Balance debit"
 }

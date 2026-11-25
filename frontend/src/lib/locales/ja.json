@@ -1860,5 +1860,9 @@
   "A payout request is still pending with a different internal reference. Enter the exact saved reference; do not replace it.": "別の内部参照番号による出金処理が未確定です。保存済みの同じ番号を入力し、変更しないでください。",
   "Load more": "さらに読み込む",
   "Withdrawal history is temporarily unavailable.": "出金履歴を一時的に読み込めません。",
-  "Reviewed": "審査日時"
+  "Reviewed": "審査日時",
+  "Estimated USDT deduction": "USDT換算の概算控除額",
+  "Final rate is locked when you submit.": "最終レートは申請時に確定します。",
+  "USDC/USDT conversion is temporarily unavailable.": "USDC/USDTの換算は一時的に利用できません。",
+  "Balance debit": "残高からの差引額"
 }

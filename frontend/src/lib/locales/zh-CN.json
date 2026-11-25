@@ -1860,5 +1860,9 @@
   "A payout request is still pending with a different internal reference. Enter the exact saved reference; do not replace it.": "存在尚未确认的人工出币请求，且内部参考编号不同。请填写已保存的原编号，不要替换。",
   "Load more": "加载更多",
   "Withdrawal history is temporarily unavailable.": "提现记录暂时无法加载。",
-  "Reviewed": "审核时间"
+  "Reviewed": "审核时间",
+  "Estimated USDT deduction": "预计扣除 USDT",
+  "Final rate is locked when you submit.": "最终汇率将在提交时锁定。",
+  "USDC/USDT conversion is temporarily unavailable.": "USDC/USDT 汇率暂时不可用。",
+  "Balance debit": "余额扣款"
 }
