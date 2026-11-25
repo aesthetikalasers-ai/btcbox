@@ -25,7 +25,7 @@ test('manual payout completion requires the financial cutover and configured ser
 
 test('database RPC independently rejects blank references and permits only approved withdrawals', () => {
   assert.ok(sql.includes("v_ref = '' OR length(coalesce(p_reference, '')) > 160"));
-  assert.ok(sql.includes("coalesce(p_reference,'') ~ '[[:cntrl:]]'"));
+  assert.ok(sql.includes("coalesce(p_reference, '') ~ '[[:cntrl:]]'"));
   assert.ok(sql.includes("IF v_w.status <> 'approved' THEN"));
   assert.ok(sql.includes("withdrawal must be approved before manual payout completion"));
 });
@@ -33,7 +33,7 @@ test('database RPC independently rejects blank references and permits only appro
 test('manual payout exact retries are idempotent and conflicting references fail', () => {
   assert.ok(sql.includes("IF v_w.status = 'completed' THEN"));
   assert.ok(sql.includes("coalesce(v_w.payout_reference, '') <> v_ref"));
-  assert.ok(sql.includes("'duplicate',true"));
+  assert.ok(sql.includes("'duplicate', true"));
 });
 
 test('manual payout completion is audit/status-only and does not apply another ledger debit', () => {
