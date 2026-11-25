@@ -4,8 +4,10 @@
 -- Apply only after reviewing the complete migration chain in disposable PostgreSQL.
 -- Rollout note: approvals committed under 0044 may still hold frozen funds. Reconcile
 -- those pre-existing approved rows against their ledger state before allowing payout
--- completion under this new contract; this migration intentionally does not guess or
--- auto-debit historical rows. Do not apply to production without an approved reconciliation.
+-- completion under this new contract. Use the SELECT-only report at
+-- backend/supabase/diagnostics/withdrawal-approval-reconciliation-report.sql; this
+-- migration intentionally does not guess or auto-debit historical rows. Do not apply
+-- to production without an approved reconciliation.
 
 ALTER TABLE public.withdrawal_requests
   ADD COLUMN IF NOT EXISTS rejection_reason text;
