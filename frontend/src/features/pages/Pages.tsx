@@ -1414,10 +1414,10 @@ export function WithdrawPage(){
  useEffect(()=>{
   const controller=new AbortController();
   setLoading(true);setHistoryLoading(true);setHistoryRecords([]);setHistoryCursor(null);setHistoryHasMore(false);setHistoryError("");setAccount(null);setAddresses([]);setConfig(null);setSelectedAddress(null);setError("");setNeedsSignIn(false);
-  Promise.all([getAccount(controller.signal),getSavedCryptoAddresses(controller.signal),getWithdrawalConfig(controller.signal),getWithdrawalHistoryPage(null,controller.signal)])
+  Promise.all([getAccount(controller.signal),getSavedCryptoAddresses(controller.signal),getWithdrawalConfig(controller.signal),getWithdrawalHistoryPage(null,controller.signal).catch(()=>null)])
    .then(([snapshot,book,withdrawalConfig,historyPage])=>{
     if(controller.signal.aborted)return;
-    setAccount(snapshot);setAddresses(book.filter((item):item is SavedCryptoAddress=>item.type==="crypto"));setConfig(withdrawalConfig);setHistoryRecords(historyPage.withdrawals);setHistoryCursor(historyPage.next_cursor);setHistoryHasMore(historyPage.has_more&&!!historyPage.next_cursor);
+    setAccount(snapshot);setAddresses(book.filter((item):item is SavedCryptoAddress=>item.type==="crypto"));setConfig(withdrawalConfig);if(historyPage){setHistoryRecords(historyPage.withdrawals);setHistoryCursor(historyPage.next_cursor);setHistoryHasMore(historyPage.has_more&&!!historyPage.next_cursor);}else{setHistoryError(t("Withdrawal history is temporarily unavailable."));}
     const usable=book.filter((item):item is SavedCryptoAddress=>item.type==="crypto"&&!item.blocked&&!item.unbound);
     const storageKey="btcbox.withdraw.pending.v1."+snapshot.uid;
     try{
