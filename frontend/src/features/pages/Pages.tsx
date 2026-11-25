@@ -1449,7 +1449,10 @@ export function WithdrawPage(){
   return ()=>controller.abort();
  },[selectedId]);
 
- const usableAddresses=addresses.filter(item=>!item.blocked&&!item.unbound&&config?.fees[item.coin]!==undefined&&config.allowed_networks[item.coin]?.includes(item.network));
+ const usableAddresses=addresses.filter(item=>{
+  if(item.blocked||item.unbound||!config)return false;
+  return config.fees[item.coin]!==undefined&&config.allowed_networks[item.coin]?.includes(item.network)===true;
+ });
  const balance=selectedAddress&&account?.balances?(account.balances[selectedAddress.coin]??{free:"0",frozen:"0"}):undefined;
  const feeValue=selectedAddress&&config?config.fees?.[selectedAddress.coin]:undefined;
  const fee=feeValue==null?null:Number(feeValue);
