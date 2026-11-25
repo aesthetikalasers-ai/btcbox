@@ -416,6 +416,7 @@ export interface DepositRecord {
 }
 
 export interface WithdrawalRecord {
+  /** Server-generated withdrawal application number (never supplied by the customer). */
   id: string;
   coin: string;
   amount: number | string;
@@ -424,15 +425,8 @@ export interface WithdrawalRecord {
   address?: string;
   status: string;
   time?: string;
-  txid?: string;
-  payout_reference?: string;
-  paid_at?: string;
   reviewed_at?: string;
-  reviewed_by?: string;
   rejection_reason?: string;
-  freeze_operation_id?: string;
-  review_operation_id?: string;
-  payout_operation_id?: string;
 }
 
 export interface AccountSnapshot {
