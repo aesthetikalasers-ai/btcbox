@@ -39,7 +39,10 @@ test('manual payout exact retries are idempotent and conflicting references fail
 test('manual payout completion is audit/status-only and does not apply another ledger debit', () => {
   assert.ok(sql.includes("'withdrawal_manual_payout_completed'"));
   assert.ok(sql.includes("'internal_payout_reference', v_ref"));
-  assert.ok(!sql.includes('apply_financial_operation'));
+  const paidStart = sql.indexOf('CREATE OR REPLACE FUNCTION public.mark_withdrawal_paid_atomic');
+  const paidEnd = sql.indexOf('REVOKE ALL ON FUNCTION public.review_withdrawal_atomic', paidStart);
+  assert.ok(paidStart >= 0 && paidEnd > paidStart);
+  assert.ok(!sql.slice(paidStart, paidEnd).includes('apply_financial_operation'));
   assert.ok(sql.includes('REVOKE ALL ON FUNCTION public.mark_withdrawal_paid_atomic'));
   assert.ok(sql.includes('TO service_role'));
 });
@@ -86,18 +89,19 @@ test('manual payout audit binds the verified actor, withdrawal subject and payou
   assert.ok(retryBranch.includes("'duplicate',true"));
   assert.ok(!retryBranch.includes('financial_audit_log'), 'an exact retry must not append a second audit event');
 
-  const updateAt = sql.indexOf("UPDATE public.withdrawal_requests");
+  const paidFunctionStart = sql.indexOf('CREATE OR REPLACE FUNCTION public.mark_withdrawal_paid_atomic');
+  const updateAt = sql.indexOf("UPDATE public.withdrawal_requests", paidFunctionStart);
   const auditAt = sql.indexOf("INSERT INTO public.financial_audit_log(", updateAt);
   const auditEnd = sql.indexOf("RETURN jsonb_build_object(", auditAt);
   assert.ok(updateAt >= 0 && auditAt > updateAt && auditEnd > auditAt);
   const auditInsert = sql.slice(auditAt, auditEnd);
   for (const fragment of [
     'actor_id,subject_user_id,action,object_type,object_id,reason,metadata',
-    'p_admin_id,v_w.user_id',
+    'p_admin_id, v_w.user_id',
     "'withdrawal_manual_payout_completed'",
-    "'withdrawal',v_w.id,v_note",
-    "'asset',v_w.asset",
-    "'amount',v_w.amount",
+    "'withdrawal', v_w.id, v_note",
+    "'asset', v_w.asset",
+    "'amount', v_w.amount",
     "'internal_payout_reference', v_ref",
   ]) assert.ok(auditInsert.includes(fragment), 'audit insert must include ' + fragment);
   assert.ok(sql.includes('paid_by = p_admin_id'));
