@@ -7,6 +7,9 @@
 -- completion under this new contract; this migration intentionally does not guess or
 -- auto-debit historical rows. Do not apply to production without an approved reconciliation.
 
+ALTER TABLE public.withdrawal_requests
+  ADD COLUMN IF NOT EXISTS rejection_reason text;
+
 CREATE OR REPLACE FUNCTION public.review_withdrawal_atomic(
   p_withdrawal_id text,
   p_admin_id text,
@@ -97,6 +100,7 @@ BEGIN
   SET status = v_status,
       reviewed_by = p_admin_id,
       reviewed_at = clock_timestamp(),
+      rejection_reason = CASE WHEN p_approve THEN NULL ELSE left(coalesce(p_reason, ''), 200) END,
       review_operation_id = v_operation_id
   WHERE id = v_w.id;
 
@@ -208,6 +212,88 @@ BEGIN
   );
 END;
 $$;
+
+CREATE OR REPLACE FUNCTION public.read_withdrawal_history_page_v1(
+  p_user_id text,
+  p_before_created_at timestamptz DEFAULT NULL,
+  p_before_id text DEFAULT NULL,
+  p_limit integer DEFAULT 20
+) RETURNS jsonb
+LANGUAGE plpgsql SECURITY INVOKER SET search_path = ''
+AS $
+DECLARE
+  v_limit integer := greatest(1, least(coalesce(p_limit, 20), 50));
+  v_rows jsonb := '[]'::jsonb;
+  v_count integer := 0;
+  v_has_more boolean := false;
+  v_last_created_at text;
+  v_last_id text;
+BEGIN
+  IF coalesce(p_user_id, '') = '' OR length(p_user_id) > 128
+     OR ((p_before_created_at IS NULL) <> (p_before_id IS NULL))
+     OR (p_before_id IS NOT NULL AND (p_before_id = '' OR length(p_before_id) > 100))
+     OR p_limit IS NULL OR p_limit < 1 OR p_limit > 50 THEN
+    RAISE EXCEPTION 'invalid withdrawal history page request';
+  END IF;
+
+  SELECT
+    coalesce(jsonb_agg(jsonb_build_object(
+      'id', id,
+      'coin', asset,
+      'amount', amount,
+      'fee', fee,
+      'network', network,
+      'address', destination,
+      'status', status,
+      'time', created_at,
+      'reviewed_at', reviewed_at,
+      'rejection_reason', rejection_reason
+    ) ORDER BY created_at DESC, id DESC), '[]'::jsonb),
+    count(*)::integer
+  INTO v_rows, v_count
+  FROM (
+    SELECT id, asset, amount, fee, network, destination, status,
+      created_at, reviewed_at, rejection_reason
+    FROM public.withdrawal_requests
+    WHERE user_id = p_user_id
+      AND (
+        p_before_created_at IS NULL
+        OR (created_at, id) < (p_before_created_at, p_before_id)
+      )
+    ORDER BY created_at DESC, id DESC
+    LIMIT v_limit + 1
+  ) page_rows;
+
+  v_has_more := v_count > v_limit;
+  IF v_has_more THEN
+    SELECT coalesce(jsonb_agg(value ORDER BY ordinality), '[]'::jsonb)
+    INTO v_rows
+    FROM jsonb_array_elements(v_rows) WITH ORDINALITY AS page(value, ordinality)
+    WHERE ordinality <= v_limit;
+
+    SELECT value->>'time', value->>'id'
+    INTO v_last_created_at, v_last_id
+    FROM jsonb_array_elements(v_rows) WITH ORDINALITY AS page(value, ordinality)
+    ORDER BY ordinality DESC
+    LIMIT 1;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'ok', true,
+    'withdrawals', v_rows,
+    'has_more', v_has_more,
+    'next_cursor', CASE
+      WHEN v_has_more THEN jsonb_build_object('created_at', v_last_created_at, 'id', v_last_id)
+      ELSE NULL
+    END
+  );
+END;
+$;
+
+REVOKE ALL ON FUNCTION public.read_withdrawal_history_page_v1(text, timestamptz, text, integer)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.read_withdrawal_history_page_v1(text, timestamptz, text, integer)
+  TO service_role;
 
 REVOKE ALL ON FUNCTION public.review_withdrawal_atomic(text, text, boolean, text)
   FROM PUBLIC, anon, authenticated;
