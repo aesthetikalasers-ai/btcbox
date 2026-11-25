@@ -1108,7 +1108,8 @@ export function AdminPage() {
     if (!token) return;
     setBusy(true); setError(""); setNotice("");
     try {
-      await saveAdminConfig(token, config);
+      const configuredFees = Object.fromEntries(Object.entries(config.withdrawal_fees || {}).filter(([, value]) => String(value).trim() !== ""));
+      await saveAdminConfig(token, { ...config, withdrawal_fees: configuredFees });
       setNotice("Finance configuration saved.");
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Configuration was not saved."); }
     finally { setBusy(false); }
