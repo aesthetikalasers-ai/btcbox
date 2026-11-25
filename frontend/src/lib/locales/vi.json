@@ -1858,5 +1858,7 @@
   "A saved internal payout reference could not be read. Check the withdrawal status before entering a new reference.": "Không thể đọc mã tham chiếu nội bộ đã lưu của khoản chi thủ công. Hãy kiểm tra trạng thái rút tiền trước khi nhập mã mới.",
   "Approve or reject requests. Approval deducts the frozen amount and fee; record the internal payout reference separately after funds are actually sent.": "Phê duyệt hoặc từ chối yêu cầu. Khi phê duyệt, số tiền bị khóa và phí sẽ được trừ; ghi mã tham chiếu nội bộ riêng sau khi thực sự chuyển tiền.",
   "Internal payout reference": "Mã tham chiếu thanh toán nội bộ",
-  "A payout request is still pending with a different internal reference. Enter the exact saved reference; do not replace it.": "Yêu cầu thanh toán với mã tham chiếu nội bộ khác vẫn đang chờ xử lý. Hãy nhập đúng mã đã lưu, không thay thế."
+  "A payout request is still pending with a different internal reference. Enter the exact saved reference; do not replace it.": "Yêu cầu thanh toán với mã tham chiếu nội bộ khác vẫn đang chờ xử lý. Hãy nhập đúng mã đã lưu, không thay thế.",
+  "Load more": "Tải thêm",
+  "Withdrawal history is temporarily unavailable.": "Lịch sử rút tiền tạm thời không khả dụng."
 }
