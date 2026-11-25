@@ -164,6 +164,9 @@ test('manual payout references remain admin-internal and are never described as 
   const queue = admin.slice(queueStart, queueEnd);
   assert.ok(queue.includes('adminText("Manual payout reference (internal)")'));
   assert.doesNotMatch(queue, /TxID|transaction hash/i);
+  const userHistoryColumn = admin.slice(admin.indexOf('adminText("Withdrawal history")'), admin.indexOf('adminText("Deposit history")', admin.indexOf('adminText("Withdrawal history")')));
+  assert.doesNotMatch(userHistoryColumn, /TxID/i);
+  assert.ok(userHistoryColumn.includes('adminText("Internal payout reference")'));
   assert.ok(admin.includes('Enter a valid internal payout reference (1–160 characters).'));
   const customerHistoryStart = fs.readFileSync(path.resolve(root, '../frontend/src/features/pages/Pages.tsx'), 'utf8');
   const withdrawStart = customerHistoryStart.indexOf('export function WithdrawPage');
