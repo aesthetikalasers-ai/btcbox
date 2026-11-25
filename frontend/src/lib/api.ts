@@ -427,6 +427,12 @@ export interface WithdrawalRecord {
   txid?: string;
   payout_reference?: string;
   paid_at?: string;
+  reviewed_at?: string;
+  reviewed_by?: string;
+  rejection_reason?: string;
+  freeze_operation_id?: string;
+  review_operation_id?: string;
+  payout_operation_id?: string;
 }
 
 export interface AccountSnapshot {
