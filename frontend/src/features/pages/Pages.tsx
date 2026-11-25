@@ -1480,7 +1480,6 @@ export function WithdrawPage(){
  const available=balance?.free==null?null:Number(balance.free);
  const feeVerified=fee!==null&&Number.isFinite(fee)&&fee>=0;
  const balanceVerified=available!==null&&Number.isFinite(available)&&available>=0;
- const parsedAmount=Number(amount);
  const conversionRate=selectedAddress?.coin==="USDC"?String(config?.usdc_usdt_rate??""):"1";
  const conversionVerified=selectedAddress?.coin!=="USDC"||compareDecimalStrings(conversionRate,"0")===1;
  const amountWithFee=amount.trim()&&feeVerified?addDecimalStrings(amount.trim(),String(feeValue)) : undefined;
