@@ -1860,5 +1860,6 @@
   "Internal payout reference": "Mã tham chiếu thanh toán nội bộ",
   "A payout request is still pending with a different internal reference. Enter the exact saved reference; do not replace it.": "Yêu cầu thanh toán với mã tham chiếu nội bộ khác vẫn đang chờ xử lý. Hãy nhập đúng mã đã lưu, không thay thế.",
   "Load more": "Tải thêm",
-  "Withdrawal history is temporarily unavailable.": "Lịch sử rút tiền tạm thời không khả dụng."
+  "Withdrawal history is temporarily unavailable.": "Lịch sử rút tiền tạm thời không khả dụng.",
+  "Reviewed": "Đã xem xét"
 }
