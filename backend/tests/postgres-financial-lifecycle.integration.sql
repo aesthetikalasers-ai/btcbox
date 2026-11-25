@@ -44,6 +44,23 @@ CREATE TRIGGER ci_fail_withdrawal_approval_audit
 BEFORE INSERT ON public.financial_audit_log
 FOR EACH ROW EXECUTE FUNCTION pg_temp.fail_withdrawal_approval_audit();
 
+CREATE OR REPLACE FUNCTION pg_temp.fail_withdrawal_approval_ledger()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $withdrawal_ledger_test$
+BEGIN
+  IF NEW.idempotency_key = 'withdraw-approve:WD-CI-LEDGER-ROLLBACK' THEN
+    RAISE EXCEPTION 'simulated withdrawal approval ledger failure';
+  END IF;
+  RETURN NEW;
+END;
+$withdrawal_ledger_test$;
+
+DROP TRIGGER IF EXISTS ci_fail_withdrawal_approval_ledger ON public.financial_operations;
+CREATE TRIGGER ci_fail_withdrawal_approval_ledger
+BEFORE INSERT ON public.financial_operations
+FOR EACH ROW EXECUTE FUNCTION pg_temp.fail_withdrawal_approval_ledger();
+
 DO $financial_tests$
 DECLARE
   v_result jsonb;
@@ -302,6 +319,52 @@ BEGIN
     WHERE idempotency_key='withdraw-approve:WD-CI-ROLLBACK'
   ) THEN
     RAISE EXCEPTION 'approval audit failure left a partial status or ledger operation';
+  END IF;
+
+  -- A ledger insert failure must roll back the entire approval before the
+  -- account update, withdrawal status, and audit can become visible.
+  PERFORM pg_temp.test_credit(
+    'MD-CI-LEDGER-ROLLBACK','ledger-rollback-user','USDT',30,
+    'deposit-ci-ledger-rollback-0001','ledger-rollback-credit','postgres-ci'
+  );
+  v_hash := encode(extensions.digest(
+    'ledger-rollback-user|USDT|TRC20|5|T12345678|withdrawal-ci-ledger-rollback-0001','sha256'
+  ),'hex');
+  v_result := public.create_withdrawal_atomic(
+    'WD-CI-LEDGER-ROLLBACK','ledger-rollback-user','USDT','TRC20',5,1,'T12345678',
+    'withdrawal-ci-ledger-rollback-0001',v_hash,true,1
+  );
+  IF v_result->>'ok'<>'true' THEN
+    RAISE EXCEPTION 'ledger rollback fixture withdrawal creation failed: %',v_result;
+  END IF;
+  v_failed := false;
+  BEGIN
+    PERFORM public.review_withdrawal_atomic(
+      'WD-CI-LEDGER-ROLLBACK','admin-ci',true,'ledger write failure'
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_failed := SQLERRM LIKE '%simulated withdrawal approval ledger failure%';
+  END;
+  IF NOT v_failed THEN
+    RAISE EXCEPTION 'approval unexpectedly succeeded when its ledger insert failed';
+  END IF;
+  SELECT available,frozen INTO v_balance,v_frozen FROM public.financial_accounts
+  WHERE user_id='ledger-rollback-user' AND asset='USDT';
+  IF v_balance<>24 OR v_frozen<>6 THEN
+    RAISE EXCEPTION 'ledger failure changed balances: available %, frozen %',v_balance,v_frozen;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.withdrawal_requests
+    WHERE id='WD-CI-LEDGER-ROLLBACK' AND status='pending_admin_review'
+  ) OR EXISTS (
+    SELECT 1 FROM public.financial_operations
+    WHERE idempotency_key='withdraw-approve:WD-CI-LEDGER-ROLLBACK'
+  ) OR EXISTS (
+    SELECT 1 FROM public.financial_audit_log
+    WHERE object_type='withdrawal' AND object_id='WD-CI-LEDGER-ROLLBACK'
+      AND action='withdrawal_approved'
+  ) THEN
+    RAISE EXCEPTION 'ledger failure left a partial operation, status, or audit';
   END IF;
 
   -- 3) Spot: match at maker price, then cancel with durable request-key binding.
