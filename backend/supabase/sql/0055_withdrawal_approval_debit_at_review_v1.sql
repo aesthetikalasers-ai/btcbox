@@ -2,6 +2,10 @@
 -- Forward-only correction: consume the frozen withdrawal principal + fee at approval.
 -- Manual payout completion is status/audit only and MUST NOT move balances.
 -- Apply only after reviewing the complete migration chain in disposable PostgreSQL.
+-- Rollout note: approvals committed under 0044 may still hold frozen funds. Reconcile
+-- those pre-existing approved rows against their ledger state before allowing payout
+-- completion under this new contract; this migration intentionally does not guess or
+-- auto-debit historical rows. Do not apply to production without an approved reconciliation.
 
 CREATE OR REPLACE FUNCTION public.review_withdrawal_atomic(
   p_withdrawal_id text,
