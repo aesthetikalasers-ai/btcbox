@@ -29,9 +29,17 @@ test('default withdrawal fees stay unchanged while configured ledger assets are 
   assert.deepEqual(networks.DOGE, []);
   assert.deepEqual(networks.BTC, ['BTC']);
   assert.deepEqual(networks.USDT, ['TRC20', 'ERC20']);
+  assert.deepEqual(networks.USDC, ['ERC20']);
+  assert.deepEqual(apiModule._test.safeWithdrawalNetworks({}).USDC, ['ERC20'],
+    'USDC ERC20 must remain in the six default withdrawal routes when no override is stored');
   assert.equal(apiModule._test.isValidWithdrawalAddress('XRP', 'ERC20', '0x1234567890123456789012345678901234567890'), false);
   assert.equal(apiModule._test.isValidWithdrawalAddress('USDT', 'ERC20', '0x1234567890123456789012345678901234567890'), true);
   assert.equal(apiModule._test.isValidWithdrawalAddress('USDT', 'BEP20', '0x1234567890123456789012345678901234567890'), true);
+  assert.equal(apiModule._test.isValidWithdrawalAddress('USDC', 'ERC20', '0x1234567890123456789012345678901234567890'), true);
+  assert.equal(apiModule._test.isValidWithdrawalAddress('USDC', 'TRC20', 'TXYZ1234567890123456789012345678901'), false,
+    'USDC must not inherit the USDT TRC20 route');
+  assert.equal(apiModule._test.isValidWithdrawalAddress('USDC', 'BEP20', '0x1234567890123456789012345678901234567890'), false,
+    'USDC must not inherit the USDT BEP20 route');
   assert.equal(apiModule._test.isValidWithdrawalAddress('DOGE', 'BTC', '1BoatSLRHtKNngkdXEeobR76b53LETtpyT'), false);
 });
 
@@ -91,5 +99,11 @@ test('admin UI exposes editable fee inputs for every supported withdrawal asset'
   assert.ok(addressBook.includes('getWithdrawalConfig(controller.signal)'));
   assert.ok(addressBook.includes('allowed_networks[coin]'));
   assert.ok(addressBook.includes('withdrawalConfig.fees[asset] !== undefined'));
+  assert.ok(addressBook.includes('Object.keys(withdrawalConfig.allowed_networks)'),
+    'address-book asset choices must be driven by the server withdrawal catalogue, including USDC');
   assert.ok(!addressBook.includes('const COIN_NETWORKS'));
+  assert.ok(pages.includes('config.allowed_networks[item.coin]?.includes(item.network)'),
+    'withdrawal form must only offer a saved address whose exact coin/network route is enabled');
+  assert.ok(pages.includes('account.balances[selectedAddress.coin]??{free:"0",frozen:"0"}'),
+    'withdrawal balance must be read from the selected asset, never from a hard-coded USDT row');
 });
