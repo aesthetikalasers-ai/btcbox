@@ -1850,5 +1850,6 @@
   "Choose a saved address and enter the amount you want to withdraw. You can track the request status in withdrawal history.": "Escolha um endereço salvo e informe o valor que deseja sacar. Você pode acompanhar o status no histórico de saques.",
   "No withdrawal assets and networks are currently configured.": "Nenhum ativo ou rede de saque está configurado no momento.",
   "Net amount": "Valor líquido",
-  "Application ID": "ID da solicitação"
+  "Application ID": "ID da solicitação",
+  "Showing the latest 20 requests": "Exibindo as 20 solicitações mais recentes"
 }
