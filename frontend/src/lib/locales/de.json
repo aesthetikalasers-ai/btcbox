@@ -1857,5 +1857,7 @@
   "A saved internal payout reference could not be read. Check the withdrawal status before entering a new reference.": "Die gespeicherte interne Auszahlungsreferenz konnte nicht gelesen werden. Prüfen Sie den Auszahlungsstatus, bevor Sie eine neue Referenz eingeben.",
   "Approve or reject requests. Approval deducts the frozen amount and fee; record the internal payout reference separately after funds are actually sent.": "Anträge genehmigen oder ablehnen. Bei Genehmigung werden der eingefrorene Betrag und die Gebühr abgezogen; die interne Referenz wird erst nach der tatsächlichen Überweisung erfasst.",
   "Internal payout reference": "Interne Auszahlungsreferenz",
-  "A payout request is still pending with a different internal reference. Enter the exact saved reference; do not replace it.": "Eine Auszahlungsanfrage mit einer anderen internen Referenz ist noch offen. Geben Sie exakt die gespeicherte Referenz ein und ersetzen Sie sie nicht."
+  "A payout request is still pending with a different internal reference. Enter the exact saved reference; do not replace it.": "Eine Auszahlungsanfrage mit einer anderen internen Referenz ist noch offen. Geben Sie exakt die gespeicherte Referenz ein und ersetzen Sie sie nicht.",
+  "Load more": "Mehr laden",
+  "Withdrawal history is temporarily unavailable.": "Der Auszahlungsverlauf ist vorübergehend nicht verfügbar."
 }
