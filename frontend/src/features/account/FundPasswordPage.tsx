@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { KeyRound, ShieldCheck } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
@@ -18,7 +18,6 @@ export function FundPasswordPage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
-  const [twoFactorCode, setTwoFactorCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -35,8 +34,7 @@ export function FundPasswordPage() {
   if (status === "loading") return <div className="p-8 text-center text-sm text-brand-text-muted" role="status">{t("Loading…")}</div>;
   if (status !== "authenticated" && !DEV_OPEN_ACCOUNT_PAGES) return <Navigate to="/login" replace />;
 
-  const oauthAccount = !!(account?.auth_providers?.length);
-  const requiresTwoFactor = oauthAccount || account?.twofa_enabled === true;
+  const requiresCurrentPassword = account?.has_login_password !== false;
   const validPassword = newPassword.length >= 8 && /[A-Za-z]/.test(newPassword) && /\d/.test(newPassword) && !/\s/.test(newPassword);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -45,17 +43,15 @@ export function FundPasswordPage() {
     setError(""); setSuccess("");
     if (!validPassword) { setError("Use at least 8 characters with both letters and numbers, and no spaces."); return; }
     if (newPassword !== confirmPassword) { setError("The two fund passwords do not match."); return; }
-    if (!oauthAccount && !currentPassword) { setError("Enter your current login password to confirm this change."); return; }
-    if (requiresTwoFactor && !/^\d{6}$/.test(twoFactorCode)) { setError("Enter your 6-digit authenticator code."); return; }
+    if (requiresCurrentPassword && !currentPassword) { setError("Enter your current login password to confirm this change."); return; }
     setBusy(true);
     try {
       await setFundPassword({
         fund_password: newPassword,
-        ...(oauthAccount ? {} : { current_password: currentPassword }),
-        ...(requiresTwoFactor ? { twofa_code: twoFactorCode } : {}),
+        ...(requiresCurrentPassword ? { current_password: currentPassword } : {}),
       });
       setSuccess("Fund password saved successfully.");
-      setNewPassword(""); setConfirmPassword(""); setCurrentPassword(""); setTwoFactorCode("");
+      setNewPassword(""); setConfirmPassword(""); setCurrentPassword("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Fund password could not be saved.");
     } finally { setBusy(false); }
@@ -86,16 +82,12 @@ export function FundPasswordPage() {
                 <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Confirm fund password")}</span>
                   <Input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={8} maxLength={128} placeholder={t("Re-enter fund password")} required />
                 </label>
-                {!oauthAccount && <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Current login password")}</span>
+                {requiresCurrentPassword && <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Current login password")}</span>
                   <Input type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} autoComplete="current-password" placeholder={t("Enter current login password")} required />
                 </label>}
-                {requiresTwoFactor && <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Authenticator code")}</span>
-                  <Input value={twoFactorCode} onChange={(event) => setTwoFactorCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder={t("6-digit code")} required />
-                </label>}
-                {oauthAccount && !account?.twofa_enabled && <p className="text-sm text-brand-danger" role="alert">{t("OAuth accounts must enable two-factor authentication before setting a fund password.")} <Link className="underline" to="/settings">{t("Open security settings")}</Link></p>}
                 {error && <p className="text-sm text-brand-danger" role="alert">{t(error)}</p>}
                 {success && <p className="text-sm text-brand-success" role="status">{t(success)}</p>}
-                <Button type="submit" className="w-full" disabled={busy || loading || (oauthAccount && !account?.twofa_enabled)}>{busy ? t("Saving…") : t("Save fund password")}</Button>
+                <Button type="submit" className="w-full" disabled={busy || loading}>{busy ? t("Saving…") : t("Save fund password")}</Button>
               </form>
             )}
           </CardContent>
