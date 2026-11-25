@@ -2654,6 +2654,73 @@ async function handleRequest(event, context) {
     }
   }
 
+  // ---------- GET /api/withdrawal/history?cursor=... ----------
+  // Stable keyset pagination scoped to the authenticated customer. Only public
+  // withdrawal fields are projected; internal manual-payout metadata never leaves admin APIs.
+  if (path === 'withdrawal/history' && method === 'GET') {
+    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
+    if (!financialPostgresReadsEnabled() || !supabaseStorageConfigured()) {
+      return json({ ok: false, code: 'WITHDRAWAL_HISTORY_UNAVAILABLE', msg: 'Withdrawal history is temporarily unavailable.' }, 503);
+    }
+
+    const token = String((event.queryStringParameters && event.queryStringParameters.cursor) || '').trim();
+    let cursor = null;
+    if (token) {
+      if (token.length > 512 || !/^[A-Za-z0-9_-]+$/.test(token)) {
+        return json({ ok: false, code: 'INVALID_WITHDRAWAL_HISTORY_CURSOR', msg: 'Withdrawal history cursor is invalid.' }, 400);
+      }
+      try {
+        const decoded = JSON.parse(Buffer.from(token, 'base64url').toString('utf8'));
+        if (!decoded || typeof decoded.created_at !== 'string' ||
+            !Number.isFinite(Date.parse(decoded.created_at)) ||
+            typeof decoded.id !== 'string' || !decoded.id || decoded.id.length > 100 ||
+            /[\\u0000-\\u001f\\u007f]/.test(decoded.id)) throw new Error('invalid cursor');
+        cursor = { created_at: decoded.created_at, id: decoded.id };
+      } catch (_) {
+        return json({ ok: false, code: 'INVALID_WITHDRAWAL_HISTORY_CURSOR', msg: 'Withdrawal history cursor is invalid.' }, 400);
+      }
+    }
+
+    try {
+      const response = await fetch(process.env.SUPABASE_URL.replace(/\\/+$/, '') + '/rest/v1/rpc/read_withdrawal_history_page_v1', {
+        method: 'POST',
+        headers: supabaseHeaders(),
+        body: JSON.stringify({
+          p_user_id: String(user.uid),
+          p_before_created_at: cursor ? cursor.created_at : null,
+          p_before_id: cursor ? cursor.id : null,
+          p_limit: 20
+        }),
+        signal: AbortSignal.timeout(5000)
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result || result.ok !== true || !Array.isArray(result.withdrawals) ||
+          typeof result.has_more !== 'boolean') throw new Error('Withdrawal history page read failed');
+
+      const withdrawals = result.withdrawals.map(function (row) {
+        return {
+          id: String(row && row.id || ''),
+          coin: String(row && row.coin || ''),
+          amount: row && row.amount != null ? row.amount : '0',
+          fee: row && row.fee != null ? row.fee : '0',
+          network: String(row && row.network || ''),
+          address: String(row && row.address || ''),
+          status: String(row && row.status || ''),
+          time: row && row.time || null,
+          reviewed_at: row && row.reviewed_at || null,
+          rejection_reason: row && row.rejection_reason || null
+        };
+      });
+      const nextCursor = result.has_more && result.next_cursor &&
+        typeof result.next_cursor.created_at === 'string' && typeof result.next_cursor.id === 'string'
+        ? Buffer.from(JSON.stringify(result.next_cursor)).toString('base64url')
+        : null;
+      return json({ ok: true, withdrawals: withdrawals, has_more: result.has_more, next_cursor: nextCursor });
+    } catch (_) {
+      return json({ ok: false, code: 'WITHDRAWAL_HISTORY_UNAVAILABLE', msg: 'Withdrawal history could not be loaded. Please try again.' }, 503);
+    }
+  }
+
   // ---------- GET /api/withdrawal/config ----------
   // Expose only the public withdrawal form contract and fail-closed availability.
   if (path === 'withdrawal/config' && method === 'GET') {
