@@ -28,12 +28,23 @@ test('mark-paid is status and audit only, with no second financial debit', () =>
   const end = migration.indexOf('REVOKE ALL ON FUNCTION public.review_withdrawal_atomic', start);
   assert.ok(start >= 0 && end > start);
   const fn = migration.slice(start, end);
-  assert.doesNotMatch(fn, /apply_financial_operation|financial_ledger|financial_accounts|withdraw_paid/i);
+  assert.doesNotMatch(fn, /apply_financial_operation|UPDATE public\.financial_accounts|INSERT INTO public\.financial_ledger|withdraw_paid/i);
+  assert.match(fn, /o\.id = v_w\.review_operation_id/);
+  assert.match(fn, /o\.idempotency_key = 'withdraw-approve:' \|\| v_w\.id/);
+  assert.match(fn, /HAVING count\(\*\) = 1/);
+  assert.match(fn, /withdrawal approval debit not verified; manual reconciliation required/);
   assert.match(fn, /v_w\.status <> 'approved'/);
   assert.match(fn, /status = 'completed'/);
   assert.match(fn, /payout_reference = v_ref/);
   assert.match(fn, /paid_by = p_admin_id/);
   assert.match(fn, /'withdrawal_manual_payout_completed'/);
+});
+
+test('legacy approved rows without the 0055 approval debit fail closed', () => {
+  assert.match(migration, /o\.id = v_w\.review_operation_id/);
+  assert.match(migration, /o\.operation_type = 'withdraw_approve'/);
+  assert.match(migration, /sum\(l\.frozen_delta\) = -\(v_w\.amount \+ v_w\.fee\)/);
+  assert.match(migration, /manual reconciliation required/);
 });
 
 test('API uses admin-internal payout reference wording', () => {
