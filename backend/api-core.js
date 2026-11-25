@@ -3441,7 +3441,7 @@ async function handleRequest(event, context) {
     { const rl = await rateCheckShared('password_change', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
     if (Array.isArray(user.auth_providers) && user.auth_providers.length) return json({ ok: false, code: 'SUPABASE_AUTH_MANAGED', msg: 'This account is managed by Supabase Auth. Please update your sign-in credentials through the trusted Supabase Auth password recovery flow.' }, 409);
     if (!body.old_password || hashPassword(String(body.old_password), user.salt) !== user.password_hash) return json({ ok: false, code: 'REAUTH_FAILED', msg: 'The current password is incorrect.' }, 403);
-    if ((body.new_password || '').length < 6) return json({ ok: false, msg: 'New password must be at least 6 characters.' }, 400);
+    if (typeof body.new_password !== 'string' || body.new_password.length < 8 || body.new_password.length > 128) return json({ ok: false, msg: 'New password must be 8–128 characters.' }, 400);
     if (user.twofa_enabled && (!/^\d{6}$/.test(String(body.twofa_code || '')) || !consumeTotpStep(user, String(body.twofa_code || '')))) return json({ ok: false, code: 'TWOFA_REQUIRED', msg: 'Two-factor authentication is enabled on this account. Please enter your 2FA code.' }, 403);
     user.salt = genSalt();
     user.password_hash = hashPassword(body.new_password, user.salt);
