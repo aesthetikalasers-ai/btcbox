@@ -222,7 +222,7 @@ function validateBtcboxUsername(value) {
   return typeof value === 'string' && /^[a-z0-9][a-z0-9_]{2,23}$/.test(value);
 }
 function validateBtcboxLoginPassword(value) {
-  return typeof value === 'string' && value.length >= 12 && value.length <= 128 && !/[\x00-\x1f\x7f]/.test(value);
+  return typeof value === 'string' && value.length >= 8 && value.length <= 128 && !/[\x00-\x1f\x7f]/.test(value);
 }
 function hashBtcboxLoginPassword(password, salt) {
   return crypto.pbkdf2Sync(password, salt, BTCBOX_PASSWORD_ITERATIONS, BTCBOX_PASSWORD_KEYLEN, 'sha256').toString('hex');
@@ -1613,7 +1613,17 @@ async function handleRequest(event, context) {
     // Resolve the internal account by the server-verified Supabase UUID first.
     // Wallet identities have no email; never synthesize one or link by wallet metadata.
     let user = Object.values(db.users).find(function (u) { return isSupabaseIdentityLinked(u, supabaseUserId); });
-    if (!user && email) user = Object.values(db.users).find(function (u) { return String(u.email || '').trim().toLowerCase() === email; });
+    if (!user && email) {
+      const emailMatches = Object.values(db.users).filter(function (u) {
+        return String(u.email || '').trim().toLowerCase() === email;
+      });
+      // Never pick an arbitrary legacy account when historical data contains
+      // duplicate email addresses. Fail closed before allocating any new UID.
+      if (emailMatches.length > 1) {
+        return json({ ok: false, code: 'BTCBOX_EMAIL_ACCOUNT_AMBIGUOUS', msg: 'Multiple BTCBOX accounts match this email. Please contact support to verify the correct account.' }, 409);
+      }
+      user = emailMatches[0] || null;
+    }
     if (user && !isSupabaseIdentityLinked(user, supabaseUserId)) {
       return json({ ok: false, code: 'SUPABASE_IDENTITY_MISMATCH', msg: 'This identity is already associated with another BTCBOX account. Please contact support.' }, 409);
     }
@@ -2030,7 +2040,7 @@ async function handleRequest(event, context) {
       return json({ ok: false, code: 'RECENT_REAUTH_REQUIRED', msg: 'Please verify a linked Google account or wallet again before resetting your password.' }, 403);
     }
     const password = typeof body.password === 'string' ? body.password : '';
-    if (!validateBtcboxLoginPassword(password)) return json({ ok: false, code: 'PASSWORD_INVALID', msg: 'Password must be 12–128 characters and cannot contain control characters.' }, 400);
+    if (!validateBtcboxLoginPassword(password)) return json({ ok: false, code: 'PASSWORD_INVALID', msg: 'Password must be 8–128 characters and cannot contain control characters.' }, 400);
     const suppliedUsername = body.username === undefined || body.username === null || body.username === ''
       ? '' : normalizeBtcboxUsername(body.username);
     if (suppliedUsername && !validateBtcboxUsername(suppliedUsername)) {
@@ -2082,7 +2092,7 @@ async function handleRequest(event, context) {
     const password = typeof body.password === 'string' ? body.password : '';
     const currentPassword = typeof body.current_password === 'string' ? body.current_password : '';
     if (!validateBtcboxUsername(username)) return json({ ok: false, code: 'USERNAME_INVALID', msg: 'Username must be 3–24 characters and use lowercase letters, numbers, or underscores.' }, 400);
-    if (!validateBtcboxLoginPassword(password)) return json({ ok: false, code: 'PASSWORD_INVALID', msg: 'Password must be 12–128 characters and cannot contain control characters.' }, 400);
+    if (!validateBtcboxLoginPassword(password)) return json({ ok: false, code: 'PASSWORD_INVALID', msg: 'Password must be 8–128 characters and cannot contain control characters.' }, 400);
     const hasCredentials = !!(user.login_password_hash && user.login_password_salt && user.login_password_algo === 'pbkdf2-sha256-600000');
     if (hasCredentials && !verifyBtcboxLoginPassword(user, currentPassword)) {
       return json({ ok: false, code: 'CURRENT_PASSWORD_INVALID', msg: 'Current BTCBOX password is incorrect.' }, 403);
@@ -2235,16 +2245,20 @@ async function handleRequest(event, context) {
   if (path === '2fa/enable' && method === 'POST') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
     if (user.twofa_enabled) return json({ ok: false, code: 'TWOFA_ALREADY_ENABLED', msg: 'Two-factor authentication is already enabled.' }, 409);
-    if (Array.isArray(user.auth_providers) && user.auth_providers.length) {
-      const sessionRecord = getSessionRecord(db, event);
-      const createdAt = Number(sessionRecord && sessionRecord.session && sessionRecord.session.created_at);
-      if (!Number.isFinite(createdAt) || Date.now() - createdAt > 5 * 60 * 1000) {
-        return json({ ok: false, code: 'REAUTH_REQUIRED', msg: 'Please sign in again before enabling two-factor authentication.' }, 403);
-      }
-    } else {
+    // Prefer BTCBOX local credentials when present, even for hybrid OAuth accounts.
+    // OAuth-only accounts use a recent authenticated session instead.
+    const hasLocalPassword = !!(user.login_password_hash && user.login_password_salt && user.login_password_algo === 'pbkdf2-sha256-600000');
+    if (hasLocalPassword) {
       { const rl = await rateCheckShared('twofa_setup_password', String(user.uid)); if (rl.unavailable) return rateLimitUnavailableJson(); if (rl.limited) return rateLimitedJson(rl.retryAfter); }
       const currentPassword = String(body.current_password || '');
       if (!currentPassword || !verifyBtcboxLoginPassword(user, currentPassword)) return json({ ok: false, code: 'REAUTH_FAILED', msg: 'The current login password is incorrect.' }, 403);
+    } else {
+      const sessionRecord = getSessionRecord(db, event);
+      const createdAt = Number(sessionRecord && sessionRecord.session && sessionRecord.session.created_at);
+      const sessionAge = Date.now() - createdAt;
+      if (!Number.isFinite(createdAt) || !Number.isFinite(sessionAge) || sessionAge < 0 || sessionAge > 5 * 60 * 1000) {
+        return json({ ok: false, code: 'REAUTH_REQUIRED', msg: 'Please sign in again before enabling two-factor authentication.' }, 403);
+      }
     }
     if (!user.twofa_secret) { user.twofa_secret = genTotpSecret(); delete user.twofa_last_used_step; }
     try { await saveDB(db); }
@@ -2330,7 +2344,7 @@ async function handleRequest(event, context) {
     const total = totalUsdt(accountBalances, livePrices);
     return json({
       ok: true,
-      uid: user.uid, email: user.email || '', username: user.username || '', has_login_password: !!user.login_password_hash,
+      uid: user.uid, email: user.email || '', username: user.username || '', has_login_password: !!(user.login_password_hash && user.login_password_salt && user.login_password_algo === 'pbkdf2-sha256-600000'),
       auth_providers: Array.isArray(user.auth_providers) ? user.auth_providers : [],
       linked_identities: (Array.isArray(user.auth_identities) ? user.auth_identities : []).map(function (item) {
         return { provider: item.provider || 'unknown', wallet_address: item.wallet_address || '', wallet_chain: item.wallet_chain || '', linked_at: item.linked_at || '' };

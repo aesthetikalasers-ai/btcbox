@@ -169,11 +169,13 @@ test('all six admin sensitive actions require confirmAdminAction before executio
 });
 
 /* ---------- withdrawal / deposit UI hints ---------- */
-test('withdrawal view shows binding/24h/manual-review rule hint; deposit warns system-generated address', () => {
+test('withdrawal view shows binding/24h rules without exposing internal review flow; deposit warns system-generated address', () => {
   const s = read('assets/js/views-assets.js');
   assert.ok(s.includes('提币地址需先绑定并通过审核'), 'withdrawal binding rule hint missing');
   assert.ok(s.includes('新绑定地址 24 小时后可提币'), 'withdrawal 24h rule hint missing');
-  assert.ok(s.includes('首次提币及大额提币需人工审核'), 'withdrawal manual-review rule hint missing');
+  const withdrawal = s.slice(s.indexOf('/* ===================== WITHDRAW'), s.indexOf('/* ===================== EARN'));
+  assert.ok(withdrawal.length > 0, 'withdrawal view section missing');
+  assert.ok(!/人工审核|manual review|reviewed manually|under review/i.test(withdrawal), 'withdrawal UI must not expose internal manual-review workflow');
   assert.ok(s.includes('充值地址由系统实时生成'), 'deposit system-generated address hint missing');
   assert.ok(s.includes('请勿充值其他币种'), 'deposit wrong-coin warning missing');
 });

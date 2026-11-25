@@ -75,6 +75,7 @@ export function FundPasswordPage() {
                 <div className="rounded-lg border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text-secondary">
                   <div className="flex items-center gap-2 font-semibold text-brand-text"><ShieldCheck className="h-4 w-4 text-brand-success" />{t("Account verification")}</div>
                   <p className="mt-1">{t("Fund password is stored separately from your login password. Never share it with anyone.")}</p>
+                  <p className="mt-2">{requiresCurrentPassword ? t("For your security, enter your current login password below to confirm this change. You do not need to sign out or sign in again.") : t("For accounts using only Google or a wallet, a recent sign-in may be required to confirm this change.")}</p>
                 </div>
                 <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("New fund password")}</span>
                   <Input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" minLength={8} maxLength={128} placeholder={t("At least 8 characters, letters and numbers")} required />
@@ -82,7 +83,7 @@ export function FundPasswordPage() {
                 <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Confirm fund password")}</span>
                   <Input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={8} maxLength={128} placeholder={t("Re-enter fund password")} required />
                 </label>
-                {requiresCurrentPassword && <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Current login password")}</span>
+                {requiresCurrentPassword && <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Confirm current login password")}</span>
                   <Input type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} autoComplete="current-password" placeholder={t("Enter current login password")} required />
                 </label>}
                 {error && <p className="text-sm text-brand-danger" role="alert">{t(error)}</p>}

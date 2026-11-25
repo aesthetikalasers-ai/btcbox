@@ -113,7 +113,7 @@ test('legacy email registration stays disabled while BTCBOX username/password lo
 
 test('local account lookup remains UUID-first and refuses unverified identity mismatches', () => {
   assert.ok(source.includes("if (user && !isSupabaseIdentityLinked(user, supabaseUserId))"));
-  assert.ok(source.includes("if (!user && email) user = Object.values(db.users).find"));
+  assert.ok(source.includes("if (!user && email) {"));
   assert.ok(source.includes("user.supabase_user_ids.push(linkedId)"));
   assert.ok(source.includes("code: 'IDENTITY_IN_USE'"));
   assert.ok(source.includes("'SUPABASE_IDENTITY_MISMATCH'"));

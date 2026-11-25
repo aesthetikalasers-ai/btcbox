@@ -1,9 +1,10 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { Navigate } from "react-router-dom";
 import { Check, ChevronRight, Copy, Lock, ShieldCheck, Smartphone, Wallet, X } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
+import { TwoFactorCard } from "./TwoFactorCard";
 import { getAccount, type AccountSnapshot } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useAuthDialog } from "../../lib/auth-dialog";
@@ -37,6 +38,11 @@ export function AccountSecurityPage() {
   const [twoFactorCode, setTwoFactorCode] = useState("");
   const [copied, setCopied] = useState(false);
   const [sheet, setSheet] = useState<null | "link-ethereum" | "link-solana" | "link-google" | "password" | "2fa">(null);
+
+  const refreshAccount = useCallback(async () => {
+    try { setAccount(await getAccount()); setLoadError(""); }
+    catch { setLoadError("Account security details are temporarily unavailable. Refresh to try again."); }
+  }, []);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -157,10 +163,10 @@ export function AccountSecurityPage() {
           <button type="button" onClick={() => openSheet("password")} className="flex h-14 w-full items-center justify-between px-4 text-left transition-colors hover:bg-white/[0.02]">
             <span className="flex items-center gap-3">
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-cyan/10 text-brand-cyan"><Lock className="h-4 w-4" /></span>
-              <span className="text-sm font-medium text-brand-text">{t("Login password")}</span>
+              <span className="text-sm font-medium text-brand-text">{t("Email sign-in password")}</span>
             </span>
             <span className="flex items-center gap-1.5 text-xs">
-              <span className="text-brand-text-muted">{account?.has_login_password ? t("Set") : t("Not set")}</span>
+              <span className="text-brand-text-muted">{email ? t("Manage") : t("Unavailable")}</span>
               <ChevronRight className="h-4 w-4 text-brand-text-muted" />
             </span>
           </button>
@@ -248,11 +254,10 @@ export function AccountSecurityPage() {
                 if (busy || newPassword !== confirmNewPassword || newPassword.length < 8) return;
                 try {
                   await setSupabaseLoginPassword(newPassword);
-                  setAccount((current) => current ? { ...current, has_login_password: true } : current);
                   setNewPassword(""); setConfirmNewPassword(""); setSheet(null);
                 } catch {}
               }}>
-                <p className="text-sm text-brand-text-secondary">{t("Set a password for this same Google account. You can then sign in with either Google or this email and password; your account and UID stay the same.")}</p>
+                <p className="text-sm text-brand-text-secondary">{t("Set or change the password for this email sign-in method. This does not create or change a BTCBOX username password; your account and UID stay the same.")}</p>
                 <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("New password")}</span><Input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" minLength={8} maxLength={128} placeholder={t("At least 8 characters")} required /></label>
                 <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Confirm new password")}</span><Input type="password" value={confirmNewPassword} onChange={(event) => setConfirmNewPassword(event.target.value)} autoComplete="new-password" minLength={8} maxLength={128} required /></label>
                 {confirmNewPassword && newPassword !== confirmNewPassword && <p role="alert" className="text-sm text-brand-danger">{t("Passwords do not match.")}</p>}
@@ -262,8 +267,8 @@ export function AccountSecurityPage() {
             )}
 
             {sheet === "2fa" && (
-              <div className="space-y-3">
-                <p className="text-sm text-brand-text-secondary">{account?.twofa_enabled ? t("Two-factor authentication is enabled on this account.") : t("Enable two-factor authentication to protect your account.")}</p>
+              <div className="max-h-[70vh] space-y-3 overflow-y-auto overscroll-contain">
+                <TwoFactorCard account={account} onChanged={() => { void refreshAccount(); }} />
                 <Button className="w-full" variant="outline" onClick={() => setSheet(null)}>{t("Close")}</Button>
               </div>
             )}

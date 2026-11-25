@@ -184,7 +184,7 @@ test('React auth supports email signup plus Google/wallet and linked email-passw
   assert.ok(backend.includes('function getSingleSupabaseAuthProvider(identity)'));
   assert.ok(backend.includes("['google', 'email', 'web3'].includes(provider)"));
   assert.ok(backend.includes('getSupabaseWalletIdentity(identity)'));
-  assert.ok(backend.includes("if (!user && email) user = Object.values(db.users).find"));
+  assert.ok(backend.includes("if (!user && email) {"));
   assert.ok(backend.includes("const authProviders = [authProvider]"));
   assert.ok(backend.includes('SUPABASE_IDENTITY_MISMATCH'));
   assert.ok(backend.includes("path === 'auth/link-identity' && method === 'POST'"));

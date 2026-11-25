@@ -506,3 +506,14 @@ test('2FA login consumes its challenge and creates a session only through a succ
   assert.ok(route.includes("TWOFA_NOT_ENABLED"));
   assert.ok(route.includes("ACCOUNT_FROZEN"));
 });
+
+
+test('BTCBOX local password policy accepts 8–128 characters and rejects shorter or invalid values', () => {
+  const start = source.indexOf('function validateBtcboxLoginPassword');
+  const end = source.indexOf('\n}', start);
+  assert.ok(start >= 0 && end > start, 'BTCBOX local password validator must exist');
+  const validator = source.slice(start, end);
+  assert.match(validator, /value\.length >= 8 && value\.length <= 128/);
+  assert.doesNotMatch(validator, /value\.length >= 12/);
+  assert.match(source, /Password must be 8–128 characters/);
+});

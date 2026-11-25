@@ -128,7 +128,7 @@ export function TwoFactorCard({ account, onChanged }: { account: AccountSnapshot
   return (
     <TrustSection
       title="Two-factor authentication"
-      description="A time-based code from your authenticator app is required for withdrawals and sensitive changes."
+      description="When enabled, a time-based code from your authenticator app protects sign-in, withdrawals and sensitive changes. Two-factor authentication is optional."
     >
       <div className="p-3 sm:p-4">
         <div className="flex items-center justify-between gap-3">
@@ -161,19 +161,22 @@ export function TwoFactorCard({ account, onChanged }: { account: AccountSnapshot
 
         {mode === "enrolling" && !secret && (
           <form className="mt-4 space-y-3" onSubmit={startEnrollment}>
-            <label className="block space-y-1.5">
-              <span className="text-[11.5px] text-brand-text-muted">{t("Enter your login password to continue")}</span>
-              <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                autoComplete="current-password"
-                aria-label={t("Login password")}
-                className="h-10 w-full rounded-md border border-brand-border bg-brand-surface-2 px-3 text-[13px] text-brand-text outline-none focus:border-brand-accent"
-              />
-            </label>
+            {account?.has_login_password === true && (
+              <label className="block space-y-1.5">
+                <span className="text-[11.5px] text-brand-text-muted">{t("Enter your BTCBOX login password to continue")}</span>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  autoComplete="current-password"
+                  aria-label={t("BTCBOX login password")}
+                  required
+                  className="h-10 w-full rounded-md border border-brand-border bg-brand-surface-2 px-3 text-[13px] text-brand-text outline-none focus:border-brand-accent"
+                />
+              </label>
+            )}
             <p className="text-[11px] leading-relaxed text-brand-text-muted">
-              {t("If you sign in with Google or a wallet, sign in again within 5 minutes before enrolling.")}
+              {account?.has_login_password === true ? t("Your BTCBOX login password is required to start setup.") : t("Sign in again within 5 minutes before enrolling. No additional password is required for OAuth-only accounts.")}
             </p>
             <div className="flex gap-2">
               <button type="submit" disabled={busy} className="h-9 flex-1 rounded border border-brand-accent/40 text-[12px] font-semibold text-brand-accent transition-colors hover:bg-brand-accent/10 disabled:opacity-50">

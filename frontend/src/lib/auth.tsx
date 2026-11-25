@@ -318,6 +318,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Set a password on the currently authenticated Supabase user. This keeps the
   // Google identity and email/password credential on the same auth.users UUID.
   const setSupabaseLoginPassword = useCallback(async (password: string) => {
+    if (password.length < 8 || password.length > 128) throw new Error("Use a password between 8 and 128 characters.");
     setBusy(true); setError(""); setNotice("");
     try {
       const client = clientRef.current;
@@ -517,6 +518,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [acceptSupabaseSession]);
 
   const signUpWithEmail = useCallback(async (address: string, password: string) => {
+    if (password.length < 8 || password.length > 128) throw new Error("Use a password between 8 and 128 characters.");
     setBusy(true); setError(""); setNotice("");
     try {
       const client = clientRef.current;
@@ -530,6 +532,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       if (authError) throw authError;
       if (!data.user) throw new Error("Registration could not be confirmed. Please try again.");
+      // Supabase deliberately returns an obfuscated user with no identities for
+      // an email that already exists. Do not present that as a fresh registration;
+      // guide passwordless legacy users to sign in or use the recovery link instead.
+      if (Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+        setNotice("If this email already has a BTCBOX account, sign in or use Forgot password to set your email password.");
+        return;
+      }
       if (data.session?.access_token) {
         await acceptSupabaseSession(data.session.access_token);
         setNotice("Your BTCBOX account is ready. You can sign in with your email and password or continue with Google.");
@@ -556,6 +565,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const completePasswordRecovery = useCallback(async (password: string) => {
+    if (password.length < 8 || password.length > 128) throw new Error("Use a password between 8 and 128 characters.");
     setBusy(true); setError(""); setNotice("");
     try {
       if (!clientRef.current) throw new Error("Authentication is unavailable. Please reload and try again.");
