@@ -1850,5 +1850,6 @@
   "Choose a saved address and enter the amount you want to withdraw. You can track the request status in withdrawal history.": "Choose a saved address and enter the amount you want to withdraw. You can track the request status in withdrawal history.",
   "No withdrawal assets and networks are currently configured.": "No withdrawal assets and networks are currently configured.",
   "Net amount": "Net amount",
-  "Application ID": "Application ID"
+  "Application ID": "Application ID",
+  "Showing the latest 20 requests": "Showing the latest 20 requests"
 }
