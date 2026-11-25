@@ -89,6 +89,12 @@ BEGIN
 
   -- Idempotent retries are resolved before needing a fresh market quote.
   -- If the request already exists, return its originally locked settlement values.
+  -- The server's current fee must still match the fee the customer reviewed.
+  -- This check is intentionally after idempotency replay so exact retries keep
+  -- their original persisted fee snapshot even if configuration has changed.
+  IF p_fee IS DISTINCT FROM p_expected_fee THEN
+    RAISE EXCEPTION 'withdrawal fee changed';
+  END IF;
   IF coalesce(p_settlement_asset, '') !~ '^[A-Z0-9]{2,16}$'
      OR p_settlement_amount IS NULL OR p_settlement_amount <= 0
      OR p_conversion_rate IS NULL OR p_conversion_rate <= 0 THEN
