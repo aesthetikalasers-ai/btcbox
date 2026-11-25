@@ -1851,5 +1851,9 @@
   "No withdrawal assets and networks are currently configured.": "Nenhum ativo ou rede de saque está configurado no momento.",
   "Net amount": "Valor líquido",
   "Application ID": "ID da solicitação",
-  "Showing the latest 20 requests": "Exibindo as 20 solicitações mais recentes"
+  "Showing the latest 20 requests": "Exibindo as 20 solicitações mais recentes",
+  "Manual payout reference (internal)": "Referência interna do pagamento manual",
+  "Enter a valid internal payout reference (1–160 characters).": "Introduza uma referência interna válida para o pagamento manual (1–160 caracteres).",
+  "A saved internal payout reference could not be read. Check the withdrawal status before entering a new reference.": "Não foi possível ler a referência interna guardada do pagamento manual. Verifique o estado do levantamento antes de introduzir outra referência.",
+  "Approve or reject requests. Approval deducts the frozen amount and fee; record the internal payout reference separately after funds are actually sent.": "Aprove ou rejeite pedidos. A aprovação deduz o valor congelado e a taxa; registe a referência interna separadamente após o envio efetivo dos fundos."
 }
