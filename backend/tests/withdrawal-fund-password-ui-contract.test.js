@@ -55,3 +55,18 @@ test('withdrawal intent persists the original request ID and never persists secu
   assert.ok(!/persistPendingWithdrawal\(\{[^}]*fund_password/.test(withdrawalView));
   assert.ok(!/persistPendingWithdrawal\(\{[^}]*twofa_code/.test(withdrawalView));
 });
+
+
+test('withdrawal entry routes to fund-password setup and returns to its source', () => {
+  assert.ok(withdrawalView.includes("if(!state.settings.fundPwdSet&&!hasSavedWithdrawalIntent"));
+  assert.ok(withdrawalView.includes("state._fundPasswordReturnTo='withdraw'"));
+  assert.ok(accountView.includes("if(state._fundPasswordReturnTo==='withdraw'){delete state._fundPasswordReturnTo;location.hash='#/withdraw';}"));
+  assert.ok(accountView.includes("if(state._fundPasswordReturnTo==='withdraw'){var fundSetupButton=$('#set-fundpwd');if(fundSetupButton)fundSetupButton.click();}"));
+  assert.ok(accountView.includes("else{router();}"));
+});
+
+test('unmatched pending withdrawal history routes through fund-password setup without replacing request ID', () => {
+  assert.ok(withdrawalView.includes("if(!state.settings.fundPwdSet){\n        state._fundPasswordReturnTo='withdraw';\n        location.hash='#/settings';\n        return;\n      }"));
+  assert.ok(withdrawalView.includes('await apiAdapter.withdrawalStatus(intent.request_id)'));
+  assert.ok(withdrawalView.includes('request_id:withdrawalIntent.request_id'));
+});
