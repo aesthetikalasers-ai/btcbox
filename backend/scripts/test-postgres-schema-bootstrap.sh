@@ -301,3 +301,6 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f backend/tests/postgres-financial-life
 
 echo '[test] Running concurrent approve-versus-reject withdrawal sessions.'
 bash backend/scripts/test-withdrawal-concurrency.sh
+
+echo '[test] Executing the read-only legacy withdrawal reconciliation report.'
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f backend/supabase/diagnostics/withdrawal-approval-reconciliation-report.sql
