@@ -1367,6 +1367,20 @@ export function EarnPage(){
 }
 
 
+function withdrawalNetAmount(amount: string | number, fee: string | number): string | null {
+ const parse=(value:string|number)=>{const raw=String(value).trim();if(!/^\d+(?:\.\d{1,18})?$/.test(raw))return null;const [whole,fraction=""]=raw.split(".");return {whole:whole.replace(/^0+(?=\d)/,""),fraction};};
+ const a=parse(amount),b=parse(fee);if(!a||!b)return null;
+ const scale=Math.max(a.fraction.length,b.fraction.length);
+ const left=(a.whole+a.fraction.padEnd(scale,"0")).replace(/^0+(?=\d)/,"");
+ const right=(b.whole+b.fraction.padEnd(scale,"0")).replace(/^0+(?=\d)/,"");
+ if(left.length<right.length||(left.length===right.length&&left<right))return null;
+ let borrow=0,result="";
+ for(let i=0;i<left.length;i++){let digit=Number(left[left.length-1-i])-borrow-(i<right.length?Number(right[right.length-1-i]):0);borrow=digit<0?1:0;if(digit<0)digit+=10;result=String(digit)+result;}
+ result=result.replace(/^0+(?=\d)/,"");if(!scale)return result;
+ const padded=result.padStart(scale+1,"0"),whole=padded.slice(0,-scale)||"0",fraction=padded.slice(-scale).replace(/0+$/,"");
+ return fraction?whole+"."+fraction:whole;
+}
+
 /**
  * Renders the withdrawal request workflow and wallet balance context.
  * Preserves saved-address, confirmation, and financial-ledger safeguards.
@@ -1390,6 +1404,7 @@ export function WithdrawPage(){
  const [needsSignIn,setNeedsSignIn]=useState(false);
  const submitLockRef=useRef(false);
  const [reload,setReload]=useState(0);
+ const [historyFilter,setHistoryFilter]=useState<"all"|"pending"|"approved"|"rejected"|"completed">("all");
 
  useEffect(()=>{
   const controller=new AbortController();
@@ -1518,7 +1533,7 @@ export function WithdrawPage(){
    </CardContent></Card>
 
    {config?.actions_enabled ? (
-<Card aria-busy={submitting} className="relative overflow-hidden border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)]"><span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-brand-surface"/><CardHeader className="border-b border-brand-border bg-brand-surface"><div className="flex min-w-0 items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent"><ArrowUpRight className="h-5 w-5"/></span><div className="min-w-0"><CardTitle>{t("Submit withdrawal")}</CardTitle><CardDescription>{t("Choose a saved address and enter the amount you want to withdraw. You can track the request status in withdrawal history.")}</CardDescription></div></div></CardHeader><CardContent className="p-4 sm:p-6">
+<Card aria-busy={submitting} className="relative overflow-hidden border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)]"><span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-brand-surface"/><CardHeader className="border-b border-brand-border bg-brand-surface"><div className="flex min-w-0 items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent"><ArrowUpRight className="h-5 w-5"/></span><div className="min-w-0"><CardTitle>{t("Submit withdrawal")}</CardTitle><CardDescription>{t("Choose a saved address and enter the amount you want to withdraw. You can track the request status in withdrawal history.")}</CardDescription><Link to="/address-book" className="mt-2 inline-flex min-h-9 items-center text-sm font-medium text-brand-accent hover:underline">{t("Saved crypto addresses")}</Link></div></div></CardHeader><CardContent className="p-4 sm:p-6">
     {usableAddresses.length===0?<div className="rounded-xl border border-dashed border-brand-border p-5 text-sm text-brand-text-muted">{t("No eligible saved withdrawal addresses are available. Add an address to your address book or contact support.")}</div>
     :<form aria-busy={submitting} className="space-y-4" onSubmit={submit}>
      <label className="block space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Saved withdrawal address")}</span><select value={selectedId} disabled={!!pendingIntent||pendingIntentInvalid||submitting} onChange={event=>{setSelectedId(event.target.value);setError("");}} className="h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15">{usableAddresses.map(item=><option key={item.id} value={item.id}>{item.coin} · {item.network} · {item.address}</option>)}</select></label>
@@ -1535,15 +1550,45 @@ export function WithdrawPage(){
    </CardContent></Card>
 ) : null}
 
-   <Card className="overflow-hidden border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)]"><CardHeader className="border-b border-brand-border bg-brand-surface-2/60"><CardTitle>{t("Withdrawal history")}</CardTitle></CardHeader><CardContent className="space-y-2">
-    {account?.withdrawals?.length?account.withdrawals.slice().reverse().map((item:WithdrawalRecord)=> <div key={item.id} className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-brand-border bg-brand-surface-2/40 p-4 transition-colors hover:bg-brand-surface-2/70"><div className="min-w-0"><p className="font-semibold">{item.amount} {item.coin} · {item.network||"—"}</p><p className="mt-1 break-all text-xs text-brand-text-muted">{item.address||"—"}</p><p className="mt-1 text-xs text-brand-text-muted">{item.time||item.paid_at||"—"}</p>{item.payout_reference||item.txid?<p className="mt-1 break-all text-xs text-brand-text-muted">TxID / reference: {item.payout_reference||item.txid}</p>:null}</div><Badge variant={withdrawalStatusBadgeVariant(normalizeWithdrawalStatus(item.status))}>{withdrawalStatusLabel(normalizeWithdrawalStatus(item.status), t)}</Badge></div>)
-    :<p className="rounded-xl border border-dashed border-brand-border p-5 text-sm text-brand-text-muted">{t("No withdrawal requests have been returned for this account.")}</p>}
-   </CardContent></Card>
+   <Card className="overflow-hidden border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)]">
+    <CardHeader className="gap-3 border-b border-brand-border bg-brand-surface-2/60 sm:flex-row sm:items-center sm:justify-between">
+     <CardTitle>{t("Withdrawal history")}</CardTitle>
+     <select aria-label={t("Filter withdrawal history")} value={historyFilter} onChange={event=>setHistoryFilter(event.target.value as typeof historyFilter)} className="min-h-10 w-full rounded-lg border border-brand-border bg-brand-surface px-3 text-sm text-brand-text sm:w-auto">
+      <option value="all">{t("All")}</option><option value="pending">{t("Pending")}</option><option value="approved">{t("Approved")}</option><option value="rejected">{t("Rejected")}</option><option value="completed">{t("Completed")}</option>
+     </select>
+    </CardHeader>
+    <CardContent className="space-y-3 p-3 sm:p-4">
+     {account?.withdrawals?.length ? account.withdrawals.slice().reverse().filter(item=>historyFilter==="all"||normalizeWithdrawalStatus(item.status)===historyFilter).map((item:WithdrawalRecord)=>{
+      const normalized=normalizeWithdrawalStatus(item.status),net=withdrawalNetAmount(item.amount,item.fee??"0"),destination=item.address||"—";
+      const masked=destination.length>24?destination.slice(0,10)+"…"+destination.slice(-8):destination;
+      return <article key={item.id} className="min-w-0 rounded-lg border border-brand-border bg-brand-surface-2/35 p-3 sm:p-4">
+       <div className="flex min-w-0 flex-wrap items-start justify-between gap-3"><div className="min-w-0"><p className="font-semibold text-brand-text">{item.coin} <span className="text-brand-text-muted">· {item.network||"—"}</span></p><p className="mt-1 text-xs text-brand-text-muted">{t("Submitted")}: {item.time||"—"}</p></div><Badge variant={withdrawalStatusBadgeVariant(normalized)}>{withdrawalStatusLabel(normalized,t)}</Badge></div>
+       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="min-w-0 rounded-md bg-brand-surface-2 p-2"><p className="text-[11px] text-brand-text-muted">{t("Amount")}</p><p className="mt-1 break-all text-sm font-semibold tabular-nums">{item.amount} {item.coin}</p></div>
+        <div className="min-w-0 rounded-md bg-brand-surface-2 p-2"><p className="text-[11px] text-brand-text-muted">{t("Withdrawal fee")}</p><p className="mt-1 break-all text-sm tabular-nums">{item.fee??"—"} {item.coin}</p></div>
+        <div className="min-w-0 rounded-md bg-brand-surface-2 p-2"><p className="text-[11px] text-brand-text-muted">{t("Net amount")}</p><p className="mt-1 break-all text-sm font-semibold tabular-nums">{net===null?"—":net+" "+item.coin}</p></div>
+        <div className="min-w-0 rounded-md bg-brand-surface-2 p-2"><p className="text-[11px] text-brand-text-muted">{t("Status")}</p><p className="mt-1 text-sm">{withdrawalStatusLabel(normalized,t)}</p></div>
+       </div>
+       <div className="mt-3 flex min-w-0 items-center justify-between gap-2"><p className="min-w-0 truncate font-mono text-xs text-brand-text-muted">{masked}</p>
+        <details className="shrink-0"><summary className="min-h-9 cursor-pointer rounded-md border border-brand-border px-3 py-2 text-xs font-medium text-brand-text">{t("Details")}</summary>
+         <div className="mt-2 w-[min(78vw,34rem)] max-w-full space-y-2 rounded-lg border border-brand-border bg-brand-surface p-3 text-xs sm:w-[min(60vw,34rem)]">
+          <div><p className="text-brand-text-muted">{t("ID")}</p><p className="mt-1 break-all font-mono text-brand-text">{item.id}</p></div>
+          <div><p className="text-brand-text-muted">{t("Address")}</p><p className="mt-1 break-all font-mono text-brand-text">{destination}</p><button type="button" className="mt-1 min-h-8 text-brand-accent" onClick={()=>{if(destination!=="—")void navigator.clipboard?.writeText(destination);}}>{t("Copy")}</button></div>
+          {item.reviewed_at?<div><p className="text-brand-text-muted">Reviewed</p><p className="mt-1 break-all text-brand-text">{item.reviewed_at}</p></div>:null}
+          {item.reviewed_by?<div><p className="text-brand-text-muted">Reviewed by</p><p className="mt-1 break-all text-brand-text">{item.reviewed_by}</p></div>:null}
+          {item.rejection_reason?<div><p className="text-brand-text-muted">{t("Rejection reason")}</p><p className="mt-1 break-words text-brand-text">{item.rejection_reason}</p></div>:null}
+          {item.paid_at?<div><p className="text-brand-text-muted">{t("Completed")}</p><p className="mt-1 break-all text-brand-text">{item.paid_at}</p></div>:null}
+          {item.payout_reference||item.txid?<div><p className="text-brand-text-muted">TXID / reference</p><p className="mt-1 break-all font-mono text-brand-text">{item.payout_reference||item.txid}</p><button type="button" className="mt-1 min-h-8 text-brand-accent" onClick={()=>void navigator.clipboard?.writeText(item.payout_reference||item.txid||"")}>{t("Copy")}</button></div>:null}
+         </div>
+        </details>
+       </div>
+      </article>;
+     }) : <p className="rounded-xl border border-dashed border-brand-border p-5 text-sm text-brand-text-muted">{t("No withdrawal requests have been returned for this account.")}</p>}
+     {account?.withdrawals?.length && !account.withdrawals.some(item=>historyFilter==="all"||normalizeWithdrawalStatus(item.status)===historyFilter)?<p className="rounded-lg border border-dashed border-brand-border p-5 text-center text-sm text-brand-text-muted">{t("No withdrawal requests have been returned for this account.")}</p>:null}
+    </CardContent>
+   </Card>
 
-   <Card className="overflow-hidden border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)]"><CardHeader className="border-b border-brand-border bg-brand-surface-2/60"><CardTitle>{t("Saved crypto addresses")}</CardTitle><CardDescription>{t("Full addresses are only retrieved for the address selected for withdrawal.")}</CardDescription></CardHeader><CardContent className="space-y-2">
-    {addresses.length?addresses.map(item=><div key={item.id} className="rounded-xl border border-brand-border p-3"><div className="flex flex-wrap items-center justify-between gap-2"><span className="font-semibold">{item.coin} · {item.network}</span><Badge variant={item.blocked||item.unbound?"destructive":"outline"}>{item.blocked?"Blocked":item.unbound?"Unbound":"Saved"}</Badge></div><p className="mt-2 break-all font-mono text-sm text-brand-text-muted">{item.address}</p>{item.note?<p className="mt-1 text-xs text-brand-text-muted">{item.note}</p>:null}</div>)
-    :<p className="rounded-xl border border-dashed border-brand-border p-5 text-sm text-brand-text-muted">{t("No saved crypto withdrawal addresses were found.")}</p>}
-   </CardContent></Card>
+   
   </>}
  </PageFrame>;
 }
