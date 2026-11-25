@@ -55,3 +55,11 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:btcbox-ci-only@localhost:5432/btcbox_ci
         run: bash backend/scripts/test-postgres-schema-bootstrap.sh
+
+      - name: Validate read-only withdrawal reconciliation report against migrated schema
+        env:
+          PGPASSWORD: btcbox-ci-only
+        run: >-
+          psql -h localhost -U postgres -d btcbox_ci
+          -v ON_ERROR_STOP=1
+          -f backend/supabase/diagnostics/withdrawal-approval-reconciliation-report.sql
