@@ -456,7 +456,7 @@ test("Google-linked Supabase identity can add an email password through recovery
   await page.getByLabel("Confirm new password").fill("NewEmailPassphrase123!");
   await page.getByRole("button", { name: "Update password" }).click();
 
-  await expect(page).toHaveURL(/\\/home$/);
+  await expect(page).toHaveURL(/\/home$/);
   expect(updatedPassword).toBe("NewEmailPassphrase123!");
   expect(updateUserCalls).toBe(1);
   expect(updateAuthorization).toBe("Bearer " + accessToken);
