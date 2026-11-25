@@ -144,6 +144,7 @@ test('withdrawal application number is generated server-side and displayed as a 
   const pages = fs.readFileSync(path.resolve(root, '../frontend/src/features/pages/Pages.tsx'), 'utf8');
   assert.ok(api.includes("const withdrawalId = 'W' + Date.now() + crypto.randomBytes(8).toString('hex');"));
   assert.ok(pages.includes('t("Application ID")'));
+  assert.ok(pages.includes('t("Showing the latest 20 requests")'), 'the UI must disclose the current 20-record API limit');
   assert.ok(pages.includes('navigator.clipboard?.writeText(item.id)'));
   const historyStart = pages.indexOf('const [historyFilter', pages.indexOf('export function WithdrawPage'));
   const historyEnd = pages.indexOf('</PageFrame>;', historyStart);
