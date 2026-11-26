@@ -255,6 +255,28 @@ test("confirmed email registration exchanges the Supabase identity and provision
       wallet_enabled: true,
     }),
   }));
+  let signupEmail = "";
+  let confirmationRedirect = "";
+  await page.route("**/auth/v1/signup**", async route => {
+    const requestUrl = new URL(route.request().url());
+    signupEmail = String(route.request().postDataJSON()?.email || "");
+    confirmationRedirect = requestUrl.searchParams.get("redirect_to") || "";
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: "11111111-1111-4111-8111-111111111111",
+        aud: "authenticated",
+        role: "authenticated",
+        email: signupEmail,
+        email_confirmed_at: null,
+        app_metadata: { provider: "email", providers: ["email"] },
+        user_metadata: {},
+        created_at: "2026-11-23T00:00:00.000Z",
+        updated_at: "2026-11-23T00:00:00.000Z",
+      }),
+    });
+  });
   let exchangeCalls = 0;
   let exchangedAccessToken = "";
   let directRegistrationCalls = 0;
@@ -295,7 +317,18 @@ test("confirmed email registration exchanges the Supabase identity and provision
     ? route.fulfill({ status: 200, json: authenticatedAccountFixture })
     : route.fulfill({ status: 401, json: { ok: false, need_login: true } }));
 
-  await page.addInitScript(() => localStorage.setItem("sb-btcbox-e2e-auth-token-code-verifier", "e2e-pkce-code-verifier"));
+  // Generate the PKCE verifier through the real Supabase signUp flow. A hand-written
+  // verifier bypasses the SDK's storage format and cannot faithfully test callback exchange.
+  await page.goto("/register");
+  await page.getByLabel("Email", { exact: true }).fill("new-user@example.invalid");
+  await page.getByLabel("Password", { exact: true }).fill("StrongPassphrase123");
+  await page.getByLabel("Confirm password", { exact: true }).fill("StrongPassphrase123");
+  await page.getByRole("button", { name: "Create account with email" }).click();
+  await expect(page.getByText("Registration received. Please check your email and confirm your address before signing in.")).toBeVisible();
+  expect(signupEmail).toBe("new-user@example.invalid");
+  expect(confirmationRedirect).toMatch(/\/auth\/react-callback\?intent=register$/);
+  expect(await page.evaluate(() => localStorage.getItem("sb-btcbox-e2e-auth-token-code-verifier"))).toBeTruthy();
+
   await page.goto("/auth/react-callback?intent=register&code=e2e-confirmed-email-code");
   await expect(page).toHaveURL(/\/me$/);
   await expect(page.getByRole("heading", { name: "My account" })).toBeVisible();
@@ -430,6 +463,13 @@ test("Google-linked Supabase identity can add an email password through recovery
     user_metadata: {},
     identities: [{ provider: "email" }, { provider: "google" }],
   };
+  let recoveryRequests = 0;
+  let recoveryRedirect = "";
+  await page.route("**/auth/v1/recover**", async route => {
+    recoveryRequests += 1;
+    recoveryRedirect = new URL(route.request().url()).searchParams.get("redirect_to") || "";
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({}) });
+  });
   let updatedPassword = "";
   let updateUserCalls = 0;
   let updateAuthorization = "";
@@ -471,7 +511,17 @@ test("Google-linked Supabase identity can add an email password through recovery
     ? route.fulfill({ status: 200, json: authenticatedAccountFixture })
     : route.fulfill({ status: 401, json: { ok: false, need_login: true } }));
 
-  await page.addInitScript(() => localStorage.setItem("sb-btcbox-e2e-auth-token-code-verifier", "e2e-pkce-code-verifier"));
+  // Let Supabase generate and persist its real recovery PKCE verifier before opening
+  // the callback. Directly seeding a made-up verifier does not model a reset email.
+  await page.goto("/login");
+  await page.getByRole("button", { name: "Forgot password?" }).click();
+  await page.getByLabel("Email", { exact: true }).fill("google-user@example.invalid");
+  await page.getByRole("button", { name: "Send reset link" }).click();
+  await expect(page.getByRole("status")).toContainText("If an account exists for this email");
+  await expect.poll(() => recoveryRequests).toBe(1);
+  expect(recoveryRedirect).toMatch(/\/auth\/react-callback\?flow=recovery$/);
+  expect(await page.evaluate(() => localStorage.getItem("sb-btcbox-e2e-auth-token-code-verifier"))).toBeTruthy();
+
   await page.goto("/auth/react-callback?flow=recovery&code=e2e-google-linked-recovery-code");
   await expect(page.getByRole("heading", { name: "Reset your password" })).toBeVisible();
   await page.getByLabel("New password").fill("NewEmailPassphrase123!");
