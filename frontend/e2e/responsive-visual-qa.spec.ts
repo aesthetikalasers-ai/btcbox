@@ -816,33 +816,42 @@ for (const route of routes) {
   });
 }
 
-test("order history progressive rendering works on mobile and desktop", async ({ page }) => {
+test("order history cursor pagination works on mobile and desktop", async ({ page }) => {
   await installVisualApiMocks(page);
-  const orders = Array.from({ length: 25 }, (_, index) => ({
-    order_id: "order-" + String(index + 1).padStart(2, "0"),
+  const orders = Array.from({ length: 75 }, (_, index) => ({
+    order_id: "order-" + String(75 - index).padStart(2, "0"),
     symbol: "BTCUSDT",
     side: "buy",
     type: "limit",
     price: "65000",
     quantity: "0.01",
     status: "filled",
-    created_at: "2026-11-26T00:00:00.000Z",
+    created_at: new Date(Date.UTC(2026, 10, 26, 0, 0, 0) - index * 1000).toISOString(),
   }));
-  await page.route("**/api/orders", route => route.fulfill({
-    status: 200,
-    contentType: "application/json",
-    body: JSON.stringify({ ok: true, orders }),
-  }));
+  await page.route("**/api/orders**", route => {
+    const cursor = new URL(route.request().url()).searchParams.get("cursor");
+    const pageOrders = cursor === "cursor-50" ? orders.slice(50) : orders.slice(0, 50);
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        orders: pageOrders,
+        has_more: cursor !== "cursor-50",
+        next_cursor: cursor === "cursor-50" ? null : "cursor-50",
+      }),
+    });
+  });
 
   await page.goto("/orders", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "Orders" })).toBeVisible();
-  const firstOrderId = page.viewportSize()!.width < 768 ? page.locator(".md\\:hidden").getByText("order-20", { exact: true }) : page.locator("tbody").getByText("order-20", { exact: true });
+  const firstOrderId = page.viewportSize()!.width < 768 ? page.locator(".md\\:hidden").getByText("order-75", { exact: true }) : page.locator("tbody").getByText("order-75", { exact: true });
   await expect(firstOrderId).toBeVisible();
-  const twentyFirstOrderId = page.viewportSize()!.width < 768 ? page.locator(".md\\:hidden").getByText("order-21", { exact: true }) : page.locator("tbody").getByText("order-21", { exact: true });
-  await expect(twentyFirstOrderId).toHaveCount(0);
+  const nextPageOrderId = page.viewportSize()!.width < 768 ? page.locator(".md\\:hidden").getByText("order-25", { exact: true }) : page.locator("tbody").getByText("order-25", { exact: true });
+  await expect(nextPageOrderId).toHaveCount(0);
   await page.getByRole("button", { name: /Show more/ }).click();
-  await expect(twentyFirstOrderId).toBeVisible();
-  const lastOrderId = page.viewportSize()!.width < 768 ? page.locator(".md\\:hidden").getByText("order-25", { exact: true }) : page.locator("tbody").getByText("order-25", { exact: true });
+  await expect(nextPageOrderId).toBeVisible();
+  const lastOrderId = page.viewportSize()!.width < 768 ? page.locator(".md\\:hidden").getByText("order-01", { exact: true }) : page.locator("tbody").getByText("order-01", { exact: true });
   await expect(lastOrderId).toBeVisible();
   await expect(page.getByRole("button", { name: /Show more/ })).toHaveCount(0);
 });
