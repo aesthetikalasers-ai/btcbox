@@ -716,15 +716,15 @@ export function ContractPage() {
 
   const orderEntryCard = (
     <Card className="border-0 bg-transparent shadow-none">
-      <CardHeader className="border-b border-brand-border/60 pb-3 px-4">
+      <CardHeader className="border-b border-brand-border/60 px-4 pb-2.5 pt-3">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-sm font-bold">{t("Place order")}</CardTitle>
           <Badge variant="outline" className="border-brand-violet/30 bg-brand-violet/10 font-mono text-[11px] text-brand-violet">{effectiveLeverage}×</Badge>
         </div>
       </CardHeader>
-      <CardContent className="pt-4">
-        <form onSubmit={(e) => void submitOrder(e)} className="space-y-3.5">
-          <div className="grid grid-cols-2 gap-1 rounded-lg border border-brand-border/60 bg-brand-surface-2/60 p-1" role="group" aria-label={t("Order type")}>
+      <CardContent className="px-4 pb-4 pt-3">
+        <form onSubmit={(e) => void submitOrder(e)} className="space-y-3">
+          <div className="grid grid-cols-2 gap-1 rounded-md border border-brand-border/60 bg-brand-surface-2/60 p-1" role="group" aria-label={t("Order type")}>
             {(["limit", "market"] as const).map((kind) => (
               <button
                 key={kind}
@@ -732,7 +732,7 @@ export function ContractPage() {
                 aria-pressed={orderType === kind}
                 onClick={() => setOrderType(kind)}
                 className={cn(
-                  "min-h-9 rounded-md text-xs font-semibold transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/50",
+                  "min-h-9 rounded text-xs font-medium transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/50",
                   orderType === kind ? "bg-brand-surface text-brand-text shadow-sm" : "text-brand-text-muted hover:text-brand-text",
                 )}
               >
@@ -747,7 +747,7 @@ export function ContractPage() {
               aria-pressed={side === "buy"}
               onClick={() => setSide("buy")}
               className={cn(
-                "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg text-xs font-bold transition-all active:scale-[0.99]",
+                "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-md text-xs font-semibold transition-all active:scale-[0.99]",
                 side === "buy" ? "bg-brand-accent text-[#05201A] shadow-sm" : "border border-brand-border bg-brand-surface-2 text-brand-text-secondary hover:border-brand-border-strong",
               )}
             >
@@ -766,17 +766,17 @@ export function ContractPage() {
             </button>
           </div>
 
-          <div className="rounded-lg border border-brand-border/60 bg-brand-surface-2/40 px-3 py-2.5">
+          <div className="rounded-md border border-brand-border/60 bg-brand-surface-2/30 px-3 py-2">
             <div className="flex items-center justify-between text-xs">
               <span className="font-medium text-brand-text-muted">{t("Leverage")}</span>
               <span className="font-mono text-sm font-bold text-brand-accent">{effectiveLeverage}×</span>
             </div>
-            <div className="mt-2 grid grid-cols-4 gap-1 rounded-lg border border-brand-border bg-brand-surface-2/60 p-1.5" role="group" aria-label={t("Leverage")}>
+            <div className="mt-2 grid grid-cols-4 gap-1 rounded-md border border-brand-border bg-brand-surface-2/50 p-1" role="group" aria-label={t("Leverage")}>
               {([10, 20, 50, 100] as const).map((n) => (
-                <button key={n} type="button" aria-pressed={leveragePills === n} onClick={() => setLeveragePills(n)} className={`min-h-8 rounded-md px-1.5 text-xs font-bold transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/50 ${leveragePills === n ? "bg-brand-accent/15 text-brand-accent" : "text-brand-text-muted hover:text-brand-text"}`}>{n}×</button>
+                <button key={n} type="button" aria-pressed={leveragePills === n} onClick={() => setLeveragePills(n)} className={`min-h-8 rounded px-1.5 text-xs font-semibold transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/50 ${leveragePills === n ? "bg-brand-accent/15 text-brand-accent" : "text-brand-text-muted hover:text-brand-text"}`}>{n}×</button>
               ))}
             </div>
-            <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-brand-border bg-brand-surface-2/60 px-3 py-2">
+            <div className="mt-2 flex items-center justify-between gap-2 border-t border-brand-border/70 px-1 pt-2">
               <span className="text-xs text-brand-text-muted">{t("Margin mode")}</span>
               <span className="text-xs font-semibold text-brand-text">{t("Cross")}</span>
             </div>
@@ -785,7 +785,7 @@ export function ContractPage() {
 
           {orderType === "limit" ? (
             <div>
-              <label className="mb-1 block text-[11px] font-medium text-brand-text-muted">{t("Price")} (USDT)</label>
+              <label className="mb-1 block text-xs font-medium text-brand-text-secondary">{t("Price")} (USDT)</label>
               <div className="flex items-center gap-1.5">
                 <button type="button" aria-label={t("Decrease price")} onClick={() => stepPrice(-1)} className="flex h-10 w-9 shrink-0 items-center justify-center rounded-md border border-brand-border bg-brand-surface-2 text-brand-text-muted transition-all duration-150 hover:border-brand-accent hover:text-brand-text active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/50"><Minus className="h-3.5 w-3.5" /></button>
                 <input
@@ -802,7 +802,7 @@ export function ContractPage() {
           ) : null}
 
           <div>
-            <label className="mb-1 block text-[11px] font-medium text-brand-text-muted">
+            <label className="mb-1 block text-xs font-medium text-brand-text-secondary">
               {t("Quantity")} ({selectedMarket?.base_asset ?? "BTC"})
             </label>
             <input
@@ -822,9 +822,9 @@ export function ContractPage() {
             </div>
           ) : null}
 
-          <div className="flex items-center justify-between rounded-lg border border-brand-border/60 bg-brand-surface-2/40 px-3 py-2.5 text-xs">
+          <div className="flex items-center justify-between rounded-md border border-brand-border/60 bg-brand-surface-2/30 px-3 py-2 text-xs">
             <span className="text-brand-text-muted">{t("Estimated margin")}</span>
-            <span className="bf-tabular font-mono font-bold text-brand-text">{estimatedMargin === null ? EM_DASH : `${money(estimatedMargin, locale, 2)} USDT`}</span>
+            <span className="bf-tabular font-mono font-semibold text-brand-text">{estimatedMargin === null ? EM_DASH : `${money(estimatedMargin, locale, 2)} USDT`}</span>
           </div>
 
           {submitError ? <div role="alert" className="flex items-start gap-2 rounded-lg border border-brand-danger/30 bg-brand-danger/10 p-2.5 text-xs text-brand-danger"><AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" /><div className="min-w-0 space-y-1"><p>{submitError}</p>{submitFailure ? <details className="text-[11px] leading-5 text-brand-text-muted"><summary className="cursor-pointer select-none font-semibold text-brand-text-secondary">{t("Technical details")}</summary><p className="mt-1 break-all font-mono">{t("Request reference")}: {submitFailure.reference}</p></details> : null}</div></div> : null}
