@@ -21,7 +21,12 @@ test('every active backend PostgREST RPC call has a canonical SQL function defin
   const sqlFiles = fs.readdirSync(sqlDirectory)
     .filter((name) => /^\d{4}_.+\.sql$/.test(name))
     .map((name) => fs.readFileSync(path.join(sqlDirectory, name), 'utf8'));
-  const sqlSource = sqlFiles.join('\n');
+  const upgradeDirectory = path.join(root, 'supabase', 'existing-schema-upgrades');
+  const upgradeFiles = fs.existsSync(upgradeDirectory)
+    ? fs.readdirSync(upgradeDirectory).filter((name) => name.endsWith('.sql'))
+      .map((name) => fs.readFileSync(path.join(upgradeDirectory, name), 'utf8'))
+    : [];
+  const sqlSource = sqlFiles.concat(upgradeFiles).join('\\n');
   const declared = new Set(
     [...sqlSource.matchAll(/create\s+(?:or\s+replace\s+)?function\s+(?:public|private)\.([a-z][a-z0-9_]+)/gi)]
       .map((match) => match[1].toLowerCase())
@@ -30,6 +35,8 @@ test('every active backend PostgREST RPC call has a canonical SQL function defin
   const missing = [...activeCalls].filter((name) => !declared.has(name)).sort();
   assert.deepEqual(missing, [], 'active API calls without a canonical SQL definition');
   assert.ok(activeCalls.size >= 20, 'RPC inventory unexpectedly shrank; review route/source coverage');
+  assert.ok(api.includes('/rest/v1/rpc/apply_internal_conversion_atomic'),
+    'conversion API must use the dedicated atomic two-asset ledger operation');
 });
 
 test('withdrawal creation API and canonical SQL agree on the 11-argument fee-snapshot contract', () => {

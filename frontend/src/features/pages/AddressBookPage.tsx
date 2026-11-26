@@ -241,6 +241,7 @@ export function AddressBookPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-2">
+              <p className="rounded-lg border border-brand-border bg-brand-surface-2/60 px-3 py-2.5 text-xs leading-relaxed text-brand-text-muted">{t("Saved withdrawal address security notice")}</p>
               {loading ? <p className="p-6 text-center text-sm text-brand-text-muted" role="status">{t("Loading address book…")}</p>
                 : error ? <div className="rounded-xl border border-brand-danger/30 bg-brand-surface p-5"><p className="text-sm text-brand-danger" role="alert">{t(error)}</p><Button size="sm" variant="outline" className="mt-3" onClick={() => setReload((n) => n + 1)}>{t("Try again")}</Button></div>
                 : items.length === 0 ? <p className="rounded-xl border border-dashed border-brand-border p-5 text-sm text-brand-text-muted">{t("No addresses have been saved yet.")}</p>

@@ -100,7 +100,7 @@ function BannerCarousel({ markets }: { markets: MarketTicker[] }) {
     <section aria-label={t("Trending")} className="relative -mx-4 overflow-hidden rounded-none border-y border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] transition-all duration-300 hover:border-brand-accent/30 sm:-mx-5 md:border-t-0">
       <div className="relative flex transition-transform duration-500 ease-out" style={{ transform: `translateX(-${index * 100}%)` }}>
         {slides.map((slide: BannerSlide) => (
-          <Link key={slide.title} to={slide.to} className={`relative min-w-full bg-gradient-to-br ${slide.gradient} px-5 py-6 md:px-8 md:py-12`}>
+          <Link key={slide.title} to={slide.to} state={slide.to === "/earn" ? { from: "/home" } : undefined} className={`relative min-w-full bg-gradient-to-br ${slide.gradient} px-5 py-6 md:px-8 md:py-12`}>
             {/* Multi-layered emerald + teal radial glow (right half) */}
             <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ backgroundImage: slide.glow }} />
             <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ backgroundImage: slide.glowTop }} />
@@ -169,7 +169,7 @@ function QuickActions() {
     <section aria-label={t("Quick access")}>
       <div className="grid grid-cols-4 gap-y-4">
         {entries.map((entry) => (
-          <Link key={entry.label} to={entry.to} className="group flex flex-col items-center gap-2">
+          <Link key={entry.label} to={entry.to} state={["/earn", "/rewards", "/support"].includes(entry.to) ? { from: "/home" } : undefined} className="group flex flex-col items-center gap-2">
             <span className="relative flex h-12 w-12 items-center justify-center rounded-2xl border border-white/[0.08] bg-gradient-to-b from-brand-surface-hover to-brand-surface-2 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] text-brand-text-secondary transition-all duration-300 group-hover:scale-105 group-hover:text-brand-accent group-hover:border-brand-accent/30 group-hover:shadow-[0_8px_30px_rgba(14,203,129,0.12)]">
               <entry.icon className="h-5 w-5" strokeWidth={1.75} />
               {entry.badge && (

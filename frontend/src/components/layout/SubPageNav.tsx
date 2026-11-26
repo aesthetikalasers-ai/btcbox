@@ -3,20 +3,17 @@ import { useLocation, useNavigate } from "react-router-dom";
 import type { ReactNode } from "react";
 import { cn } from "../../lib/utils";
 import { useI18n } from "../../lib/i18n";
-import { getNavigationTier, getTierFallback } from "../../lib/navigation";
+import { getNavigationTier, getTierFallback, useHistoryDepth } from "../../lib/navigation";
 
 /**
  * Uses real browser history when the session has an in-app entry to return to,
  * and otherwise performs a deterministic navigation to the tier's parent page.
  * This keeps deep-linked sub-pages from throwing the user out of BTCBOX.
  */
-function goBack(navigate: ReturnType<typeof useNavigate>, pathname: string) {
-  const state = typeof window !== "undefined" ? (window.history.state as { idx?: number } | null) : null;
-  // Use browser history back whenever there's more than 1 entry in the session history.
-  // This naturally returns the user to the previous page (e.g., from /earn back to /seconds
-  // or /trade) instead of always falling through to /home.
-  const canGoBack = window.history.length > 1;
-  if (canGoBack) navigate(-1);
+function goBack(navigate: ReturnType<typeof useNavigate>, pathname: string, historyDepth: number) {
+  // React Router's idx counts only in-app history entries; window.history.length also
+  // includes the external page that may have opened a deep link into BTCBOX.
+  if (historyDepth > 0) navigate(-1);
   else navigate(getTierFallback(getNavigationTier(pathname)), { replace: true });
 }
 
@@ -40,6 +37,7 @@ export function SubPageNav({ title, backLabel, actions, sticky = true, className
   const { t } = useI18n();
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const historyDepth = useHistoryDepth();
   const label = backLabel ?? t("Back");
 
   return (
@@ -53,7 +51,7 @@ export function SubPageNav({ title, backLabel, actions, sticky = true, className
     >
       <button
         type="button"
-        onClick={() => goBack(navigate, pathname)}
+        onClick={() => goBack(navigate, pathname, historyDepth)}
         aria-label={label}
         className="bf-subnav-back relative z-10 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-brand-text-secondary transition-colors hover:bg-brand-surface-hover hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent"
       >

@@ -34,7 +34,7 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
       - name: Verify critical SPA routes on the production bundle
-        run: npm run test:e2e -- --grep "@routing|responsive visual QA /(home|markets|trade/BTCUSDT|assets|funds|deposit|withdraw|me|contract) at V1.0 widths|continuous responsive sweep /(home|markets|trade/BTCUSDT|assets|funds|deposit|withdraw)|trade interaction QA|degraded public catalogue"
+        run: npm run test:e2e -- --grep "@routing|responsive visual QA /(home|markets|trade/BTCUSDT|trade-hub|assets|funds|deposit|withdraw|convert|me|settings|support|orders|earn|kyc|rewards|address-book|fund-password|contract|seconds) at V1.0 widths|continuous responsive sweep /(home|markets|trade/BTCUSDT|trade-hub|assets|funds|deposit|withdraw|convert|contract)|account and home navigation preserve safe return destinations|order history progressive rendering works on mobile and desktop|independent deposit, withdrawal, and conversion workflows render usable states|withdrawal asset switch refreshes network, saved addresses, balance and fee|assets list can scroll its final row fully above the fixed mobile navigation|trade interaction QA|degraded public catalogue"
       - name: Upload mobile responsive QA screenshots
         if: always()
         uses: actions/upload-artifact@v4

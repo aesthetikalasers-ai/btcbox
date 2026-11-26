@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Check, Coins, Copy, Gift, Inbox, Share2, Users } from "lucide-react";
 import { AuthRestoreState } from "../../components/AuthRestoreState";
 import { Badge } from "../../components/ui/badge";
@@ -26,6 +26,9 @@ import { PageFrame } from "./Pages";
  */
 export function RewardsPage() {
   const { t, language } = useI18n();
+  const location = useLocation();
+  const requestedBack = (location.state as { from?: string } | null)?.from;
+  const backTo = requestedBack === "/home" || requestedBack === "/me" ? requestedBack : "/me";
   const { status } = useAuth();
   const { openAuthDialog } = useAuthDialog();
   const [data, setData] = useState<ReferralData | null>(null);
@@ -75,11 +78,11 @@ export function RewardsPage() {
 
   // Early returns keep each state flat: no deeply nested conditional JSX.
   if (status === "loading") {
-    return <PageFrame title="Rewards & referrals" tone="account"><AuthRestoreState label="Loading reward information…" /></PageFrame>;
+    return <PageFrame title="Rewards & referrals" tone="account" backTo={backTo}><AuthRestoreState label="Loading reward information…" /></PageFrame>;
   }
 
   if (status !== "authenticated" && !DEV_OPEN_ACCOUNT_PAGES) {
-    return <PageFrame title="Rewards & referrals" tone="account">
+    return <PageFrame title="Rewards & referrals" tone="account" backTo={backTo}>
       <Card className="border-brand-border bg-brand-surface">
         <CardContent className="flex flex-col items-start gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-3.5">
@@ -99,13 +102,13 @@ export function RewardsPage() {
   }
 
   if (loading) {
-    return <PageFrame title="Rewards & referrals" tone="account">
+    return <PageFrame title="Rewards & referrals" tone="account" backTo={backTo}>
       <Card className="border-brand-border bg-brand-surface"><CardContent className="p-6 text-sm text-brand-text-muted" role="status">{t("Loading reward information…")}</CardContent></Card>
     </PageFrame>;
   }
 
   if (error) {
-    return <PageFrame title="Rewards & referrals" tone="account">
+    return <PageFrame title="Rewards & referrals" tone="account" backTo={backTo}>
       <Card className="border-brand-danger/30 bg-brand-surface">
         <CardContent className="flex flex-wrap items-center justify-between gap-3 p-5">
           <p className="text-sm text-brand-danger" role="alert">{t(error)}</p>
@@ -116,7 +119,7 @@ export function RewardsPage() {
   }
 
   if (!overview?.available) {
-    return <PageFrame title="Rewards & referrals" tone="account">
+    return <PageFrame title="Rewards & referrals" tone="account" backTo={backTo}>
       <Card className="border-brand-border bg-brand-surface">
         <CardContent className="flex flex-col items-center gap-3 p-8 text-center">
           <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-surface-2 text-brand-text-muted"><Gift className="h-6 w-6" /></span>
@@ -128,7 +131,7 @@ export function RewardsPage() {
     </PageFrame>;
   }
 
-  return <PageFrame title="Rewards & referrals" tone="account">
+  return <PageFrame title="Rewards & referrals" tone="account" backTo={backTo}>
     <div className="flex min-w-0 flex-col gap-5">
 
       <section aria-label={t("Invite")} className="grid gap-3 sm:grid-cols-2">

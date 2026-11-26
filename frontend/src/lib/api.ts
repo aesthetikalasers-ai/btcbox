@@ -1268,6 +1268,60 @@ export async function getWithdrawalConfig(signal?: AbortSignal): Promise<Withdra
   return payload;
 }
 
+export interface InternalConversionQuote {
+  from_asset: string;
+  to_asset: string;
+  from_amount: string;
+  to_amount: string;
+  rate: string;
+  expires_at: number;
+  quote_token: string;
+}
+
+export interface InternalConversionResult {
+  operation_id: string;
+  duplicate: boolean;
+  from_asset: string;
+  to_asset: string;
+  from_amount: string;
+  to_amount: string;
+  rate: string;
+}
+
+export async function getInternalConversionQuote(fromAsset: string, toAsset: string, amount: string, signal?: AbortSignal): Promise<InternalConversionQuote> {
+  const query = new URLSearchParams({ from: fromAsset, to: toAsset, amount });
+  const payload = await readAuthenticated<InternalConversionQuote & { ok: true }>(`convert/quote?${query.toString()}`, signal);
+  if (payload.from_asset !== fromAsset || payload.to_asset !== toAsset ||
+      typeof payload.from_amount !== "string" || typeof payload.to_amount !== "string" ||
+      typeof payload.rate !== "string" || typeof payload.expires_at !== "number" ||
+      typeof payload.quote_token !== "string" || !payload.quote_token) {
+    throw new ApiError("BTCBOX returned an invalid conversion quote.", 502, "INVALID_CONVERSION_QUOTE");
+  }
+  return payload;
+}
+
+export async function submitInternalConversion(input: { request_id: string; quote_token: string }): Promise<InternalConversionResult> {
+  if (DEMO_PREVIEW_ACTIVE) rejectDemoFinancialAction();
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/convert`, {
+      method: "POST", credentials: "include",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      cache: "no-store", body: JSON.stringify(input),
+    });
+  } catch {
+    throw new ApiError("Conversion result is unconfirmed. Refresh your balances and check operation history before retrying.", 0, "NETWORK_ERROR");
+  }
+  const payload = await response.json().catch(() => null) as (InternalConversionResult & { ok?: boolean; need_login?: boolean; code?: string; msg?: string }) | null;
+  if (!response.ok || !payload || payload.ok !== true || typeof payload.operation_id !== "string" ||
+      typeof payload.from_asset !== "string" || typeof payload.to_asset !== "string" ||
+      typeof payload.from_amount !== "string" || typeof payload.to_amount !== "string" ||
+      typeof payload.duplicate !== "boolean") {
+    throw new ApiError(payload?.msg || "Conversion was not confirmed. Check your balances before retrying.", payload?.need_login ? 401 : response.status, payload?.code);
+  }
+  return payload;
+}
+
 export async function getWithdrawalHistoryPage(cursor?: string | null, signal?: AbortSignal): Promise<WithdrawalHistoryPage> {
   if (DEMO_PREVIEW_ACTIVE) {
     const demo = await getDemoAccount();

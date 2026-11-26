@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
-import { Navigate } from "react-router-dom";
-import { Check, ChevronRight, Copy, Lock, ShieldCheck, Smartphone, Wallet, X } from "lucide-react";
+import { Navigate, useNavigate } from "react-router-dom";
+import { ArrowLeft, Check, ChevronRight, Copy, Lock, ShieldCheck, Smartphone, Wallet, X } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { TwoFactorCard } from "./TwoFactorCard";
+import { PageFrame } from "../pages/Pages";
 import { getAccount, type AccountSnapshot } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useAuthDialog } from "../../lib/auth-dialog";
@@ -29,6 +30,7 @@ function localizedAuthError(message: string, t: (key: string) => string) {
  */
 export function AccountSecurityPage() {
   const { t } = useI18n();
+  const navigate = useNavigate();
   const { status, busy, error, notice, email, googleEnabled, ethereumWallets, identityLinkSourceVerified, identityLinkNeedsTwoFactor, reauthenticateIdentityLinkWithGoogle, reauthenticateIdentityLinkWithWeb3, completeIdentityLinkReauthTwoFactor, linkGoogleIdentity, linkWeb3Identity, setSupabaseLoginPassword } = useAuth();
   const [account, setAccount] = useState<AccountSnapshot | null>(null);
   const { openAuthDialog } = useAuthDialog();
@@ -55,7 +57,7 @@ export function AccountSecurityPage() {
     return () => { active = false; };
   }, [status, notice]);
 
-  if (status === "loading") return <div role="status" aria-live="polite" className="mx-auto flex min-h-[40vh] items-center justify-center text-sm text-brand-text-muted">{t("Loading account security…")}</div>;
+  if (status === "loading") return <PageFrame title={t("Security settings")} tone="account" backTo="/me"><div role="status" aria-live="polite" className="mx-auto flex min-h-[40vh] items-center justify-center text-sm text-brand-text-muted">{t("Loading account security…")}</div></PageFrame>;
   // Local development opens the page so the layout can be edited; a production
   // build still redirects because `import.meta.env.DEV` compiles to false.
   if (status !== "authenticated" && !DEV_OPEN_ACCOUNT_PAGES) return <Navigate to="/login" replace />;
@@ -93,6 +95,10 @@ export function AccountSecurityPage() {
   ] as const;
 
   return <div aria-busy={busy} className="tone-account relative mx-auto w-full max-w-2xl space-y-5 p-3 pb-24 sm:p-5">
+    <div className="relative flex min-w-0 items-center gap-3 border-b border-brand-border pb-3">
+      <button type="button" onClick={() => navigate("/me")} aria-label={t("Back")} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-brand-border text-brand-text-muted hover:border-brand-accent/40 hover:text-brand-text"><ArrowLeft className="h-4 w-4" /></button>
+      <h1 className="type-page-title min-w-0 truncate text-brand-text">{t("Security settings")}</h1>
+    </div>
     <div aria-hidden="true" className="pointer-events-none absolute -top-20 right-0 h-72 w-72 rounded-full bg-brand-accent/10 blur-[90px]" />
       {/* 1. Identity card */}
       <div className="relative overflow-hidden rounded-2xl border border-brand-accent/25 bg-gradient-to-br from-brand-accent/[0.16] via-brand-surface to-brand-surface p-5 shadow-xl">

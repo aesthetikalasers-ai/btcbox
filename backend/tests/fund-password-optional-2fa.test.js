@@ -84,7 +84,8 @@ test('fund-password page explains that local-password confirmation does not sign
 test('withdrawal customer copy does not expose staff review or manual payout workflow', () => {
   const pages = fs.readFileSync(path.join(root, 'frontend/src/features/pages/Pages.tsx'), 'utf8');
   assert.doesNotMatch(pages, /Choose a saved address and enter the amount you want to withdraw/);
-  assert.match(pages, /No available withdrawal address\. Add one to continue\./);
+  assert.match(pages, /No available withdrawal asset\. Please contact support\./);
+  assert.match(pages, /No saved withdrawal address for this asset\./);
   assert.match(pages, /Withdrawal request submitted\. You can track its progress in withdrawal history/);
   assert.match(pages, /t\("Submit withdrawal"\)/);
   assert.doesNotMatch(pages, /Submit for staff review|Withdrawal submitted for staff review|staff review and manually pay approved requests/);

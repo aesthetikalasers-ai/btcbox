@@ -31,7 +31,7 @@ export function FundPasswordPage() {
     return () => { active = false; };
   }, [status]);
 
-  if (status === "loading") return <div className="p-8 text-center text-sm text-brand-text-muted" role="status">{t("Loading…")}</div>;
+  if (status === "loading") return <PageFrame title={t("Fund password")} tone="account" backTo="/me"><div className="p-8 text-center text-sm text-brand-text-muted" role="status">{t("Loading…")}</div></PageFrame>;
   if (status !== "authenticated" && !DEV_OPEN_ACCOUNT_PAGES) return <Navigate to="/login" replace />;
 
   const requiresCurrentPassword = account?.has_login_password !== false;

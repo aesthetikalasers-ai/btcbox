@@ -17,6 +17,7 @@ const MarketsPage = lazy(() => import("./features/markets/MarketsPage").then((m)
 const AdminPage = lazy(() => import("./features/admin/AdminPage").then((m) => ({ default: m.AdminPage })));
 const TradeHubPage = lazy(() => import("./features/pages/TradeHubPage").then((m) => ({ default: m.TradeHubPage })));
 const AssetsPage = lazy(() => import("./features/assets/AssetsPage").then((m) => ({ default: m.AssetsPage })));
+const FundsPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.FundsPage })));
 const MyPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.MyPage })));
 const SpotTradingPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.SpotTradingPage })));
 const OrdersPage = lazy(() => import("./features/orders/OrdersPage").then((m) => ({ default: m.OrdersPage })));
@@ -25,6 +26,7 @@ const KycPage = lazy(() => import("./features/pages/Pages").then((m) => ({ defau
 const SupportPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.SupportPage })));
 const DepositPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.DepositPage })));
 const WithdrawPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.WithdrawPage })));
+const InternalConversionPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.InternalConversionPage })));
 const AddressBookPage = lazy(() => import("./features/pages/AddressBookPage").then((m) => ({ default: m.AddressBookPage })));
 const FundPasswordPage = lazy(() => import("./features/account/FundPasswordPage").then((m) => ({ default: m.FundPasswordPage })));
 const EarnPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.EarnPage })));
@@ -107,10 +109,11 @@ function CustomerRoutes() {
     <Route path="/trade/:symbol" element={<SpotTradingPage />} />
     <Route path="/chart/:symbol" element={<KlineChartPage />} />
     <Route path="/seconds" element={<SecondsPage />} />
-    <Route path="/assets" element={<ProtectedAccountRoute><AssetsPage /></ProtectedAccountRoute>} /><Route path="/funds" element={<Navigate to="/assets" replace />} /><Route path="/me" element={<MyPage />} />
+    <Route path="/assets" element={<ProtectedAccountRoute><AssetsPage /></ProtectedAccountRoute>} /><Route path="/funds" element={<ProtectedAccountRoute><FundsPage /></ProtectedAccountRoute>} /><Route path="/me" element={<MyPage />} />
     <Route path="/orders" element={<ProtectedAccountRoute><OrdersPage /></ProtectedAccountRoute>} />
     <Route path="/deposit" element={<ProtectedAccountRoute><DepositPage /></ProtectedAccountRoute>} />
     <Route path="/withdraw" element={<ProtectedAccountRoute><WithdrawPage /></ProtectedAccountRoute>} />
+    <Route path="/convert" element={<ProtectedAccountRoute><InternalConversionPage /></ProtectedAccountRoute>} />
     <Route path="/address-book" element={<ProtectedAccountRoute><AddressBookPage /></ProtectedAccountRoute>} />
     <Route path="/fund-password" element={<ProtectedAccountRoute><FundPasswordPage /></ProtectedAccountRoute>} />
     <Route path="/earn" element={<EarnPage />} />

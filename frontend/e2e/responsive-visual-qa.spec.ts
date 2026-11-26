@@ -17,14 +17,19 @@ const routes = [
   { path: "/trade/BTCUSDT", heading: "BTCUSDT" },
   { path: "/trade-hub", heading: "Choose your trading mode" },
   { path: "/assets", heading: "Assets" },
+  { path: "/funds", heading: "Funds" },
   { path: "/me", heading: "My account" },
   { path: "/settings", heading: "Security settings" },
   { path: "/support", heading: "Customer support" },
   { path: "/orders", heading: "Orders" },
   { path: "/deposit", heading: "Deposit" },
   { path: "/withdraw", heading: "Withdraw" },
+  { path: "/convert", heading: "Convert" },
   { path: "/earn", heading: "Earn" },
   { path: "/kyc", heading: "Identity verification" },
+  { path: "/rewards", heading: "Rewards & referrals" },
+  { path: "/address-book", heading: "Address book" },
+  { path: "/fund-password", heading: "Fund password" },
   { path: "/contract", heading: "Perpetual" },
   { path: "/seconds", heading: "Seconds contracts" },
 ];
@@ -99,6 +104,14 @@ async function installVisualApiMocks(page: Page) {
             coin: "USDT",
             network: "TRC20",
             address: "TQ9xE2EVisualFixtureAddress000000000000",
+            blocked: false,
+            unbound: false,
+          }, {
+            id: "visual-qa-withdrawal-address-2",
+            type: "crypto",
+            coin: "USDT",
+            network: "TRC20",
+            address: "TQ9xE2EVisualFixtureAddress111111111111",
             blocked: false,
             unbound: false,
           }],
@@ -336,10 +349,10 @@ async function assertPageAtWidth(
     // the ticker header's market selector is its visible pair identifier.
     await expect(page.locator(".term-top-pair")).toBeVisible({ timeout: 15000 });
   } else {
-    await expect(page.getByRole("heading", { name: route.heading, exact: true })).toBeVisible({ timeout: 15000 });
+    await expect(page.locator("h1").filter({ hasText: route.heading })).toBeVisible({ timeout: 15000 });
   }
 
-  if (["/home", "/markets", "/trade/BTCUSDT", "/assets", "/me"].includes(route.path)) {
+  if (["/home", "/markets", "/trade/BTCUSDT", "/trade-hub", "/assets", "/me"].includes(route.path)) {
     const mobileNavigation = page.locator(".bf-bottom-nav");
     const desktopProducts = page.locator('header nav[aria-label="Trade products"]');
     const desktopAssets = page.locator('header:has(nav[aria-label="Trade products"]) a[href="/assets"][aria-label="Assets"]');
@@ -356,12 +369,19 @@ async function assertPageAtWidth(
   // Standalone history pages intentionally use their own compact secondary
   // navigation instead of the application shell. Only shell routes own the
   // BTCBOX home logo.
-  if (["/home", "/markets", "/trade/BTCUSDT", "/trade-hub", "/assets", "/me", "/settings", "/support", "/earn", "/kyc", "/contract", "/seconds"].includes(route.path) && width <= 480) {
+  if (["/home", "/markets", "/trade/BTCUSDT", "/trade-hub", "/assets", "/me", "/contract", "/seconds"].includes(route.path) && width <= 480) {
     await expect(
       page.getByRole("link", { name: "BTCBOX home" }).getByRole("img", { name: "BTCBOX" }),
     ).toBeVisible();
   }
-  if (["/deposit", "/withdraw"].includes(route.path)) {
+  if (["/settings", "/support", "/earn", "/kyc", "/rewards", "/address-book", "/fund-password"].includes(route.path)) {
+    await expect(
+      page.locator('a[aria-label="Back"], button[aria-label="Back"]'),
+      route.path + " must expose a visible in-app return control.",
+    ).toBeVisible();
+  }
+
+  if (["/funds", "/deposit", "/withdraw", "/convert"].includes(route.path)) {
     await expect(page.locator(".bf-bottom-nav"), "Funds workflows must hide the global mobile tab bar.").toBeHidden();
     await expect(page.getByRole("link", { name: "BTCBOX home" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Back" })).toBeVisible();
@@ -796,13 +816,97 @@ for (const route of routes) {
   });
 }
 
-test("deposit and withdrawal workflows render usable states", async ({ page, context }) => {
+test("order history progressive rendering works on mobile and desktop", async ({ page }) => {
+  await installVisualApiMocks(page);
+  const orders = Array.from({ length: 25 }, (_, index) => ({
+    order_id: "order-" + String(index + 1).padStart(2, "0"),
+    symbol: "BTCUSDT",
+    side: "buy",
+    type: "limit",
+    price: "65000",
+    quantity: "0.01",
+    status: "filled",
+    created_at: "2026-11-26T00:00:00.000Z",
+  }));
+  await page.route("**/api/orders", route => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ ok: true, orders }),
+  }));
+
+  await page.goto("/orders", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: "Orders" })).toBeVisible();
+  const firstOrderId = page.viewportSize()!.width < 768 ? page.locator(".md\\:hidden").getByText("order-20", { exact: true }) : page.locator("tbody").getByText("order-20", { exact: true });
+  await expect(firstOrderId).toBeVisible();
+  const twentyFirstOrderId = page.viewportSize()!.width < 768 ? page.locator(".md\\:hidden").getByText("order-21", { exact: true }) : page.locator("tbody").getByText("order-21", { exact: true });
+  await expect(twentyFirstOrderId).toHaveCount(0);
+  await page.getByRole("button", { name: /Show more/ }).click();
+  await expect(twentyFirstOrderId).toBeVisible();
+  const lastOrderId = page.viewportSize()!.width < 768 ? page.locator(".md\\:hidden").getByText("order-25", { exact: true }) : page.locator("tbody").getByText("order-25", { exact: true });
+  await expect(lastOrderId).toBeVisible();
+  await expect(page.getByRole("button", { name: /Show more/ })).toHaveCount(0);
+});
+
+test("account and home navigation preserve safe return destinations", async ({ page }) => {
+  test.skip(test.info().project.name !== "mobile-chromium", "Navigation handoff QA runs once in the mobile touch project.");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installVisualApiMocks(page);
+
+  await page.goto("/me", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: "My account" })).toBeVisible();
+
+  await page.locator('a[href="/orders"]').click();
+  await expect(page.getByRole("heading", { name: "Orders" })).toBeVisible();
+  await page.locator('button[aria-label="Back"]').click();
+  await expect(page).toHaveURL(/\/me$/);
+
+  await page.goto("/orders", { waitUntil: "domcontentloaded" });
+  await page.locator('button[aria-label="Back"]').click();
+  await expect(page).toHaveURL(/\/home$/);
+
+  await page.goto("/me", { waitUntil: "domcontentloaded" });
+  await page.locator('a[href="/address-book"]').click();
+  await expect(page.getByRole("heading", { name: "Address book" })).toBeVisible();
+  await page.locator('a[aria-label="Back"]').click();
+  await expect(page).toHaveURL(/\/me$/);
+
+  await page.locator('a[href="/rewards"]').click();
+  await expect(page.getByRole("heading", { name: "Rewards & referrals" })).toBeVisible();
+  await page.locator('a[aria-label="Back"]').click();
+  await expect(page).toHaveURL(/\/me$/);
+
+  await page.getByRole("main").getByRole("link", { name: "Support" }).click();
+  await expect(page.getByRole("heading", { name: "Customer support" })).toBeVisible();
+  await page.locator('button[aria-label="Back"]').click();
+  await expect(page).toHaveURL(/\/me$/);
+
+  await page.goto("/home", { waitUntil: "domcontentloaded" });
+  await page.locator('a[href="/rewards"]').click();
+  await expect(page.getByRole("heading", { name: "Rewards & referrals" })).toBeVisible();
+  await page.locator('a[aria-label="Back"]').click();
+  await expect(page).toHaveURL(/\/home$/);
+
+  await page.getByRole("region", { name: "Quick access" }).locator('a[href="/earn"]').click();
+  await expect(page.getByRole("heading", { name: "Earn" })).toBeVisible();
+  await page.locator('a[aria-label="Back"]').click();
+  await expect(page).toHaveURL(/\/home$/);
+});
+
+test("independent deposit, withdrawal, and conversion workflows render usable states", async ({ page, context }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.setViewportSize({ width: 390, height: 844 });
   await installVisualApiMocks(page);
 
-  await page.goto("/deposit", { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("heading", { name: "Deposit" })).toBeVisible();
+  // Asset actions are independent first-level destinations; there is no
+  // intermediate combined Funds page.
+  await page.goto("/assets", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("link", { name: "Deposit", exact: true })).toHaveAttribute("href", "/deposit");
+  await expect(page.getByRole("link", { name: "Withdraw", exact: true })).toHaveAttribute("href", "/withdraw");
+  await expect(page.getByRole("link", { name: "Convert", exact: true })).toHaveAttribute("href", "/convert");
+
+  await page.getByRole("link", { name: "Deposit", exact: true }).click();
+  await expect(page).toHaveURL(/\/deposit$/);
+  await expect(page.getByRole("heading", { name: "Deposit", exact: true })).toBeVisible();
   await expect(page.getByLabel("Asset")).toHaveValue("USDT");
   await expect(page.getByLabel("Network")).toHaveValue("TRC20");
   await expect(page.getByText("TQ9xE2EVisualFixtureAddress000000000000")).toBeVisible();
@@ -811,18 +915,148 @@ test("deposit and withdrawal workflows render usable states", async ({ page, con
   await copyButton.click();
   await expect(page.getByRole("status").filter({ hasText: "Deposit address copied." })).toBeVisible();
 
-  await page.goto("/withdraw", { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("heading", { name: "Withdraw" })).toBeVisible();
-  await expect(page.getByLabel("Withdrawal address")).toBeVisible();
-  await expect(page.getByText("Selected destination: USDT · TRC20")).toBeVisible();
+  await page.getByRole("link", { name: "Back" }).click();
+  await expect(page).toHaveURL(/\/assets$/);
+  await page.getByRole("link", { name: "Withdraw", exact: true }).click();
+  await expect(page).toHaveURL(/\/withdraw$/);
+  await expect(page.getByRole("heading", { name: "Withdraw", exact: true })).toBeVisible();
+  await expect(page.getByLabel("Asset")).toHaveValue("USDT");
+  const addressTrigger = page.getByRole("button").filter({ hasText: "USDT · TRC20" }).first();
+  await expect(addressTrigger).toBeVisible();
+  await addressTrigger.click();
+  const addressOptions = page.getByRole("group", { name: "Withdrawal address" });
+  await expect(addressOptions).toBeVisible();
+  await expect(addressOptions.getByText("TQ9xE2EVisualFixtureAddress111111111111")).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await addressOptions.getByRole("button").filter({ hasText: "TQ9xE2EVisualFixtureAddress111111111111" }).click();
+  await expect(addressOptions).toHaveCount(0);
+  await expect(page.getByRole("button").filter({ hasText: "TQ9xE2EVisualFixtureAddress111111111111" }).first()).toBeVisible();
   await expect(page.getByText("Available", { exact: true })).toBeVisible();
   await expect(page.getByText("Withdrawal fee", { exact: true })).toBeVisible();
   const amount = page.getByLabel(/Amount/);
   await amount.fill("10");
   await expect(page.getByText("9 USDT", { exact: true })).toBeVisible();
   await page.getByLabel("Fund password").fill("visual-only-password");
-  await expect(page.getByRole("button", { name: "Submit withdrawal" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Submit withdrawal" })).toBeVisible();
   // The visual fixture must never submit a financial operation.
+
+  await page.getByRole("link", { name: "Back" }).click();
+  await expect(page).toHaveURL(/\/assets$/);
+  await page.getByRole("link", { name: "Convert", exact: true }).click();
+  await expect(page).toHaveURL(/\/convert$/);
+  await expect(page.getByRole("heading", { name: "Convert assets" })).toBeVisible();
+  await expect(page.getByLabel("From")).toBeVisible();
+  await expect(page.getByLabel("To")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Swap assets" })).toBeVisible();
+});
+
+
+
+test("withdrawal asset switch refreshes network, saved addresses, balance and fee", async ({ page }) => {
+  test.skip(test.info().project.name !== "mobile-chromium", "Focused withdrawal selector regression runs in the mobile project.");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installVisualApiMocks(page);
+  await page.route("**/api/account", route => route.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({
+      ok: true, uid: "withdraw-asset-switch-user", username: "withdraw_user",
+      balances: {
+        USDT: { free: "100", frozen: "0" },
+        USDC: { free: "250", frozen: "0" },
+      },
+      unpriced_assets: [], kyc: { status: "not_submitted" }, has_login_password: true,
+    }),
+  }));
+  await page.route("**/api/addresses", route => route.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({ ok: true, addresses: [
+      { id: "usdt-address-1", type: "crypto", coin: "USDT", network: "TRC20", address: "USDT_TRON_ADDRESS_FIXTURE", blocked: false, unbound: false },
+      { id: "usdc-address-1", type: "crypto", coin: "USDC", network: "ERC20", address: "USDC_ETH_ADDRESS_FIXTURE", blocked: false, unbound: false },
+    ] }),
+  }));
+  await page.goto("/withdraw", { waitUntil: "domcontentloaded" });
+  const asset = page.getByLabel("Asset");
+  await expect(asset).toHaveValue("USDT");
+  await page.getByLabel(/Amount/).fill("10");
+  await expect(page.getByText("9 USDT", { exact: true })).toBeVisible();
+
+  await asset.selectOption("USDC");
+  await expect(asset).toHaveValue("USDC");
+  await expect(page.getByLabel(/Amount/)).toHaveValue("");
+  // Network is bound to the selected saved address, not a separate dropdown.
+  // USDC withdrawals settle against the USDT balance.
+  await expect(page.getByText("100 USDT", { exact: true })).toBeVisible();
+  await expect(page.getByText("USDT_TRON_ADDRESS_FIXTURE", { exact: true })).toHaveCount(0);
+
+  const addressTrigger = page.getByRole("button").filter({ hasText: "USDC · ERC20" }).first();
+  await expect(addressTrigger).toBeVisible();
+  await addressTrigger.click();
+  const options = page.getByRole("group", { name: "Withdrawal address" });
+  await expect(options).toBeVisible();
+  await expect(options.getByText("USDC_ETH_ADDRESS_FIXTURE", { exact: true })).toBeVisible();
+  await expect(options.getByText("USDT_TRON_ADDRESS_FIXTURE", { exact: true })).toHaveCount(0);
+  await options.getByRole("button").filter({ hasText: "USDC_ETH_ADDRESS_FIXTURE" }).click();
+  await page.getByLabel(/Amount/).fill("10");
+  await expect(page.getByText("9 USDC", { exact: true })).toBeVisible();
+  await expect(page.getByText("Withdrawal fee", { exact: true })).toBeVisible();
+  // This test deliberately stops before submission; no financial operation is sent.
+});
+
+test("assets list can scroll its final row fully above the fixed mobile navigation", async ({ page }) => {
+  test.skip(test.info().project.name !== "mobile-chromium", "Bottom-navigation clearance runs in the mobile project.");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installVisualApiMocks(page);
+  const symbols = ["BTC", "ETH", "USDT", "USDC", "SOL", "BNB", "XRP", "ADA", "AVAX", "LINK", "DOT", "TRX", "LTC", "BCH", "NEAR"];
+  const balances = Object.fromEntries(symbols.map((symbol, index) => [
+    symbol,
+    { free: String(index + 1), frozen: "0", usdt: String((index + 1) * 100), valuation_available: true },
+  ]));
+  await page.route("**/api/account", route => route.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({
+      ok: true, uid: "asset-bottom-scroll-user", username: "asset_scroll_user",
+      balances, totalUsdt: "12000", valuation_complete: true, unpriced_assets: [],
+      kyc: { status: "not_submitted" }, has_login_password: true,
+    }),
+  }));
+  await page.goto("/assets", { waitUntil: "domcontentloaded" });
+  const list = page.getByTestId("asset-balance-list");
+  const rows = list.locator(":scope > div > div");
+  await expect(rows).toHaveCount(symbols.length);
+  await rows.last().scrollIntoViewIfNeeded();
+  // Scroll the main content only far enough to clear the fixed navigation.
+  // Do not jump to the document's absolute end: the site footer follows the
+  // asset list, so that would scroll the final asset row back above the viewport.
+  await page.evaluate(() => {
+    const main = document.querySelector("main");
+    const row = document.querySelector('[data-testid="asset-balance-list"] > div > div:last-child');
+    const nav = document.querySelector(".bf-bottom-nav");
+    if (!main || !row || !nav) return;
+    const rowBox = row.getBoundingClientRect();
+    const navBox = nav.getBoundingClientRect();
+    const clearance = rowBox.bottom - navBox.top + 8;
+    if (clearance > 0) main.scrollTop += clearance;
+  });
+  const clearanceMetrics = await page.evaluate(() => {
+    const row = document.querySelector('[data-testid="asset-balance-list"] > div > div:last-child');
+    const nav = document.querySelector(".bf-bottom-nav");
+    const main = document.querySelector("main");
+    const list = document.querySelector('[data-testid="asset-balance-list"]');
+    if (!row || !nav || !main || !list) return { visible: false, reason: "missing layout element" };
+    const rowBox = row.getBoundingClientRect();
+    const navBox = nav.getBoundingClientRect();
+    return {
+      visible: rowBox.bottom <= navBox.top - 4 && rowBox.top >= 0,
+      row: { top: Math.round(rowBox.top), bottom: Math.round(rowBox.bottom), height: Math.round(rowBox.height) },
+      nav: { top: Math.round(navBox.top), bottom: Math.round(navBox.bottom), height: Math.round(navBox.height) },
+      main: { top: Math.round(main.getBoundingClientRect().top), bottom: Math.round(main.getBoundingClientRect().bottom), scrollTop: Math.round(main.scrollTop), scrollHeight: main.scrollHeight, clientHeight: main.clientHeight, maxScrollTop: main.scrollHeight - main.clientHeight },
+      list: { bottom: Math.round(list.getBoundingClientRect().bottom), scrollHeight: list.scrollHeight, clientHeight: list.clientHeight },
+    };
+  });
+  expect(clearanceMetrics.visible, `Last asset row must clear fixed navigation: ${JSON.stringify(clearanceMetrics)}`).toBe(true);
+  await expect(rows.last()).toBeVisible();
+  await expect(page.locator(".bf-bottom-nav")).toBeVisible();
+  await page.screenshot({ path: path.resolve(process.cwd(), "test-results/visual-qa/assets-bottom-scroll-390.png"), fullPage: false });
 });
 
 test("trade interaction QA mobile spot market selection and order-book handoff", async ({ page }) => {
@@ -924,7 +1158,7 @@ test("trade interaction QA desktop order-book side and price handoff", async ({ 
 // passing only at the seven required snapshot widths. These are desktop-browser
 // viewport sweeps; independent touch-device coverage is provided above.
 for (const route of routes.filter((item) => [
-  "/home", "/markets", "/trade/BTCUSDT", "/trade-hub", "/assets", "/deposit", "/withdraw", "/contract",
+  "/home", "/markets", "/trade/BTCUSDT", "/trade-hub", "/assets", "/deposit", "/withdraw", "/convert", "/contract",
 ].includes(item.path))) {
   test("continuous responsive sweep " + route.path, async ({ page }) => {
     test.setTimeout(300_000);

@@ -55,7 +55,7 @@ test('withdrawal fees are configurable in admin and the same server values are u
   assert.ok(api.includes('p_expected_fee: String(expectedFee)'));
   assert.ok(api.includes('WITHDRAWAL_FEE_CHANGED'));
   assert.ok(pages.includes('expected_fee:intent.expected_fee'), 'submission must reuse the fee captured when the idempotency intent was created');
-  assert.ok(pages.includes('selectedAddress?.coin==="USDC"?"USDT":selectedAddress?.coin'),
+  assert.ok(pages.includes('selectedCoin==="USDC"?"USDT":selectedCoin'),
     'USDC payout must reserve USDT while other assets keep their own settlement asset');
   assert.ok(pages.includes('Estimated USDT deduction'),
     'the withdrawal form must disclose the estimated USDT debit for USDC requests');
@@ -105,9 +105,13 @@ test('admin UI exposes editable fee inputs for every supported withdrawal asset'
   assert.ok(addressBook.includes('Object.keys(withdrawalConfig.allowed_networks)'),
     'address-book asset choices must be driven by the server withdrawal catalogue, including USDC');
   assert.ok(!addressBook.includes('const COIN_NETWORKS'));
+  assert.ok(pages.includes('Object.keys(config?.fees??{}).filter(coin=>!!config?.allowed_networks[coin]?.length)'),
+    'every server-supported asset must remain selectable even when the user balance is zero');
+  assert.ok(pages.includes('selectedCoinAddresses=usableAddresses.filter(item=>item.coin===selectedCoin)'),
+    'withdrawal address choices must be scoped to the selected asset');
   assert.ok(pages.includes('config.allowed_networks[item.coin]?.includes(item.network)'),
     'withdrawal form must only offer a saved address whose exact coin/network route is enabled');
-  assert.ok(pages.includes('selectedAddress?.coin==="USDC"?"USDT":selectedAddress?.coin'),
+  assert.ok(pages.includes('selectedCoin==="USDC"?"USDT":selectedCoin'),
     'USDC payout must reserve USDT while other assets retain their own ledger asset');
   assert.ok(pages.includes('Estimated USDT deduction'),
     'USDC customers must see the estimated USDT debit before submitting');

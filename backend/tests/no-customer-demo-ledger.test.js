@@ -307,12 +307,12 @@ test("demo preview cannot be enabled by a production query string or stale brows
 
 test("withdrawal requires verified balance and fee instead of assuming zero", () => {
   const pages = fs.readFileSync(path.join(root, "features/pages/Pages.tsx"), "utf8");
-  assert.ok(pages.includes("feeValue=selectedAddress&&config?config.fees?.[selectedAddress.coin]:undefined"));
+  assert.ok(pages.includes("feeValue=config?config.fees?.[selectedCoin]:undefined"));
   assert.ok(pages.includes("available=balance?.free==null?null:Number(balance.free)"));
   assert.ok(pages.includes("feeVerified"));
   assert.ok(pages.includes("balanceVerified"));
   assert.ok(!pages.includes("Number(balance?.free??0)"));
-  assert.ok(!pages.includes("Number(config.fees[selectedAddress.coin]??0)"));
+  assert.ok(!pages.includes("Number(config.fees[selectedCoin]??0)"));
   assert.ok(pages.includes('value===null||value===undefined||value===""'));
 });
 

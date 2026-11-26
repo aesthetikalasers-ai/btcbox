@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowDownToLine, ArrowUpFromLine, ArrowUpRight, ChevronDown, Eye, EyeOff, LockKeyhole, Sprout, Wallet } from "lucide-react";
+import { ArrowDownToLine, ArrowUpFromLine, ArrowUpRight, ArrowLeftRight, ChevronDown, Eye, EyeOff, LockKeyhole, Sprout, Wallet } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { ApiError, getAccount, type AccountBalance, type AccountSnapshot } from "../../lib/api";
@@ -166,11 +166,14 @@ export function AssetsPage() {
               <span className="font-mono font-semibold tabular-nums text-brand-text-muted">— USDT (—%)</span>
             </div>
           )}
-          {/* 行 5：充值 / 提现 / 理财 */}
-          <div className="relative grid w-full grid-cols-3 gap-2 sm:w-auto sm:min-w-[340px]">
+          {/* Keep deposit and withdrawal as independent first-level asset actions. */}
+          <div className="relative grid w-full grid-cols-2 gap-2 sm:w-auto sm:min-w-[340px]">
             <Button asChild className="min-h-11 text-sm font-bold"><Link to="/deposit"><ArrowDownToLine className="h-4 w-4"/>{t("Deposit")}</Link></Button>
             <Button asChild variant="outline" className="min-h-11 text-sm font-bold"><Link to="/withdraw"><ArrowUpFromLine className="h-4 w-4"/>{t("Withdraw")}</Link></Button>
-            <Button asChild variant="outline" className="min-h-11 text-sm font-bold"><Link to="/earn"><Sprout className="h-4 w-4"/>{t("Earn")}</Link></Button>
+          </div>
+          <div className="relative flex flex-wrap gap-2">
+            <Button asChild variant="ghost" className="min-h-10 text-sm"><Link to="/convert"><ArrowLeftRight className="h-4 w-4"/>{t("Convert")}</Link></Button>
+            <Button asChild variant="ghost" className="min-h-10 text-sm"><Link to="/earn"><Sprout className="h-4 w-4"/>{t("Earn")}</Link></Button>
           </div>
         </CardContent>
       </Card>
@@ -178,7 +181,7 @@ export function AssetsPage() {
         <h2 className="type-section-title page-accent">{t("Asset balances")}</h2>
       </div>
       {loading ? <div className="space-y-2" role="status" aria-live="polite"><div className="h-14 animate-pulse rounded-xl bg-brand-surface-2"/><div className="h-14 animate-pulse rounded-xl bg-brand-surface-2"/><div className="h-14 animate-pulse rounded-xl bg-brand-surface-2"/></div>
-      : balances.length ? <div data-testid="asset-balance-list" className="overflow-hidden">
+      : balances.length ? <div data-testid="asset-balance-list" className="overflow-hidden pb-[calc(120px+env(safe-area-inset-bottom))] md:pb-4">
         <div className="divide-y divide-white/[0.06]">
           {balances.map(([coin, balance]) => {
             const coinName = COIN_NAMES[coin] ?? coin;

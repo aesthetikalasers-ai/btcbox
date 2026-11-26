@@ -37,6 +37,7 @@ export function OrdersPage() {
   const { t, language } = useI18n();
   const dateLocale = dateLocales[language];
   const [openOnly, setOpenOnly] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(20);
   const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -55,6 +56,7 @@ export function OrdersPage() {
     const requestId = ++requestIdRef.current;
     setLoading(true);
     setOrders([]);
+    setVisibleCount(20);
     setError("");
     setSignedOut(false);
     try {
@@ -94,6 +96,7 @@ export function OrdersPage() {
   }, []);
 
   const visibleOrders = openOnly ? orders.filter(order => ["open", "partially_filled", "partially-filled", "pending"].includes(String(order.status || "").toLowerCase())) : orders;
+  const pagedOrders = visibleOrders.slice(0, visibleCount);
 
   return (
     <SubPageLayout
@@ -123,7 +126,7 @@ export function OrdersPage() {
 
       <Card className="overflow-hidden border-brand-border bg-brand-surface ">
         <CardHeader className="border-b border-brand-border bg-brand-surface-2/50 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--page-accent)]/10 text-[var(--page-accent)]"><ClipboardList className="h-5 w-5"/></span><CardTitle className="min-w-0">{t("Order history")}</CardTitle></div><div className="mt-3 flex flex-wrap gap-2 sm:mt-0"><Button variant={openOnly ? "default" : "outline"} size="sm" aria-pressed={openOnly} onClick={() => setOpenOnly(true)}>{t("Open orders")}</Button><Button variant={!openOnly ? "default" : "outline"} size="sm" aria-pressed={!openOnly} onClick={() => setOpenOnly(false)}>{t("Order history")}</Button></div>
+          <div className="flex min-w-0 items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--page-accent)]/10 text-[var(--page-accent)]"><ClipboardList className="h-5 w-5"/></span><CardTitle className="min-w-0">{t("Order history")}</CardTitle></div><div className="mt-3 flex flex-wrap gap-2 sm:mt-0"><Button variant={openOnly ? "default" : "outline"} size="sm" aria-pressed={openOnly} onClick={() => { setOpenOnly(true); setVisibleCount(20); }}>{t("Open orders")}</Button><Button variant={!openOnly ? "default" : "outline"} size="sm" aria-pressed={!openOnly} onClick={() => { setOpenOnly(false); setVisibleCount(20); }}>{t("Order history")}</Button></div>
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
@@ -141,7 +144,7 @@ export function OrdersPage() {
           ) : (
             <>
               <div className="grid gap-3 p-3 md:hidden">
-                {visibleOrders.map((order, index) => {
+                {pagedOrders.map((order, index) => {
                   const id = display(order.order_id ?? order.id, `#${index + 1}`);
                   const side = display(order.side);
                   return <Card key={id} className="border-brand-border bg-brand-surface-2/50  transition-all hover:border-brand-accent/30 hover:bg-brand-surface-2/80">
@@ -165,7 +168,7 @@ export function OrdersPage() {
                   <tr>{["Order", "Pair", "Side", "Type", "Price", "Quantity", "Status", "Created"].map((label) => <th key={label} className={`px-4 py-3 font-semibold ${label === "Price" || label === "Quantity" ? "text-right" : ""}`}>{t(label)}</th>)}</tr>
                 </thead>
                 <tbody>
-                  {visibleOrders.map((order, index) => {
+                  {pagedOrders.map((order, index) => {
                     const id = display(order.order_id ?? order.id, `#${index + 1}`);
                     const side = display(order.side);
                     return <tr key={id} className="border-b border-brand-border/80 last:border-0 transition-colors hover:bg-brand-surface-hover">
@@ -182,6 +185,13 @@ export function OrdersPage() {
                 </tbody>
               </table>
               </div>
+              {visibleOrders.length > pagedOrders.length && (
+                <div className="flex justify-center border-t border-brand-border p-4">
+                  <Button type="button" variant="outline" size="sm" onClick={() => setVisibleCount(count => Math.min(count + 20, visibleOrders.length))}>
+                    {t("Show more")} ({pagedOrders.length} / {visibleOrders.length})
+                  </Button>
+                </div>
+              )}
             </>
           )}
         </CardContent>

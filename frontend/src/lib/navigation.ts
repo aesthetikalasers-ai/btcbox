@@ -20,30 +20,26 @@ export const STANDALONE_ROUTES = ["/login", "/register", "/account-setup", "/aut
 /** Routes that are entered *from* a top-level tab and need a back affordance. */
 export const SUB_PAGE_ROUTES = [
   "/orders",
+  "/funds",
   "/deposit",
   "/withdraw",
-] as const;
-
-/**
- * Sub-page routes that are documented but not yet migrated to `SubPageLayout`.
- *
- * These intentionally keep the top-level chrome for now. Moving a path into
- * `SUB_PAGE_ROUTES` removes the global header and bottom tab bar, so the page must
- * provide its own title and back affordance in the same change.
- *
- * Pending migration: /settings, /kyc, /earn, /seconds, /contract, /support,
- * /trade-hub.
- */
-export const PENDING_SUB_PAGE_ROUTES = [
+  "/convert",
   "/settings",
   "/kyc",
   "/earn",
+  "/support",
+  "/rewards",
+  "/address-book",
+  "/fund-password",
+] as const;
+
+/**
+ * Primary product surfaces intentionally kept at the top tier. In particular,
+ * /trade-hub is the Trade tab landing surface, not a detail page.
+ */
+export const PENDING_SUB_PAGE_ROUTES = [
   "/seconds",
   "/contract",
-  "/support",
-  "/trade-hub",
-  "/rewards",
-  "/new-listings",
 ] as const;
 
 /**
@@ -93,11 +89,11 @@ export function getTierFallback(tier: NavigationTier): string {
  * site). Without this, `back()` would leave BTCBOX entirely.
  */
 export function useHistoryDepth() {
-  return useMemo(() => {
-    if (typeof window === "undefined") return 0;
-    const state = window.history.state as { idx?: number } | null;
-    return typeof state?.idx === "number" ? state.idx : 0;
-  }, []);
+  // Read the current router index on every render. Sub-page navigation can keep
+  // the same layout component mounted while the history index changes.
+  if (typeof window === "undefined") return 0;
+  const state = window.history.state as { idx?: number } | null;
+  return typeof state?.idx === "number" ? state.idx : 0;
 }
 
 export function useNavigationTier(pathname: string): NavigationTier {
