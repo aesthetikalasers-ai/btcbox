@@ -1897,5 +1897,16 @@
   "The converted amount is below the supported precision.": "Der umgerechnete Betrag liegt unter der unterstützten Genauigkeit.",
   "Insufficient available balance. No conversion was made.": "Nicht genügend verfügbares Guthaben. Es wurde kein Umtausch ausgeführt.",
   "This request ID was already used for a different conversion.": "Diese Anfrage-ID wurde bereits für einen anderen Umtausch verwendet.",
-  "The conversion was not confirmed. Check your asset balances before retrying.": "Der Umtausch wurde nicht bestätigt. Prüfen Sie Ihre Guthaben und den Verlauf, bevor Sie es erneut versuchen."
+  "The conversion was not confirmed. Check your asset balances before retrying.": "Der Umtausch wurde nicht bestätigt. Prüfen Sie Ihre Guthaben und den Verlauf, bevor Sie es erneut versuchen.",
+  "Hot": "Beliebt",
+  "Internal conversion is not open yet.": "Die interne Umwandlung ist noch nicht verfügbar.",
+  "BTCBOX has not enabled internal conversion yet, so quoting and confirmation are closed. Your assets have not changed. Deposit, withdrawal, trading and Earn remain available.": "BTCBOX hat die interne Umwandlung noch nicht aktiviert, daher sind Kursabfrage und Bestätigung geschlossen. Ihre Assets haben sich nicht verändert. Einzahlung, Auszahlung, Handel und Earn bleiben verfügbar.",
+  "Conversion service is temporarily unavailable. No assets were moved.": "Der Umwandlungsdienst ist vorübergehend nicht verfügbar. Es wurden keine Assets bewegt.",
+  "Secure conversion quotes are not configured. No assets were moved.": "Sichere Umwandlungskurse sind nicht konfiguriert. Es wurden keine Assets bewegt.",
+  "Market orders are disabled for this market: BTCBOX spot trading currently accepts limit orders only. Nothing has been submitted.": "Market-Orders sind für diesen Markt deaktiviert: Der BTCBOX-Spot-Handel akzeptiert derzeit nur Limit-Orders. Es wurde keine Order gesendet.",
+  "Switch to limit order": "Zu Limit-Order wechseln",
+  "The order was rejected. Check the price, quantity, margin and position mode, then submit again.": "Die Order wurde abgelehnt. Prüfen Sie Preis, Menge, Margin und Positionsmodus, bevor Sie erneut senden.",
+  "We couldn't confirm whether this order was accepted. Check Open orders and Positions before placing another order.": "Wir konnten nicht bestätigen, ob die Order angenommen wurde. Prüfen Sie „Offene Orders“ und „Positionen“, bevor Sie eine neue Order senden.",
+  "Technical details": "Technische Details",
+  "Request reference": "Anfrage-Referenz"
 }

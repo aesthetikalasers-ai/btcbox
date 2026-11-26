@@ -298,6 +298,39 @@ export async function getTradingStatus(signal?: AbortSignal): Promise<TradingSta
   // Guessing "enabled" here would expose the entry form during an outage.
   return { spot_order_entry_enabled: false, spot_cancel_enabled: false, supported_order_types: [] };
 }
+export interface PublicConfig {
+  /** False when internal conversion is deliberately closed by server policy. */
+  internal_conversion_enabled?: boolean;
+  /** Always false today: the spot matching contract accepts limit orders only. */
+  spot_market_orders_enabled?: boolean;
+  /** False until the referral programme is implemented server-side. */
+  referral_program_enabled?: boolean;
+}
+
+/**
+ * Reads the public capability snapshot (`/api/config`).
+ *
+ * Returns `null` when the endpoint cannot be read at all. A capability check must
+ * never be the reason a working feature disappears, so callers treat `null` as
+ * "unknown, keep the current behaviour" and only honour an explicit `false`.
+ */
+export async function getPublicConfig(signal?: AbortSignal): Promise<PublicConfig | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/config`, {
+      credentials: "include",
+      cache: "no-store",
+      headers: { Accept: "application/json" },
+      ...(signal ? { signal } : {}),
+    });
+    if (!response.ok) return null;
+    const payload = (await response.json().catch(() => null)) as (PublicConfig & { ok?: boolean }) | null;
+    return payload && payload.ok === true ? payload : null;
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") throw error;
+    return null;
+  }
+}
+
 export interface OrderBookSnapshot { source: string; snapshotTs?: number; providerTs?: number | null; bids: Array<[string,string]>; asks: Array<[string,string]>; }
 /**
  * Fetches the live order book.

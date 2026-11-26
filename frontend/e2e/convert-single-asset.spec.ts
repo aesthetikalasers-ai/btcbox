@@ -8,9 +8,13 @@ import { expect, test, type Page } from "@playwright/test";
  * most right after a deposit. These tests pin the balance + market-catalogue
  * union and the server-error copy that the page must surface.
  */
-async function mockConversion(page: Page, options: { balances: Record<string, unknown>; quoteResponse?: Record<string, unknown> }) {
+async function mockConversion(page: Page, options: { balances: Record<string, unknown>; quoteResponse?: Record<string, unknown>; configResponse?: Record<string, unknown> }) {
   await page.route("**/api/**", async (route) => {
     const pathname = new URL(route.request().url()).pathname;
+    if (pathname === "/api/config" && options.configResponse) {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(options.configResponse) });
+      return;
+    }
     if (pathname === "/api/auth-client-config") {
       await route.fulfill({
         status: 200,
@@ -116,4 +120,27 @@ test("a rejected quote explains the specific reason instead of a generic failure
   await page.getByLabel("Amount").fill("0.0000001");
   await page.getByRole("button", { name: "Get quote" }).click();
   await expect(page.getByRole("alert")).toHaveText("The converted amount is below the supported precision.");
+});
+
+test("a closed conversion feature is stated before the form is filled in", async ({ page }) => {
+  // The page used to accept an amount, a pair and a click before answering
+  // "not open yet", which wasted the whole flow and blurred a policy decision
+  // with a service outage. The capability from /api/config now closes the form.
+  await mockConversion(page, {
+    balances: { USDT: { free: "1000", frozen: "0", usdt: "1000", valuation_available: true } },
+    configResponse: { ok: true, internal_conversion_enabled: false },
+  });
+  const quoteRequests: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/api/convert/quote")) quoteRequests.push(request.url());
+  });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/convert", { waitUntil: "domcontentloaded" });
+
+  await expect(page.getByTestId("conversion-not-open")).toBeVisible();
+  await expect(page.getByText("Internal conversion is not open yet.").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Get quote" })).toHaveCount(0);
+  await expect(page.getByLabel("Amount")).toHaveCount(0);
+  expect(quoteRequests).toHaveLength(0);
 });

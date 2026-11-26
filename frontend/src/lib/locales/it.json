@@ -1897,5 +1897,16 @@
   "The converted amount is below the supported precision.": "L'importo convertito è inferiore alla precisione supportata.",
   "Insufficient available balance. No conversion was made.": "Saldo disponibile insufficiente. Nessuna conversione è stata eseguita.",
   "This request ID was already used for a different conversion.": "Questo ID richiesta è già stato utilizzato per un'altra conversione.",
-  "The conversion was not confirmed. Check your asset balances before retrying.": "La conversione non è stata confermata. Controlla i saldi e la cronologia prima di riprovare."
+  "The conversion was not confirmed. Check your asset balances before retrying.": "La conversione non è stata confermata. Controlla i saldi e la cronologia prima di riprovare.",
+  "Hot": "Popolari",
+  "Internal conversion is not open yet.": "La conversione interna non è ancora disponibile.",
+  "BTCBOX has not enabled internal conversion yet, so quoting and confirmation are closed. Your assets have not changed. Deposit, withdrawal, trading and Earn remain available.": "BTCBOX non ha ancora attivato la conversione interna, quindi quotazione e conferma sono chiuse. I tuoi asset non sono cambiati. Depositi, prelievi, trading ed Earn restano disponibili.",
+  "Conversion service is temporarily unavailable. No assets were moved.": "Il servizio di conversione è temporaneamente non disponibile. Nessun asset è stato movimentato.",
+  "Secure conversion quotes are not configured. No assets were moved.": "Le quotazioni di conversione sicure non sono configurate. Nessun asset è stato movimentato.",
+  "Market orders are disabled for this market: BTCBOX spot trading currently accepts limit orders only. Nothing has been submitted.": "Gli ordini a mercato sono disattivati su questo mercato: il trading spot di BTCBOX accetta solo ordini limite. Nessun ordine è stato inviato.",
+  "Switch to limit order": "Passa all'ordine limite",
+  "The order was rejected. Check the price, quantity, margin and position mode, then submit again.": "L'ordine è stato rifiutato. Controlla prezzo, quantità, margine e modalità di posizione prima di inviarlo di nuovo.",
+  "We couldn't confirm whether this order was accepted. Check Open orders and Positions before placing another order.": "Non è stato possibile confermare se l'ordine è stato accettato. Controlla «Ordini aperti» e «Posizioni» prima di inviarne un altro.",
+  "Technical details": "Dettagli tecnici",
+  "Request reference": "Riferimento della richiesta"
 }

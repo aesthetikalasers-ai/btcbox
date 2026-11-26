@@ -110,7 +110,14 @@ async function readReferralEndpoint<T>(path: string, signal?: AbortSignal): Prom
     // The programme is simply not enabled for this account yet.
     if (response.status === 404 || response.status === 501) return null;
     if (!response.ok) return null;
-    return (await response.json().catch(() => null)) as T | null;
+    const payload = (await response.json().catch(() => null)) as
+      (T & { ok?: boolean; available?: boolean; code?: string }) | null;
+    // The endpoint may also answer 200 while the programme is still closed. A
+    // capability refusal must reach the honest empty state, never a half-built
+    // profile that a customer could mistake for live reward data.
+    if (!payload || payload.ok === false || payload.available === false) return null;
+    if (typeof payload.code === "string" && payload.code.startsWith("REFERRAL_NOT_ENABLED")) return null;
+    return payload as T;
   } catch (reason) {
     // A caller-initiated abort must propagate; anything else degrades to "not available".
     if (reason instanceof Error && reason.name === "AbortError") throw reason;

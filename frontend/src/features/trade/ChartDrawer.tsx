@@ -13,7 +13,7 @@ type TimeframeKey = "Line" | "15m" | "1h" | "4h" | "1d";
 // ("分时") is rendered as an area series; every other key maps directly onto the
 // backend kline interval.
 const TIMEFRAMES: Array<{ key: TimeframeKey; interval: string; label: string }> = [
-  { key: "Line", interval: "1m", label: "分时" },
+  { key: "Line", interval: "1m", label: "Line" },
   { key: "15m", interval: "15m", label: "15m" },
   { key: "1h", interval: "1h", label: "1H" },
   { key: "4h", interval: "4h", label: "4H" },
@@ -300,7 +300,7 @@ export function ChartDrawer({ symbol = "BTC/USDT", marketType = "perpetual", ope
                       timeframe === tf.key ? "bg-[#0ecb81]/15 text-[#0ecb81]" : "text-brand-text-muted hover:text-brand-text-secondary",
                     )}
                   >
-                    {tf.label}
+                    {tf.key === "Line" ? t("Line") : tf.label}
                   </button>
                 ))}
               </div>

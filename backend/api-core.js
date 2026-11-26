@@ -1666,6 +1666,12 @@ async function handleRequest(event, context) {
       announcement: (db && db.announcement) || '',
       supabase_auth_url: String(process.env.SUPABASE_AUTH_URL || '').trim(),
       supabase_auth_publishable_key: getPublishableKey(),
+      // Capability flags let a page state that a feature is closed *before* the
+      // customer fills a form in. They expose no secret and never enable a write
+      // path: the financial endpoints still fail closed on their own checks.
+      internal_conversion_enabled: process.env.FINANCIAL_INTERNAL_CONVERSION_ENABLED === '1',
+      spot_market_orders_enabled: false,
+      referral_program_enabled: false,
     });
   }
 
@@ -2809,8 +2815,12 @@ async function handleRequest(event, context) {
   // alter the rate or receive amount before the atomic ledger operation.
   if (path === 'convert/quote' && method === 'GET') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
+    // A product that has not been switched on is a policy answer, not a service
+    // outage: answering 503 made a closed feature look like a broken server and
+    // hid the real distinction from the client. The code stays identical so the
+    // UI keeps one mapping table.
     if (process.env.FINANCIAL_INTERNAL_CONVERSION_ENABLED !== '1') {
-      return json({ ok: false, code: 'CONVERSION_NOT_ENABLED', msg: 'Internal conversion is not available yet. No assets were moved.' }, 503);
+      return json({ ok: false, code: 'CONVERSION_NOT_ENABLED', msg: 'Internal conversion is not available yet. No assets were moved.' }, 403);
     }
     const rl = await rateCheckShared('spot_order', String(user.uid));
     if (rl.unavailable) return rateLimitUnavailableJson();
@@ -3330,6 +3340,23 @@ async function handleRequest(event, context) {
       return json({ ok: false, code: e.status === 400 ? 'CANCEL_REJECTED' : 'MATCHING_RPC_UNAVAILABLE',
         msg: e.status === 400 ? 'Cancel failed. Please check the order status.' : 'Matching database temporarily unavailable. Cancel result is unconfirmed. Please check your orders before retrying.' }, e.status === 400 ? 400 : 503);
     }
+  }
+
+  // ---------- GET /api/referral/profile, /api/referral/commissions ----------
+  // The referral programme has no backend implementation yet, but the client
+  // already documents these two endpoints. They used to fall through to the
+  // router's 404, which looked like a broken deployment in the browser console.
+  // An explicit capability answer keeps the contract honest: authenticated
+  // callers are told the programme is closed, and no invite code, invitee count
+  // or commission amount is ever invented.
+  if ((path === 'referral/profile' || path === 'referral/commissions') && method === 'GET') {
+    if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
+    return json({
+      ok: false,
+      available: false,
+      code: 'REFERRAL_NOT_ENABLED',
+      msg: 'Referral rewards are not open yet. No earnings or invite counts are available.',
+    }, 501);
   }
 
   // ---------- GET /api/earn/products ----------

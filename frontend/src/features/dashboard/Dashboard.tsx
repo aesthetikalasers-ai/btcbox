@@ -15,7 +15,7 @@ import {
 import { TokenIcon } from "../../components/ui/TokenIcon";
 import { HotFlameIcon } from "../../components/ui/HotFlameIcon";
 import { getMarkets, type MarketTicker } from "../../lib/api";
-import { getAssetName } from "../../lib/marketData";
+import { assetNameLabel } from "../../lib/marketData";
 import { useI18n, localeTags } from "../../lib/i18n";
 
 const pairSymbol = (symbol: string) => (symbol.endsWith("USDT") ? symbol : `${symbol}USDT`);
@@ -274,7 +274,7 @@ function MarketTable({ markets, locale, onViewAll, loading, error }: { markets: 
                   <span className="text-[11px] font-medium text-brand-text-muted shrink-0">/USDT</span>
                   {isHot ? <HotFlameIcon className="h-3.5 w-3.5 shrink-0" /> : null}
                 </span>
-                <span className="mt-0.5 block truncate text-[11px] font-normal leading-tight text-brand-text-muted">{t(getAssetName(m.sym))}</span>
+                <span className="mt-0.5 block truncate text-[11px] font-normal leading-tight text-brand-text-muted">{assetNameLabel(m.sym, t)}</span>
               </span>
               <span className="shrink-0 text-right">
                 <span className="block font-mono text-[17px] font-bold leading-tight tabular-nums text-brand-text">{fmtPrice(m.price, locale)}</span>
@@ -311,7 +311,7 @@ function MarketTable({ markets, locale, onViewAll, loading, error }: { markets: 
                         <span className="block truncate text-[13px] font-bold leading-tight text-brand-text">{m.sym}</span>
                         <span className="text-[10px] font-medium text-brand-text-muted shrink-0">/USDT</span>
                       </div>
-                      <span className="block truncate text-[10px] leading-tight text-brand-text-muted">{t(getAssetName(m.sym))}</span>
+                      <span className="block truncate text-[10px] leading-tight text-brand-text-muted">{assetNameLabel(m.sym, t)}</span>
                     </span>
                   </Link>
                 </td>

@@ -1897,5 +1897,16 @@
   "The converted amount is below the supported precision.": "交換後の数量が対応する最小精度を下回っています。",
   "Insufficient available balance. No conversion was made.": "利用可能残高が不足しています。交換は実行されていません。",
   "This request ID was already used for a different conversion.": "このリクエストIDは別の交換にすでに使用されています。",
-  "The conversion was not confirmed. Check your asset balances before retrying.": "交換結果を確認できませんでした。再試行する前に残高と履歴を確認してください。"
+  "The conversion was not confirmed. Check your asset balances before retrying.": "交換結果を確認できませんでした。再試行する前に残高と履歴を確認してください。",
+  "Hot": "人気",
+  "Internal conversion is not open yet.": "内部両替はまだ提供されていません。",
+  "BTCBOX has not enabled internal conversion yet, so quoting and confirmation are closed. Your assets have not changed. Deposit, withdrawal, trading and Earn remain available.": "BTCBOX は内部両替をまだ有効にしていません。見積もりと確定は停止しており、資産は変わりません。入金・出金・取引・Earn は引き続きご利用いただけます。",
+  "Conversion service is temporarily unavailable. No assets were moved.": "両替サービスは一時的にご利用いただけません。資産は変動していません。",
+  "Secure conversion quotes are not configured. No assets were moved.": "安全な両替レートの設定が完了していません。資産は変動していません。",
+  "Market orders are disabled for this market: BTCBOX spot trading currently accepts limit orders only. Nothing has been submitted.": "この市場では成行注文は無効です。BTCBOX の現物取引は現在指値注文のみ対応しています。注文は送信されていません。",
+  "Switch to limit order": "指値注文に切り替える",
+  "The order was rejected. Check the price, quantity, margin and position mode, then submit again.": "注文は受け付けられませんでした。価格・数量・証拠金・ポジションモードを確認してから再度送信してください。",
+  "We couldn't confirm whether this order was accepted. Check Open orders and Positions before placing another order.": "注文が受け付けられたか確認できませんでした。新しく注文する前に「未約定注文」と「ポジション」を確認してください。",
+  "Technical details": "技術情報",
+  "Request reference": "リクエスト参照番号"
 }

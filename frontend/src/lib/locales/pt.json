@@ -1897,5 +1897,16 @@
   "The converted amount is below the supported precision.": "O valor convertido está abaixo da precisão permitida.",
   "Insufficient available balance. No conversion was made.": "Saldo disponível insuficiente. Nenhuma conversão foi realizada.",
   "This request ID was already used for a different conversion.": "Este ID de solicitação já foi usado para outra conversão.",
-  "The conversion was not confirmed. Check your asset balances before retrying.": "A conversão não foi confirmada. Verifique seus saldos e o histórico antes de tentar novamente."
+  "The conversion was not confirmed. Check your asset balances before retrying.": "A conversão não foi confirmada. Verifique seus saldos e o histórico antes de tentar novamente.",
+  "Hot": "Populares",
+  "Internal conversion is not open yet.": "A conversão interna ainda não está disponível.",
+  "BTCBOX has not enabled internal conversion yet, so quoting and confirmation are closed. Your assets have not changed. Deposit, withdrawal, trading and Earn remain available.": "A BTCBOX ainda não ativou a conversão interna, por isso a cotação e a confirmação estão encerradas. Os seus ativos não foram alterados. Depósitos, levantamentos, negociação e Earn continuam disponíveis.",
+  "Conversion service is temporarily unavailable. No assets were moved.": "O serviço de conversão está temporariamente indisponível. Nenhum ativo foi movimentado.",
+  "Secure conversion quotes are not configured. No assets were moved.": "As cotações seguras de conversão não estão configuradas. Nenhum ativo foi movimentado.",
+  "Market orders are disabled for this market: BTCBOX spot trading currently accepts limit orders only. Nothing has been submitted.": "As ordens a mercado estão desativadas neste mercado: a negociação spot da BTCBOX aceita apenas ordens limitadas. Nenhuma ordem foi enviada.",
+  "Switch to limit order": "Mudar para ordem limitada",
+  "The order was rejected. Check the price, quantity, margin and position mode, then submit again.": "A ordem foi rejeitada. Verifique o preço, a quantidade, a margem e o modo de posição antes de enviar novamente.",
+  "We couldn't confirm whether this order was accepted. Check Open orders and Positions before placing another order.": "Não foi possível confirmar se a ordem foi aceite. Verifique «Ordens abertas» e «Posições» antes de enviar outra.",
+  "Technical details": "Detalhes técnicos",
+  "Request reference": "Referência do pedido"
 }

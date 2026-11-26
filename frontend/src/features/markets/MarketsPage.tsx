@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Search, Star } from "lucide-react";
 import { TokenIcon } from "../../components/ui/TokenIcon";
 import { getMarkets, type MarketTicker } from "../../lib/api";
-import { getAssetName } from "../../lib/marketData";
+import { assetNameLabel } from "../../lib/marketData";
 import { useI18n, localeTags } from "../../lib/i18n";
 
 type SortKey = "volume" | "change" | "price";
@@ -147,7 +147,7 @@ function MarketTable({ markets, locale, loading, error, favorites, onToggleFavor
                       <span className="block truncate text-[14.5px] font-bold leading-tight text-brand-text">{market.sym}</span>
                       <span className="text-[11px] font-medium text-brand-text-muted shrink-0">/USDT</span>
                     </span>
-                    <span className="mt-0.5 block truncate text-[11px] leading-tight text-brand-text-muted">{t(getAssetName(market.sym))}</span>
+                    <span className="mt-0.5 block truncate text-[11px] leading-tight text-brand-text-muted">{assetNameLabel(market.sym, t)}</span>
                   </span>
                 </Link>
                 <button
@@ -210,7 +210,7 @@ function MarketTable({ markets, locale, loading, error, favorites, onToggleFavor
                         <span className="block truncate text-[13px] font-bold leading-tight text-brand-text">{market.sym}</span>
                         <span className="text-[10px] font-medium text-brand-text-muted shrink-0">/USDT</span>
                       </div>
-                      <span className="block truncate text-[10px] leading-tight text-brand-text-muted">{t(getAssetName(market.sym))}</span>
+                      <span className="block truncate text-[10px] leading-tight text-brand-text-muted">{assetNameLabel(market.sym, t)}</span>
                     </Link>
                     <button
                       type="button"

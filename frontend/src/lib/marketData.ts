@@ -69,6 +69,24 @@ export const getAssetName = (sym: string): string => {
   return ASSET_NAMES[base] || ASSET_NAMES[sym] || base;
 };
 
+/**
+ * English display name for a symbol, or `null` when the catalogue has no entry.
+ *
+ * Callers use this to decide whether a name is copy (translatable) or data (a
+ * ticker). Passing a bare ticker such as `INJ` into `t()` produced a
+ * "missing translation" warning on every market row.
+ */
+export const getAssetNameKey = (sym: string): string | null => {
+  const base = sym.replace(/USDT$/, "");
+  return ASSET_NAMES[base] ?? ASSET_NAMES[sym] ?? null;
+};
+
+/** Renders a market label: translate known names, otherwise show the ticker itself. */
+export const assetNameLabel = (sym: string, translate: (value: string) => string): string => {
+  const key = getAssetNameKey(sym);
+  return key ? translate(key) : sym.replace(/USDT$/, "");
+};
+
 
 // Maintain the latest validated backend snapshot in memory; never synthesize movement.
 class LiveMarketEngine {

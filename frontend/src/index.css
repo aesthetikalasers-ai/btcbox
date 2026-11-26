@@ -666,8 +666,19 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   /* --- Mobile workspace: balanced dual-column order entry and depth ladder -- */
   .spot-terminal .exchange-workspace {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 8px;
+    gap: 10px;
   }
+  /* Touch rhythm: the left-form / right-book split is unchanged. Each side just
+     gets a little more air between rows and controls large enough to hit, so the
+     ladder stops reading as one dense block on a 440px screen. */
+  .spot-terminal .exchange-book-levels { gap: 4px; }
+  .spot-terminal .spot-book-row { line-height: 26px; padding-right: 8px; }
+  .spot-terminal .spot-book-row--click:active { background-color: rgba(255, 255, 255, 0.06); }
+  .spot-terminal .spot-price-control button,
+  .spot-terminal .spot-qty-control button { width: 38px; min-width: 38px; min-height: 40px; }
+  .spot-terminal .spot-quick-prices { gap: 5px; }
+  .spot-terminal .spot-quick-prices button { min-height: 32px; }
+  .spot-terminal .spot-percent-steps button { min-height: 32px; height: 32px; }
 
   /* --- Compact inline chart inside the header-triggered drawer ------------ */
   .exchange-chart--compact {
