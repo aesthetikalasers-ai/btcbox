@@ -719,7 +719,6 @@ export function ContractPage() {
       <CardHeader className="border-b border-brand-border/60 px-4 pb-2.5 pt-3">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-sm font-bold">{t("Place order")}</CardTitle>
-          <Badge variant="outline" className="border-brand-violet/30 bg-brand-violet/10 font-mono text-[11px] text-brand-violet">{effectiveLeverage}×</Badge>
         </div>
       </CardHeader>
       <CardContent className="px-4 pb-4 pt-3">
@@ -747,7 +746,7 @@ export function ContractPage() {
               aria-pressed={side === "buy"}
               onClick={() => setSide("buy")}
               className={cn(
-                "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-md text-xs font-semibold transition-all active:scale-[0.99]",
+                "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-md text-xs font-semibold transition-all active:scale-[0.99]",
                 side === "buy" ? "bg-brand-accent text-[#05201A] shadow-sm" : "border border-brand-border bg-brand-surface-2 text-brand-text-secondary hover:border-brand-border-strong",
               )}
             >
@@ -758,7 +757,7 @@ export function ContractPage() {
               aria-pressed={side === "sell"}
               onClick={() => setSide("sell")}
               className={cn(
-                "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg text-xs font-bold transition-all active:scale-[0.99]",
+                "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-md text-xs font-semibold transition-all active:scale-[0.99]",
                 side === "sell" ? "bg-brand-danger text-white shadow-sm" : "border border-brand-border bg-brand-surface-2 text-brand-text-secondary hover:border-brand-border-strong",
               )}
             >
@@ -1319,7 +1318,7 @@ export function ContractPage() {
                 <KlinePanel symbol={selectedMarket?.symbol ?? symbol ?? "BTCUSDT"} height={500} />
               </section>
               <section aria-label={t("Order book")} className="min-w-[300px] overflow-hidden rounded-xl border border-brand-border bg-brand-surface">
-                <div className="h-full min-h-[500px]"><OrderBookDepth mid={depthMid} book={displayBook} streamState={liveDepth.state} baseAsset={baseAsset} levels={8} compact /></div>
+                <div className="h-full min-h-[500px]"><OrderBookDepth mid={depthMid} book={displayBook} streamState={liveDepth.state} baseAsset={baseAsset} levels={8} compact onPriceSelect={(selectedPrice, selectedSide) => { setOrderType("limit"); if (selectedSide) setSide(selectedSide); setPrice(String(selectedPrice)); }} /></div>
               </section>
               <section aria-label={t("Place order")} className="min-w-[350px] overflow-hidden rounded-xl border border-brand-border bg-brand-surface">
                 <div className="max-h-[560px] overflow-y-auto overscroll-contain">{orderEntryCard}</div>
