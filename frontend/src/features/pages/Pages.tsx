@@ -1353,39 +1353,71 @@ export function InternalConversionPage(){
   finally{setSubmitting(false);}
  };
  return <PageFrame title="Convert" tone="assets" backTo="/assets" className="funds-flow-page">
-  <div className="mx-auto w-full max-w-2xl space-y-5">
-   {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-5 text-sm text-brand-text-muted" role="status">{t("Loading wallet balances…")}</CardContent></Card>
-   :!account?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-5 text-sm text-brand-text-muted">{t("Account data is temporarily unavailable.")}</CardContent></Card>
-   :<Card className="border border-white/[0.08] bg-brand-surface">
-    <CardHeader className="border-b border-brand-border"><CardTitle>{t("Convert assets")}</CardTitle><CardDescription>{t("Convert between supported assets at a live market rate.")}</CardDescription></CardHeader>
-    <CardContent className="space-y-4 p-4 sm:p-6">
-     <div className="space-y-2 rounded-xl border border-brand-border bg-brand-surface-2/50 p-4">
-      <label className="block space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("From")}</span><select value={fromAsset} onChange={event=>{const next=event.target.value;setFromAsset(next);if(next===toAsset)setToAsset(assets.find(asset=>asset!==next)||"");resetQuote();}} className="min-h-12 w-full rounded-xl border border-brand-border bg-brand-surface px-3 text-sm text-brand-text">{assets.map(asset=><option key={asset} value={asset}>{asset}</option>)}</select></label>
-      <div className="flex items-center justify-between text-xs text-brand-text-muted"><span>{t("Available balance")}</span><span className="font-mono tabular-nums">{formatDecimalAmount(fromBalance,localeTags[language])} {fromAsset}</span></div>
-      <label className="block space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Amount")}</span><input inputMode="decimal" value={amount} onChange={event=>{setAmount(event.target.value);resetQuote();}} placeholder="0.00" className="min-h-12 w-full rounded-xl border border-brand-border bg-brand-surface px-3 text-sm text-brand-text outline-none focus:border-brand-accent/60" /></label>
+  <div className="mx-auto w-full max-w-2xl space-y-4 sm:space-y-5">
+   <div className="flex items-start justify-between gap-3 px-0.5">
+    <p className="min-w-0 pt-1 text-xs leading-5 text-brand-text-muted sm:text-sm">{t("Convert between supported assets at a live market rate.")}</p>
+    <span className="inline-flex max-w-[142px] shrink items-start gap-1.5 rounded-lg border border-brand-border bg-brand-surface px-2 py-1.5 text-[10px] leading-4 text-brand-text-muted sm:max-w-[190px] sm:text-xs"><ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-accent"/><span>{t("Quote valid for 30 seconds. The rate is locked until expiry.")}</span></span>
+   </div>
+   {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="space-y-4 p-5" role="status"><div className="h-5 w-36 animate-pulse rounded bg-brand-surface-2"/><div className="h-28 animate-pulse rounded-xl bg-brand-surface-2"/><div className="h-28 animate-pulse rounded-xl bg-brand-surface-2"/></CardContent></Card>
+   :!account?<Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-col items-center gap-3 p-8 text-center"><Wallet className="h-8 w-8 text-brand-text-muted"/><p className="text-sm text-brand-text-muted">{t("Account data is temporarily unavailable.")}</p><Button variant="outline" onClick={()=>setReload(value=>value+1)}>{t("Try again")}</Button></CardContent></Card>
+   :assets.length<2?<Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-col items-center gap-3 p-8 text-center"><ArrowLeftRight className="h-8 w-8 text-brand-text-muted"/><p className="font-medium text-brand-text">{t("No asset balances are currently available.")}</p><p className="max-w-md text-sm text-brand-text-muted">{t("No asset balances are currently available.")}</p></CardContent></Card>
+   :<Card className="overflow-hidden border-brand-border bg-brand-surface shadow-sm">
+    <CardContent className="space-y-4 p-3.5 sm:space-y-5 sm:p-5">
+     <div className="grid items-stretch gap-2.5 lg:grid-cols-[minmax(0,1fr)_44px_minmax(0,1fr)] lg:gap-3">
+      <section className="min-w-0 rounded-xl border border-brand-border bg-brand-surface-2/70 p-3.5 sm:p-4">
+       <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-semibold uppercase tracking-wide text-brand-text-muted">{t("From")}</span>
+        <span className="text-[11px] text-brand-text-muted">{t("Available balance")}</span>
+       </div>
+       <div className="mt-3 flex min-w-0 items-center gap-2.5">
+        <TokenIcon symbol={fromAsset} className="h-9 w-9 shrink-0 sm:h-10 sm:w-10"/>
+        <select aria-label={t("From")} value={fromAsset} onChange={event=>{const next=event.target.value;setFromAsset(next);if(next===toAsset)setToAsset(assets.find(asset=>asset!==next)||"");resetQuote();}} className="h-10 min-w-0 flex-1 rounded-lg border border-brand-border bg-brand-surface px-2.5 text-sm font-semibold text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15 sm:text-base">{assets.filter(asset=>asset!==toAsset).map(asset=><option key={asset} value={asset}>{asset}</option>)}</select>
+       </div>
+       <div className="mt-3 border-t border-brand-border/70 pt-3">
+        <label htmlFor="conversion-amount" className="text-xs font-medium text-brand-text-muted">{t("Amount")}</label>
+        <div className="mt-1 flex min-w-0 items-center gap-2">
+         <input id="conversion-amount" inputMode="decimal" autoComplete="off" value={amount} onChange={event=>{setAmount(event.target.value);resetQuote();}} placeholder="0.00" aria-label={t("Amount")} className="min-h-12 w-full min-w-0 border-0 bg-transparent p-0 font-mono text-[26px] font-semibold tracking-tight tabular-nums text-brand-text outline-none placeholder:text-brand-text-muted/40 focus:ring-0 sm:text-3xl"/>
+         <span className="shrink-0 text-xs font-semibold text-brand-text-muted">{fromAsset}</span>
+        </div>
+        <div className="mt-2 flex items-center justify-between gap-2">
+         <span className="min-w-0 truncate text-[11px] text-brand-text-muted">{t("Available")}: <span className="font-mono tabular-nums text-brand-text-secondary">{formatDecimalAmount(fromBalance,localeTags[language])}</span></span>
+         <button type="button" onClick={()=>{setAmount(String(fromBalance));resetQuote();}} disabled={submitting||compareDecimalStrings(String(fromBalance),"0")!==1} className="min-h-7 shrink-0 rounded-md px-2 text-xs font-semibold text-brand-accent transition-colors hover:bg-brand-accent/10 disabled:cursor-not-allowed disabled:opacity-40">100%</button>
+        </div>
+       </div>
+      </section>
+      <div className="flex items-center justify-center lg:pt-0">
+       <Button type="button" variant="outline" size="icon" aria-label={t("Swap assets")} onClick={swapAssets} disabled={submitting} className="h-9 w-9 rotate-90 rounded-full border-brand-border bg-brand-surface shadow-sm hover:border-brand-accent/50 hover:bg-brand-accent/5 lg:rotate-0"><ArrowLeftRight className="h-4 w-4"/></Button>
+      </div>
+      <section className="min-w-0 rounded-xl border border-brand-accent/20 bg-brand-accent/[0.045] p-3.5 sm:p-4">
+       <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-semibold uppercase tracking-wide text-brand-text-muted">{t("To")}</span>
+        <span className="text-[11px] text-brand-text-muted">{t("Current balance")}</span>
+       </div>
+       <div className="mt-3 flex min-w-0 items-center gap-2.5">
+        <TokenIcon symbol={toAsset} className="h-9 w-9 shrink-0 sm:h-10 sm:w-10"/>
+        <select aria-label={t("To")} value={toAsset} onChange={event=>{setToAsset(event.target.value);resetQuote();}} className="h-10 min-w-0 flex-1 rounded-lg border border-brand-border bg-brand-surface px-2.5 text-sm font-semibold text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15 sm:text-base">{assets.filter(asset=>asset!==fromAsset).map(asset=><option key={asset} value={asset}>{asset}</option>)}</select>
+       </div>
+       <div className="mt-3 flex min-h-[88px] flex-col justify-between border-t border-brand-accent/15 pt-3">
+        <span className="text-xs font-medium text-brand-text-muted">{t("You will receive")}</span>
+        <p className="break-all font-mono text-[26px] font-semibold tracking-tight tabular-nums text-brand-text sm:text-3xl">{quote?formatDecimalAmount(quote.to_amount,localeTags[language]):"—"} <span className="text-xs font-semibold text-brand-text-muted sm:text-sm">{toAsset}</span></p>
+        <span className="text-[11px] text-brand-text-muted">{t("Available")}: <span className="font-mono tabular-nums text-brand-text-secondary">{formatDecimalAmount(toBalance,localeTags[language])}</span></span>
+       </div>
+      </section>
      </div>
-     <div className="flex justify-center"><Button type="button" variant="outline" size="icon" aria-label={t("Swap assets")} onClick={swapAssets} disabled={submitting}><ArrowLeftRight className="h-4 w-4"/></Button></div>
-     <div className="space-y-2 rounded-xl border border-brand-border bg-brand-surface-2/50 p-4">
-      <label className="block space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("To")}</span><select value={toAsset} onChange={event=>{setToAsset(event.target.value);resetQuote();}} className="min-h-12 w-full rounded-xl border border-brand-border bg-brand-surface px-3 text-sm text-brand-text">{assets.filter(asset=>asset!==fromAsset).map(asset=><option key={asset} value={asset}>{asset}</option>)}</select></label>
-      <div className="flex items-center justify-between text-xs text-brand-text-muted"><span>{t("Current balance")}</span><span className="font-mono tabular-nums">{formatDecimalAmount(toBalance,localeTags[language])} {toAsset}</span></div>
-     </div>
-     {quote?<div className="space-y-2 rounded-xl border border-brand-accent/25 bg-brand-accent/[0.04] p-4" aria-live="polite">
-      <div className="flex items-center justify-between gap-3 text-sm"><span className="text-brand-text-muted">{t("Exchange rate")}</span><span className="font-mono tabular-nums">1 {fromAsset} = {quote.rate} {toAsset}</span></div>
-      <div className="flex items-center justify-between gap-3 text-sm"><span className="text-brand-text-muted">{t("You will receive")}</span><strong className="font-mono tabular-nums">{formatDecimalAmount(quote.to_amount,localeTags[language])} {toAsset}</strong></div>
-      <div className="flex items-center justify-between gap-3 text-sm"><span className="text-brand-text-muted">{t("Conversion fee")}</span><span className="font-mono tabular-nums">0 {fromAsset}</span></div>
-      <p className="text-xs text-brand-text-muted">{t("Quote valid for 30 seconds. The rate is locked until expiry.")}</p>
-     </div>:null}
-     {error?<p className="text-sm text-brand-danger" role="alert">{t(error)}</p>:null}
-     {message?<p className="text-sm text-brand-success" role="status">{t(message)}</p>:null}
-     {!quote?<Button type="button" block className="min-h-12" disabled={quoting||submitting||assets.length<2||!amount.trim()||!fromAsset||!toAsset||fromAsset===toAsset||compareDecimalStrings(amount,"0")!==1||compareDecimalStrings(amount,String(fromBalance))===1} onClick={getQuote}>{quoting?t("Loading…"):t("Get quote")}</Button>
-      :<Button type="button" block className="min-h-12" disabled={submitting||quoting} onClick={confirm}>{submitting?t("Processing…"):t("Confirm conversion")}</Button>}
-     <p className="text-xs leading-5 text-brand-text-muted">{t("Conversions are final once confirmed. Check the assets and amount before proceeding.")}</p>
+     {quote?<section className="grid gap-3 rounded-xl border border-brand-accent/20 bg-brand-accent/[0.035] p-3.5 sm:grid-cols-2 sm:p-4" aria-live="polite">
+      <div className="min-w-0"><p className="text-[11px] font-medium text-brand-text-muted">{t("Exchange rate")}</p><p className="mt-1 break-all font-mono text-sm font-semibold tabular-nums text-brand-text">1 {fromAsset} = {quote.rate} {toAsset}</p></div>
+      <div className="min-w-0 sm:border-l sm:border-brand-border/70 sm:pl-4"><p className="text-[11px] font-medium text-brand-text-muted">{t("Quote valid for 30 seconds. The rate is locked until expiry.")}</p><p className="mt-1 text-sm font-semibold text-brand-accent">{t("You will receive")}: {formatDecimalAmount(quote.to_amount,localeTags[language])} {toAsset}</p></div>
+     </section>:null}
+     {error?<div className="rounded-lg border border-brand-danger/25 bg-brand-danger/[.04] px-3.5 py-3 text-sm text-brand-danger" role="alert">{t(error)}</div>:null}
+     {message?<div className="rounded-lg border border-brand-success/25 bg-brand-success/[.04] px-3.5 py-3 text-sm text-brand-success" role="status">{t(message)}</div>:null}
+     {!quote?<Button type="button" block className="min-h-12 text-sm font-semibold" disabled={quoting||submitting||assets.length<2||!amount.trim()||!fromAsset||!toAsset||fromAsset===toAsset||compareDecimalStrings(amount,"0")!==1||compareDecimalStrings(amount,String(fromBalance))===1} onClick={getQuote}>{quoting?<><RefreshCw className="mr-2 h-4 w-4 animate-spin"/>{t("Loading…")}</>:t("Get quote")}</Button>
+      :<Button type="button" block className="min-h-12 text-sm font-semibold" disabled={submitting||quoting} onClick={confirm}>{submitting?<><RefreshCw className="mr-2 h-4 w-4 animate-spin"/>{t("Processing…")}</>:t("Confirm conversion")}</Button>}
+     <p className="text-center text-[11px] leading-5 text-brand-text-muted">{t("Conversions are final once confirmed. Check the assets and amount before proceeding.")}</p>
     </CardContent>
    </Card>}
   </div>
  </PageFrame>;
 }
-
 /**
  * Displays Earn products and the user's positions with their available actions.
  * Leaves subscription and redemption rules to the existing financial services.

@@ -5,7 +5,7 @@ import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { SubPageLayout } from "../../components/layout/SubPageLayout";
-import { ApiError, getOrders, type OrderRecord } from "../../lib/api";
+import { ApiError, getOrdersPage, type OrderRecord } from "../../lib/api";
 import { useI18n, type Language } from "../../lib/i18n";
 
 const dateLocales: Record<Language, string> = { en: "en-US", ja: "ja-JP", "zh-CN": "zh-CN", es: "es-ES", pt: "pt-PT", it: "it-IT", de: "de-DE" };
@@ -37,46 +37,64 @@ export function OrdersPage() {
   const { t, language } = useI18n();
   const dateLocale = dateLocales[language];
   const [openOnly, setOpenOnly] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(20);
   const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [signedOut, setSignedOut] = useState(false);
+  const openOnlyRef = useRef(openOnly);
+  openOnlyRef.current = openOnly;
   const requestIdRef = useRef(0);
   const controllerRef = useRef<AbortController | null>(null);
 
-  /**
-   * Fetches the order records required by the currently selected view.
-   * Retains the existing request cancellation and error-state behavior.
-   */
-  async function load() {
+  async function load(openOnlyFilter = openOnlyRef.current) {
     controllerRef.current?.abort();
     const controller = new AbortController();
     controllerRef.current = controller;
     const requestId = ++requestIdRef.current;
-    setLoading(true);
-    setOrders([]);
-    setVisibleCount(20);
-    setError("");
-    setSignedOut(false);
+    setLoading(true); setLoadingMore(false); setOrders([]); setNextCursor(null); setHasMore(false);
+    setError(""); setSignedOut(false);
     try {
-      const rows = await getOrders(controller.signal);
-      if (!controller.signal.aborted && requestId === requestIdRef.current) setOrders(rows);
+      const result = await getOrdersPage(null, controller.signal, openOnlyFilter);
+      if (!controller.signal.aborted && requestId === requestIdRef.current) {
+        setOrders(result.orders); setNextCursor(result.next_cursor); setHasMore(result.has_more);
+      }
     } catch (reason) {
       if (reason instanceof Error && reason.name === "AbortError") return;
       if (controller.signal.aborted || requestId !== requestIdRef.current) return;
       setOrders([]);
       if (reason instanceof ApiError && reason.code === "AUTH_REQUIRED") {
-        setSignedOut(true);
-        setError("Sign in to view your order history.");
-      } else {
-        setError(reason instanceof Error ? reason.message : "Order history is temporarily unavailable.");
-      }
+        setSignedOut(true); setError("Sign in to view your order history.");
+      } else setError(reason instanceof Error ? reason.message : "Order history is temporarily unavailable.");
     } finally {
-      if (requestId === requestIdRef.current) {
-        setLoading(false);
-        controllerRef.current = null;
+      if (requestId === requestIdRef.current) { setLoading(false); controllerRef.current = null; }
+    }
+  }
+
+  async function loadMore() {
+    if (!hasMore || !nextCursor || loadingMore || loading) return;
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    const requestId = requestIdRef.current;
+    setLoadingMore(true); setError("");
+    try {
+      const result = await getOrdersPage(nextCursor, controller.signal, openOnly);
+      if (!controller.signal.aborted && requestId === requestIdRef.current) {
+        setOrders(current => {
+          const known = new Set(current.map(order => String(order.order_id ?? order.id ?? "")));
+          return [...current, ...result.orders.filter(order => !known.has(String(order.order_id ?? order.id ?? "")))];
+        });
+        setNextCursor(result.next_cursor); setHasMore(result.has_more);
       }
+    } catch (reason) {
+      if (reason instanceof Error && reason.name === "AbortError") return;
+      if (controller.signal.aborted || requestId !== requestIdRef.current) return;
+      setError(reason instanceof Error ? reason.message : "Order history is temporarily unavailable.");
+    } finally {
+      if (requestId === requestIdRef.current) { setLoadingMore(false); controllerRef.current = null; }
     }
   }
 
@@ -95,8 +113,7 @@ export function OrdersPage() {
     };
   }, []);
 
-  const visibleOrders = openOnly ? orders.filter(order => ["open", "partially_filled", "partially-filled", "pending"].includes(String(order.status || "").toLowerCase())) : orders;
-  const pagedOrders = visibleOrders.slice(0, visibleCount);
+  const visibleOrders = orders;
 
   return (
     <SubPageLayout
@@ -107,7 +124,7 @@ export function OrdersPage() {
         </Button>
       }
     >
-      <div aria-busy={loading} className="bf-subpage-content tone-orders flex min-w-0 flex-col gap-4">
+      <div aria-busy={loading || loadingMore} className="bf-subpage-content tone-orders flex min-w-0 flex-col gap-4">
 
       {signedOut ? (
         <Card className="border-brand-border bg-brand-surface">
@@ -126,7 +143,7 @@ export function OrdersPage() {
 
       <Card className="overflow-hidden border-brand-border bg-brand-surface ">
         <CardHeader className="border-b border-brand-border bg-brand-surface-2/50 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--page-accent)]/10 text-[var(--page-accent)]"><ClipboardList className="h-5 w-5"/></span><CardTitle className="min-w-0">{t("Order history")}</CardTitle></div><div className="mt-3 flex flex-wrap gap-2 sm:mt-0"><Button variant={openOnly ? "default" : "outline"} size="sm" aria-pressed={openOnly} onClick={() => { setOpenOnly(true); setVisibleCount(20); }}>{t("Open orders")}</Button><Button variant={!openOnly ? "default" : "outline"} size="sm" aria-pressed={!openOnly} onClick={() => { setOpenOnly(false); setVisibleCount(20); }}>{t("Order history")}</Button></div>
+          <div className="flex min-w-0 items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--page-accent)]/10 text-[var(--page-accent)]"><ClipboardList className="h-5 w-5"/></span><CardTitle className="min-w-0">{t("Order history")}</CardTitle></div><div className="mt-3 flex flex-wrap gap-2 sm:mt-0"><Button variant={openOnly ? "default" : "outline"} size="sm" aria-pressed={openOnly} onClick={() => { setOpenOnly(true); void load(true); }}>{t("Open orders")}</Button><Button variant={!openOnly ? "default" : "outline"} size="sm" aria-pressed={!openOnly} onClick={() => { setOpenOnly(false); void load(false); }}>{t("Order history")}</Button></div>
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
@@ -144,7 +161,7 @@ export function OrdersPage() {
           ) : (
             <>
               <div className="grid gap-3 p-3 md:hidden">
-                {pagedOrders.map((order, index) => {
+                {visibleOrders.map((order, index) => {
                   const id = display(order.order_id ?? order.id, `#${index + 1}`);
                   const side = display(order.side);
                   return <Card key={id} className="border-brand-border bg-brand-surface-2/50  transition-all hover:border-brand-accent/30 hover:bg-brand-surface-2/80">
@@ -168,7 +185,7 @@ export function OrdersPage() {
                   <tr>{["Order", "Pair", "Side", "Type", "Price", "Quantity", "Status", "Created"].map((label) => <th key={label} className={`px-4 py-3 font-semibold ${label === "Price" || label === "Quantity" ? "text-right" : ""}`}>{t(label)}</th>)}</tr>
                 </thead>
                 <tbody>
-                  {pagedOrders.map((order, index) => {
+                  {visibleOrders.map((order, index) => {
                     const id = display(order.order_id ?? order.id, `#${index + 1}`);
                     const side = display(order.side);
                     return <tr key={id} className="border-b border-brand-border/80 last:border-0 transition-colors hover:bg-brand-surface-hover">
@@ -185,10 +202,10 @@ export function OrdersPage() {
                 </tbody>
               </table>
               </div>
-              {visibleOrders.length > pagedOrders.length && (
+              {hasMore && (
                 <div className="flex justify-center border-t border-brand-border p-4">
-                  <Button type="button" variant="outline" size="sm" onClick={() => setVisibleCount(count => Math.min(count + 20, visibleOrders.length))}>
-                    {t("Show more")} ({pagedOrders.length} / {visibleOrders.length})
+                  <Button type="button" variant="outline" size="sm" onClick={() => void loadMore()} disabled={loadingMore}>
+                    {t("Show more")}
                   </Button>
                 </div>
               )}

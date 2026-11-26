@@ -236,7 +236,7 @@ test('active account and order pages clear stale snapshots before reload and aft
   assert.ok(assets.includes('setAccount(null)'));
   assert.ok(assets.indexOf('setAccount(null)') < assets.indexOf('getAccount(controller.signal)'));
   assert.ok(orders.includes('setOrders([])'));
-  assert.ok(orders.indexOf('setOrders([])') < orders.indexOf('getOrders(controller.signal)'));
+  assert.ok(orders.indexOf('setOrders([])') < orders.indexOf('getOrdersPage(null, controller.signal, openOnlyFilter)'));
   assert.ok(orders.includes('if (controller.signal.aborted || requestId !== requestIdRef.current) return;'));
   assert.ok(orders.includes('setOrders([]);'));
 });

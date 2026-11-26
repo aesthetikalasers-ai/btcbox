@@ -638,13 +638,27 @@ export async function submitEarnAction(
   return payload;
 }
 
-export async function getOrders(signal?: AbortSignal): Promise<OrderRecord[]> {
-  if (DEMO_PREVIEW_ACTIVE) return demoLedgerSpotOrders();
-  const payload = await readAuthenticated<{ ok: true; orders: OrderRecord[] }>("orders", signal);
-  if (!Array.isArray(payload.orders)) {
-    throw new ApiError("BTCBOX returned an invalid order response.", 502, "INVALID_ORDER_RESPONSE");
+export interface OrderHistoryPage { orders: OrderRecord[]; has_more: boolean; next_cursor: string | null; }
+
+export async function getOrdersPage(cursor: string | null = null, signal?: AbortSignal, openOnly = false): Promise<OrderHistoryPage> {
+  if (DEMO_PREVIEW_ACTIVE) return { orders: demoLedgerSpotOrders(), has_more: false, next_cursor: null };
+  const params = new URLSearchParams();
+  if (cursor) params.set("cursor", cursor);
+  if (openOnly) params.set("open_only", "1");
+  const suffix = params.toString();
+  const payload = await readAuthenticated<{ ok: true; orders: OrderRecord[]; has_more: boolean; next_cursor: string | null }>(
+    `orders${suffix ? `?${suffix}` : ""}`, signal
+  );
+  if (!Array.isArray(payload.orders) || typeof payload.has_more !== "boolean" ||
+      !(payload.next_cursor === null || typeof payload.next_cursor === "string")) {
+    throw new ApiError("BTCBOX returned an invalid order history page.", 502, "INVALID_ORDER_RESPONSE");
   }
-  return payload.orders;
+  return { orders: payload.orders, has_more: payload.has_more, next_cursor: payload.next_cursor };
+}
+
+/** Compatibility helper for trading surfaces that only need the latest page. */
+export async function getOrders(signal?: AbortSignal): Promise<OrderRecord[]> {
+  return (await getOrdersPage(null, signal)).orders;
 }
 
 

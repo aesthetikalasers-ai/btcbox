@@ -26,7 +26,7 @@ test("real asset balances are sourced only from the backend account snapshot", (
 
 test("customer order history never merges local paper orders", () => {
   const page = fs.readFileSync(path.join(root, "features/orders/OrdersPage.tsx"), "utf8");
-  assert.ok(page.includes("getOrders(controller.signal)"));
+  assert.ok(page.includes("getOrdersPage(null, controller.signal, openOnlyFilter)"));
   assert.ok(!page.includes("useTrading"));
   assert.ok(!page.includes("paperOrders"));
 });
