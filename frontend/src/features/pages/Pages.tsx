@@ -1354,12 +1354,9 @@ export function InternalConversionPage(){
  };
  return <PageFrame title="Convert" tone="assets" backTo="/assets" className="funds-flow-page">
   <div className="mx-auto w-full max-w-2xl space-y-4 sm:space-y-5">
-   <div className="flex items-center justify-between gap-3 px-0.5">
-    <div className="min-w-0">
-     <h2 className="text-base font-semibold tracking-tight text-brand-text sm:text-lg">{t("Convert assets")}</h2>
-     <p className="mt-1 text-xs leading-5 text-brand-text-muted sm:text-sm">{t("Convert between supported assets at a live market rate.")}</p>
-    </div>
-    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-brand-border bg-brand-surface px-2.5 py-1.5 text-[11px] font-medium text-brand-text-muted sm:text-xs"><ShieldCheck className="h-3.5 w-3.5 text-brand-accent"/>{t("Quote valid for 30 seconds. The rate is locked until expiry.")}</span>
+   <div className="flex items-start justify-between gap-3 px-0.5">
+    <p className="min-w-0 pt-1 text-xs leading-5 text-brand-text-muted sm:text-sm">{t("Convert between supported assets at a live market rate.")}</p>
+    <span className="inline-flex max-w-[142px] shrink items-start gap-1.5 rounded-lg border border-brand-border bg-brand-surface px-2 py-1.5 text-[10px] leading-4 text-brand-text-muted sm:max-w-[190px] sm:text-xs"><ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-accent"/><span>{t("Quote valid for 30 seconds. The rate is locked until expiry.")}</span></span>
    </div>
    {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="space-y-4 p-5" role="status"><div className="h-5 w-36 animate-pulse rounded bg-brand-surface-2"/><div className="h-28 animate-pulse rounded-xl bg-brand-surface-2"/><div className="h-28 animate-pulse rounded-xl bg-brand-surface-2"/></CardContent></Card>
    :!account?<Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-col items-center gap-3 p-8 text-center"><Wallet className="h-8 w-8 text-brand-text-muted"/><p className="text-sm text-brand-text-muted">{t("Account data is temporarily unavailable.")}</p><Button variant="outline" onClick={()=>setReload(value=>value+1)}>{t("Try again")}</Button></CardContent></Card>
