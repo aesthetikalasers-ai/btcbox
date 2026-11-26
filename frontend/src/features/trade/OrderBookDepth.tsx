@@ -76,7 +76,7 @@ export function OrderBookDepth({ mid, book, streamState, baseAsset = "BTC", leve
 
   const renderRow = (level: Level, side: "ask" | "bid", keyId: string) => (
     /* Keep the original touch-friendly row rhythm on mobile; desktop opts into compact rows. */
-    <div key={keyId} className={cn("relative grid grid-cols-3 text-right font-mono tabular-nums", compact ? "gap-1 py-[2px] text-[10px] leading-[17px] sm:text-[11px]" : "gap-2 py-[3px] text-[11px] leading-[18px] sm:text-xs")}>
+    <div key={keyId} className={cn("relative grid grid-cols-3 text-right font-mono tabular-nums", compact ? "gap-1 py-[2px] text-[11px] leading-[18px] sm:text-xs" : "gap-2 py-[3px] text-[11px] leading-[18px] sm:text-xs")}>
       <span
         aria-hidden="true"
         className={
@@ -95,7 +95,7 @@ export function OrderBookDepth({ mid, book, streamState, baseAsset = "BTC", leve
   return (
     <Card className="border-brand-border bg-brand-surface">
       <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-        <CardTitle className="text-sm">{t("Market depth")}</CardTitle>
+        <CardTitle className="text-sm font-semibold tracking-normal">{t("Market depth")}</CardTitle>
         <div className="flex items-center gap-1">
           {/* Precision selector — compact segmented control, touch-friendly. */}
           <div className="flex items-center rounded-md border border-brand-border/60 bg-brand-surface-2/60 p-0.5" role="group" aria-label={t("Order book precision")}>
@@ -142,7 +142,7 @@ export function OrderBookDepth({ mid, book, streamState, baseAsset = "BTC", leve
           </div>
         ) : (
         <>
-        <div className="grid grid-cols-3 gap-2 pb-1 text-right text-[10px] uppercase tracking-wide text-brand-text-faint">
+        <div className={cn("grid grid-cols-3 gap-2 pb-1 text-right uppercase text-brand-text-faint", compact ? "text-[10px] tracking-normal" : "text-[10px] tracking-wide")}>
           <span>{t("Price")} (USDT)</span>
           <span>{t("Size")} ({baseAsset})</span>
           <span>{t("Total")}</span>
@@ -154,9 +154,9 @@ export function OrderBookDepth({ mid, book, streamState, baseAsset = "BTC", leve
         ) : null}
         {view === "both" ? (
           <div className="flex items-center justify-between border-y border-brand-border-subtle py-2">
-            <span className="text-[11px] uppercase tracking-wide text-brand-text-muted">{t("Mid price")}</span>
+            <span className="text-[11px] font-medium text-brand-text-muted">{t("Mid price")}</span>
             <span className="flex flex-col items-end">
-              <span className="font-mono text-lg font-bold tabular-nums text-brand-success">{midText} <span className="text-xs font-medium">USDT</span></span>
+              <span className="font-mono text-lg font-semibold tabular-nums text-brand-success">{midText} <span className="text-xs font-medium">USDT</span></span>
             </span>
           </div>
         ) : null}
