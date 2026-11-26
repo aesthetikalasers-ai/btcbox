@@ -953,7 +953,7 @@ test("independent deposit, withdrawal, and conversion workflows render usable st
   await expect(page).toHaveURL(/\/assets$/);
   await page.getByRole("link", { name: "Convert", exact: true }).click();
   await expect(page).toHaveURL(/\/convert$/);
-  await expect(page.getByRole("heading", { name: "Convert assets" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Convert", exact: true })).toBeVisible();
   await expect(page.getByLabel("From")).toBeVisible();
   await expect(page.getByLabel("To")).toBeVisible();
   await expect(page.getByRole("button", { name: "Swap assets" })).toBeVisible();
