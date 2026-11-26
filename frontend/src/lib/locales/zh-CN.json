@@ -1872,6 +1872,7 @@
   "You will receive": "预计到账",
   "Quote valid for 30 seconds. The rate is locked until expiry.": "报价有效期为 30 秒，有效期内汇率锁定。",
   "The conversion quote has expired. Request a new quote.": "兑换报价已过期，请重新获取报价。",
+  "Quote expires in": "报价剩余时间",
   "Select two different assets and enter a valid amount.": "请选择两个不同的资产并输入有效金额。",
   "Refresh the quote and try again.": "请刷新报价后重试。",
   "Secure conversion quotes are not configured.": "安全兑换报价尚未配置。",

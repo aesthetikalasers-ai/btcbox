@@ -1317,6 +1317,24 @@ export function DepositPage(){
 
 
 /**
+ * Compact token selector for the conversion module.
+ *
+ * A native <select> keeps keyboard and mobile behaviour intact, while the
+ * surrounding pill provides the token mark, the chevron and the focus ring so the
+ * control reads as an asset picker rather than a form field stacked inside
+ * another bordered box.
+ */
+function ConversionAssetPicker({label,value,options,onChange,disabled}:{label:string;value:string;options:string[];onChange:(next:string)=>void;disabled?:boolean}){
+ return <div className="relative flex h-10 shrink-0 items-center rounded-full border border-brand-border bg-brand-surface-2 pl-1 pr-7 transition-colors focus-within:border-brand-accent/60 focus-within:ring-2 focus-within:ring-brand-accent/20 hover:border-brand-border-strong">
+  <TokenIcon symbol={value} className="h-7 w-7 shrink-0"/>
+  <select aria-label={label} value={value} disabled={disabled} onChange={event=>onChange(event.target.value)} className="h-full min-w-0 appearance-none bg-transparent pl-2 pr-1 text-[15px] font-semibold tracking-tight text-brand-text outline-none disabled:cursor-not-allowed disabled:text-brand-text-disabled">
+   {options.map(asset=><option key={asset} value={asset}>{asset}</option>)}
+  </select>
+  <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-2.5 h-4 w-4 text-brand-text-muted"/>
+ </div>;
+}
+
+/**
  * Converts assets using a short-lived server-signed market quote and the
  * PostgreSQL atomic double-entry ledger. No client-side balance mutation.
  */
@@ -1335,6 +1353,7 @@ export function InternalConversionPage(){
  const [requestId,setRequestId]=useState("");
  const [reload,setReload]=useState(0);
  const [catalogAssets,setCatalogAssets]=useState<string[]>([]);
+ const [secondsLeft,setSecondsLeft]=useState(0);
  useEffect(()=>{
   const controller=new AbortController();
   setLoading(true);setError("");
@@ -1389,14 +1408,15 @@ export function InternalConversionPage(){
  };
  const swapAssets=()=>{const previous=fromAsset;setFromAsset(toAsset);setToAsset(previous);resetQuote();};
  // The signed quote is valid for 30 seconds. Clearing it when it expires stops the
- // customer from confirming a quote the server must reject.
+ // customer from confirming a quote the server must reject; the ticking counter
+ // keeps the remaining validity visible instead of asserting a fixed 30 seconds.
  useEffect(()=>{
-  if(!quote)return;
-  const expire=()=>{setQuote(null);setRequestId("");setError("The conversion quote has expired. Request a new quote.");};
-  const remaining=quote.expires_at-Date.now();
-  if(remaining<=0){expire();return;}
-  const timer=window.setTimeout(expire,remaining);
-  return ()=>window.clearTimeout(timer);
+  if(!quote){setSecondsLeft(0);return;}
+  const remaining=()=>Math.max(0,Math.ceil((quote.expires_at-Date.now())/1000));
+  setSecondsLeft(remaining());
+  const timer=window.setInterval(()=>setSecondsLeft(remaining()),1000);
+  const expiry=window.setTimeout(()=>{setQuote(null);setRequestId("");setError("The conversion quote has expired. Request a new quote.");},quote.expires_at-Date.now());
+  return ()=>{window.clearInterval(timer);window.clearTimeout(expiry);};
  },[quote]);
  const confirm=async()=>{
   if(!quote||!requestId||submitting)return;
@@ -1413,68 +1433,55 @@ export function InternalConversionPage(){
   finally{setSubmitting(false);}
  };
  return <PageFrame title="Convert" tone="assets" backTo="/assets" className="funds-flow-page">
-  <div className="mx-auto w-full max-w-2xl space-y-4 sm:space-y-5">
-   <div className="flex items-start justify-between gap-3 px-0.5">
-    <p className="min-w-0 pt-1 text-xs leading-5 text-brand-text-muted sm:text-sm">{t("Convert between supported assets at a live market rate.")}</p>
-    <span className="inline-flex max-w-[142px] shrink items-start gap-1.5 rounded-lg border border-brand-border bg-brand-surface px-2 py-1.5 text-[10px] leading-4 text-brand-text-muted sm:max-w-[190px] sm:text-xs"><ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-accent"/><span>{t("Quote valid for 30 seconds. The rate is locked until expiry.")}</span></span>
-   </div>
-   {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="space-y-4 p-5" role="status"><div className="h-5 w-36 animate-pulse rounded bg-brand-surface-2"/><div className="h-28 animate-pulse rounded-xl bg-brand-surface-2"/><div className="h-28 animate-pulse rounded-xl bg-brand-surface-2"/></CardContent></Card>
-   :!account?<Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-col items-center gap-3 p-8 text-center"><Wallet className="h-8 w-8 text-brand-text-muted"/><p className="text-sm text-brand-text-muted">{t("Account data is temporarily unavailable.")}</p><Button variant="outline" onClick={()=>setReload(value=>value+1)}>{t("Try again")}</Button></CardContent></Card>
-   :assets.length<2?<Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-col items-center gap-3 p-8 text-center"><ArrowLeftRight className="h-8 w-8 text-brand-text-muted"/><p className="font-medium text-brand-text">{t("No asset balances are currently available.")}</p><Button variant="outline" onClick={()=>setReload(value=>value+1)}>{t("Try again")}</Button></CardContent></Card>
-   :<Card className="overflow-hidden border-brand-border bg-brand-surface shadow-sm">
-    <CardContent className="space-y-4 p-3.5 sm:space-y-5 sm:p-5">
-     <div className="grid items-stretch gap-2.5 lg:grid-cols-[minmax(0,1fr)_44px_minmax(0,1fr)] lg:gap-3">
-      <section className="min-w-0 rounded-xl border border-brand-border bg-brand-surface-2/70 p-3.5 sm:p-4">
-       <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-semibold uppercase tracking-wide text-brand-text-muted">{t("From")}</span>
-        <span className="text-[11px] text-brand-text-muted">{t("Available balance")}</span>
-       </div>
-       <div className="mt-3 flex min-w-0 items-center gap-2.5">
-        <TokenIcon symbol={fromAsset} className="h-9 w-9 shrink-0 sm:h-10 sm:w-10"/>
-        <select aria-label={t("From")} value={fromAsset} onChange={event=>{const next=event.target.value;setFromAsset(next);if(next===toAsset)setToAsset(assets.find(asset=>asset!==next)||"");resetQuote();}} className="h-10 min-w-0 flex-1 rounded-lg border border-brand-border bg-brand-surface px-2.5 text-sm font-semibold text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15 sm:text-base">{assets.filter(asset=>asset!==toAsset).map(asset=><option key={asset} value={asset}>{asset}</option>)}</select>
-       </div>
-       <div className="mt-3 border-t border-brand-border/70 pt-3">
-        <label htmlFor="conversion-amount" className="text-xs font-medium text-brand-text-muted">{t("Amount")}</label>
-        <div className="mt-1 flex min-w-0 items-center gap-2">
-         <input id="conversion-amount" inputMode="decimal" autoComplete="off" value={amount} onChange={event=>{setAmount(event.target.value);resetQuote();}} placeholder="0.00" aria-label={t("Amount")} className="min-h-12 w-full min-w-0 border-0 bg-transparent p-0 font-mono text-[26px] font-semibold tracking-tight tabular-nums text-brand-text outline-none placeholder:text-brand-text-muted/40 focus:ring-0 sm:text-3xl"/>
-         <span className="shrink-0 text-xs font-semibold text-brand-text-muted">{fromAsset}</span>
-        </div>
-        <div className="mt-2 flex items-center justify-between gap-2">
-         <span className="min-w-0 truncate text-[11px] text-brand-text-muted">{t("Available")}: <span className="font-mono tabular-nums text-brand-text-secondary">{formatDecimalAmount(fromBalance,localeTags[language])}</span></span>
-         <button type="button" onClick={()=>{setAmount(String(fromBalance));resetQuote();}} disabled={submitting||compareDecimalStrings(String(fromBalance),"0")!==1} className="min-h-7 shrink-0 rounded-md px-2 text-xs font-semibold text-brand-accent transition-colors hover:bg-brand-accent/10 disabled:cursor-not-allowed disabled:opacity-40">100%</button>
-        </div>
-       </div>
-      </section>
-      <div className="flex items-center justify-center lg:pt-0">
-       <Button type="button" variant="outline" size="icon" aria-label={t("Swap assets")} onClick={swapAssets} disabled={submitting} className="h-9 w-9 rotate-90 rounded-full border-brand-border bg-brand-surface shadow-sm hover:border-brand-accent/50 hover:bg-brand-accent/5 lg:rotate-0"><ArrowLeftRight className="h-4 w-4"/></Button>
-      </div>
-      <section className="min-w-0 rounded-xl border border-brand-accent/20 bg-brand-accent/[0.045] p-3.5 sm:p-4">
-       <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-semibold uppercase tracking-wide text-brand-text-muted">{t("To")}</span>
-        <span className="text-[11px] text-brand-text-muted">{t("Current balance")}</span>
-       </div>
-       <div className="mt-3 flex min-w-0 items-center gap-2.5">
-        <TokenIcon symbol={toAsset} className="h-9 w-9 shrink-0 sm:h-10 sm:w-10"/>
-        <select aria-label={t("To")} value={toAsset} onChange={event=>{setToAsset(event.target.value);resetQuote();}} className="h-10 min-w-0 flex-1 rounded-lg border border-brand-border bg-brand-surface px-2.5 text-sm font-semibold text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15 sm:text-base">{assets.filter(asset=>asset!==fromAsset).map(asset=><option key={asset} value={asset}>{asset}</option>)}</select>
-       </div>
-       <div className="mt-3 flex min-h-[88px] flex-col justify-between border-t border-brand-accent/15 pt-3">
-        <span className="text-xs font-medium text-brand-text-muted">{t("You will receive")}</span>
-        <p className="break-all font-mono text-[26px] font-semibold tracking-tight tabular-nums text-brand-text sm:text-3xl">{quote?formatDecimalAmount(quote.to_amount,localeTags[language]):"—"} <span className="text-xs font-semibold text-brand-text-muted sm:text-sm">{toAsset}</span></p>
-        <span className="text-[11px] text-brand-text-muted">{t("Available")}: <span className="font-mono tabular-nums text-brand-text-secondary">{formatDecimalAmount(toBalance,localeTags[language])}</span></span>
-       </div>
-      </section>
+  <div className="mx-auto flex w-full max-w-3xl min-w-0 flex-col gap-3.5">
+   <p className="max-w-[58ch] text-[13px] leading-6 text-brand-text-muted">{t("Convert between supported assets at a live market rate.")}</p>
+   <div className="w-full max-w-[520px]">
+   {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="space-y-3 p-4 sm:p-5" role="status" aria-busy="true"><div className="h-4 w-24 animate-pulse rounded bg-brand-surface-2"/><div className="h-14 animate-pulse rounded-lg bg-brand-surface-2"/><div className="h-14 animate-pulse rounded-lg bg-brand-surface-2"/><div className="h-11 animate-pulse rounded-lg bg-brand-surface-2"/></CardContent></Card>
+   :!account?<Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-col items-center gap-3 px-5 py-10 text-center"><Wallet className="h-7 w-7 text-brand-text-muted"/><p className="type-body-compact text-brand-text-muted">{t("Account data is temporarily unavailable.")}</p><Button variant="outline" size="sm" onClick={()=>setReload(value=>value+1)}>{t("Try again")}</Button></CardContent></Card>
+   :assets.length<2?<Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-col items-center gap-3 px-5 py-10 text-center"><ArrowLeftRight className="h-7 w-7 text-brand-text-muted"/><p className="type-body-compact text-brand-text-muted">{t("No asset balances are currently available.")}</p><Button variant="outline" size="sm" onClick={()=>setReload(value=>value+1)}>{t("Try again")}</Button></CardContent></Card>
+   :<Card className="relative overflow-hidden border-brand-border bg-brand-surface">
+    <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand-accent/50 to-transparent"/>
+    <section className="px-4 pt-4 sm:px-5 sm:pt-5">
+     <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+      <span className="type-label text-brand-text-secondary">{t("From")}</span>
+      <span className="flex items-center gap-1">
+       <span className="type-meta text-brand-text-muted">{t("Available")}: <span className="font-mono tabular-nums text-brand-text-secondary">{formatDecimalAmount(fromBalance,localeTags[language])}</span></span>
+       <button type="button" onClick={()=>{setAmount(String(fromBalance));resetQuote();}} disabled={submitting||compareDecimalStrings(String(fromBalance),"0")!==1} className="-mr-1.5 flex h-11 min-h-0 items-center rounded-md px-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-brand-accent transition-colors hover:bg-brand-accent/10 disabled:cursor-not-allowed disabled:text-brand-text-disabled disabled:hover:bg-transparent sm:h-7">{t("Max")}</button>
+      </span>
      </div>
-     {quote?<section className="grid gap-3 rounded-xl border border-brand-accent/20 bg-brand-accent/[0.035] p-3.5 sm:grid-cols-2 sm:p-4" aria-live="polite">
-      <div className="min-w-0"><p className="text-[11px] font-medium text-brand-text-muted">{t("Exchange rate")}</p><p className="mt-1 break-all font-mono text-sm font-semibold tabular-nums text-brand-text">1 {fromAsset} = {quote.rate} {toAsset}</p></div>
-      <div className="min-w-0 sm:border-l sm:border-brand-border/70 sm:pl-4"><p className="text-[11px] font-medium text-brand-text-muted">{t("Quote valid for 30 seconds. The rate is locked until expiry.")}</p><p className="mt-1 text-sm font-semibold text-brand-accent">{t("You will receive")}: {formatDecimalAmount(quote.to_amount,localeTags[language])} {toAsset}</p></div>
-     </section>:null}
-     {error?<div className="rounded-lg border border-brand-danger/25 bg-brand-danger/[.04] px-3.5 py-3 text-sm text-brand-danger" role="alert">{t(error)}</div>:null}
-     {message?<div className="rounded-lg border border-brand-success/25 bg-brand-success/[.04] px-3.5 py-3 text-sm text-brand-success" role="status">{t(message)}</div>:null}
-     {!quote?<Button type="button" block className="min-h-12 text-sm font-semibold" disabled={quoting||submitting||assets.length<2||!amount.trim()||!fromAsset||!toAsset||fromAsset===toAsset||compareDecimalStrings(amount,"0")!==1||compareDecimalStrings(amount,String(fromBalance))===1} onClick={getQuote}>{quoting?<><RefreshCw className="mr-2 h-4 w-4 animate-spin"/>{t("Loading…")}</>:t("Get quote")}</Button>
-      :<Button type="button" block className="min-h-12 text-sm font-semibold" disabled={submitting||quoting} onClick={confirm}>{submitting?<><RefreshCw className="mr-2 h-4 w-4 animate-spin"/>{t("Processing…")}</>:t("Confirm conversion")}</Button>}
-     <p className="text-center text-[11px] leading-5 text-brand-text-muted">{t("Conversions are final once confirmed. Check the assets and amount before proceeding.")}</p>
-    </CardContent>
+     <div className="mt-1 flex min-w-0 items-center gap-3">
+      <input id="conversion-amount" inputMode="decimal" autoComplete="off" value={amount} onChange={event=>{setAmount(event.target.value);resetQuote();}} placeholder="0.00" aria-label={t("Amount")} className="h-11 min-w-0 flex-1 border-0 bg-transparent p-0 font-mono text-[24px]! font-semibold leading-none tracking-tight tabular-nums text-brand-text placeholder:text-brand-text-disabled focus:ring-0 sm:text-[30px]!"/>
+      <ConversionAssetPicker label={t("From")} value={fromAsset} options={assets.filter(asset=>asset!==toAsset)} onChange={next=>{setFromAsset(next);if(next===toAsset)setToAsset(assets.find(asset=>asset!==next)||"");resetQuote();}} disabled={submitting}/>
+     </div>
+    </section>
+    <div className="relative flex h-9 items-center justify-center">
+     <span aria-hidden="true" className="absolute inset-x-4 top-1/2 h-px bg-brand-border sm:inset-x-5"/>
+     <Button type="button" variant="secondary" size="icon" aria-label={t("Swap assets")} onClick={swapAssets} disabled={submitting} className="relative h-9 w-9 rounded-full bg-brand-surface-2 hover:border-brand-accent/60 hover:bg-brand-surface-hover"><ArrowLeftRight className="h-4 w-4"/></Button>
+    </div>
+    <section className="px-4 pb-4 sm:px-5 sm:pb-5">
+     <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+      <span className="type-label text-brand-text-secondary">{t("To")}</span>
+      <span className="type-meta text-brand-text-muted">{t("Available")}: <span className="font-mono tabular-nums text-brand-text-secondary">{formatDecimalAmount(toBalance,localeTags[language])}</span></span>
+     </div>
+     <div className="mt-1 flex min-w-0 items-center gap-3">
+      <p className="min-w-0 flex-1 truncate font-mono text-[24px] font-semibold leading-tight tracking-tight tabular-nums text-brand-text-disabled sm:text-[30px]">{quote?<span className="text-brand-text">{formatDecimalAmount(quote.to_amount,localeTags[language])}</span>:"0.00"}</p>
+      <ConversionAssetPicker label={t("To")} value={toAsset} options={assets.filter(asset=>asset!==fromAsset)} onChange={next=>{setToAsset(next);resetQuote();}} disabled={submitting}/>
+     </div>
+    </section>
+    {quote?<dl aria-live="polite" className="space-y-2.5 border-t border-brand-border bg-brand-surface-2/40 px-4 py-4 sm:px-5">
+     <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3"><dt className="type-meta shrink-0 text-brand-text-muted">{t("Exchange rate")}</dt><dd className="min-w-0 break-all font-mono text-[13px] tabular-nums text-brand-text-secondary sm:text-right">1 {fromAsset} = {quote.rate} {toAsset}</dd></div>
+     <div className="flex items-baseline justify-between gap-3"><dt className="type-meta shrink-0 text-brand-text-muted">{t("You will receive")}</dt><dd className="min-w-0 text-right font-mono text-[13px] font-semibold tabular-nums text-brand-accent">{formatDecimalAmount(quote.to_amount,localeTags[language])} {toAsset}</dd></div>
+     <div className="flex items-center justify-between gap-3"><dt className="type-meta shrink-0 text-brand-text-muted">{t("Quote expires in")}</dt><dd className="flex min-w-0 flex-1 items-center justify-end gap-2"><span aria-hidden="true" className="block h-1 w-16 overflow-hidden rounded-full bg-brand-border"><span className="block h-full rounded-full bg-brand-accent transition-[width] duration-1000 ease-linear" style={{width:`${Math.min(100,(secondsLeft/30)*100)}%`}}/></span><span className="w-8 shrink-0 text-right font-mono text-[13px] font-semibold tabular-nums text-brand-text">{secondsLeft}s</span></dd></div>
+    </dl>:null}
+    {error?<p role="alert" className="mx-4 mt-3 rounded-lg border border-brand-danger/25 bg-brand-danger/[0.06] px-3 py-2.5 text-[13px] leading-5 text-brand-danger sm:mx-5">{t(error)}</p>:null}
+    {message?<p role="status" className="mx-4 mt-3 rounded-lg border border-brand-success/25 bg-brand-success/[0.06] px-3 py-2.5 text-[13px] leading-5 text-brand-success sm:mx-5">{t(message)}</p>:null}
+    <div className="px-4 py-4 sm:px-5 sm:py-5">
+     {quote?<Button type="button" size="lg" block className="font-bold" disabled={submitting||quoting} onClick={confirm}>{submitting?<><RefreshCw className="h-4 w-4 animate-spin"/>{t("Processing…")}</>:t("Confirm conversion")}</Button>
+     :<Button type="button" size="lg" block className="font-bold" disabled={quoting||submitting||assets.length<2||!amount.trim()||!fromAsset||!toAsset||fromAsset===toAsset||compareDecimalStrings(amount,"0")!==1||compareDecimalStrings(amount,String(fromBalance))===1} onClick={getQuote}>{quoting?<><RefreshCw className="h-4 w-4 animate-spin"/>{t("Loading…")}</>:t("Get quote")}</Button>}
+     <p className="mt-2.5 text-center text-[11px] leading-5 text-brand-text-muted">{t("Conversions are final once confirmed. Check the assets and amount before proceeding.")}</p>
+    </div>
    </Card>}
+   </div>
   </div>
  </PageFrame>;
 }

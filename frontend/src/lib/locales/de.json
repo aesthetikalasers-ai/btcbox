@@ -1872,6 +1872,7 @@
   "You will receive": "Sie erhalten",
   "Quote valid for 30 seconds. The rate is locked until expiry.": "Das Angebot ist 30 Sekunden gültig. Der Kurs bleibt bis zum Ablauf fest.",
   "The conversion quote has expired. Request a new quote.": "Das Umtauschangebot ist abgelaufen. Fordern Sie ein neues Angebot an.",
+  "Quote expires in": "Angebot gültig für",
   "Select two different assets and enter a valid amount.": "Wählen Sie zwei unterschiedliche Assets und geben Sie einen gültigen Betrag ein.",
   "Refresh the quote and try again.": "Aktualisieren Sie das Angebot und versuchen Sie es erneut.",
   "Secure conversion quotes are not configured.": "Sichere Umrechnungsangebote sind nicht konfiguriert.",
