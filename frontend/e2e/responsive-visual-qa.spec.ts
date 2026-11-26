@@ -17,7 +17,6 @@ const routes = [
   { path: "/trade/BTCUSDT", heading: "BTCUSDT" },
   { path: "/trade-hub", heading: "Choose your trading mode" },
   { path: "/assets", heading: "Assets" },
-  { path: "/funds", heading: "Funds" },
   { path: "/me", heading: "My account" },
   { path: "/settings", heading: "Security settings" },
   { path: "/support", heading: "Customer support" },
@@ -362,7 +361,7 @@ async function assertPageAtWidth(
       page.getByRole("link", { name: "BTCBOX home" }).getByRole("img", { name: "BTCBOX" }),
     ).toBeVisible();
   }
-  if (["/funds", "/deposit", "/withdraw"].includes(route.path)) {
+  if (["/deposit", "/withdraw"].includes(route.path)) {
     await expect(page.locator(".bf-bottom-nav"), "Funds workflows must hide the global mobile tab bar.").toBeHidden();
     await expect(page.getByRole("link", { name: "BTCBOX home" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Back" })).toBeVisible();
@@ -797,7 +796,7 @@ for (const route of routes) {
   });
 }
 
-test("funds workflows render usable deposit and withdrawal states", async ({ page, context }) => {
+test("deposit and withdrawal workflows render usable states", async ({ page, context }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.setViewportSize({ width: 390, height: 844 });
   await installVisualApiMocks(page);
@@ -925,7 +924,7 @@ test("trade interaction QA desktop order-book side and price handoff", async ({ 
 // passing only at the seven required snapshot widths. These are desktop-browser
 // viewport sweeps; independent touch-device coverage is provided above.
 for (const route of routes.filter((item) => [
-  "/home", "/markets", "/trade/BTCUSDT", "/trade-hub", "/assets", "/funds", "/deposit", "/withdraw", "/contract",
+  "/home", "/markets", "/trade/BTCUSDT", "/trade-hub", "/assets", "/deposit", "/withdraw", "/contract",
 ].includes(item.path))) {
   test("continuous responsive sweep " + route.path, async ({ page }) => {
     test.setTimeout(300_000);
