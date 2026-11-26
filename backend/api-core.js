@@ -144,6 +144,22 @@ function isSameWalletIdentity(left, right) {
   return !!leftAddress && leftAddress === rightAddress;
 }
 
+const ORDER_HISTORY_PAGE_SIZE = 50;
+function decodeOrderHistoryCursor(token) {
+  if (!token) return null;
+  if (typeof token !== 'string' || token.length > 512 || !/^[A-Za-z0-9_-]+$/.test(token)) throw new Error('Invalid order history cursor');
+  let decoded;
+  try { decoded = JSON.parse(Buffer.from(token, 'base64url').toString('utf8')); } catch (_) { throw new Error('Invalid order history cursor'); }
+  if (!decoded || decoded.v !== 1 || typeof decoded.created_at !== 'string' ||
+      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(decoded.created_at) ||
+      !Number.isFinite(Date.parse(decoded.created_at)) || typeof decoded.id !== 'string' ||
+      !/^[A-Za-z0-9_-]{1,100}$/.test(decoded.id)) throw new Error('Invalid order history cursor');
+  return { created_at: decoded.created_at, id: decoded.id };
+}
+function encodeOrderHistoryCursor(row) {
+  return Buffer.from(JSON.stringify({ v: 1, created_at: String(row.created_at), id: String(row.id) })).toString('base64url');
+}
+
 function isPositivePostgresBigintString(value) {
   return typeof value === 'string' && /^[1-9][0-9]{0,18}$/.test(value) &&
     (value.length < 19 || value <= '9223372036854775807');
@@ -3849,24 +3865,58 @@ async function handleRequest(event, context) {
     return json({ ok: false, code: 'ENDPOINT_DEPRECATED', msg: 'Please use the secure two-factor authentication setup flow.' }, 410);
   }
 
-  // ---------- GET /api/orders ----------
+  // ---------- GET /api/orders?cursor=...&open_only=1 ----------
+  // Stable keyset pagination, scoped to the authenticated user for either storage source.
   if (path === 'orders' && method === 'GET') {
     if (!user) return json({ ok: false, msg: 'Not signed in.', need_login: true }, 401);
+    const cursorToken = String((event.queryStringParameters && event.queryStringParameters.cursor) || '').trim();
+    const openOnly = String((event.queryStringParameters && event.queryStringParameters.open_only) || '') === '1';
+    let cursor = null;
+    try { cursor = decodeOrderHistoryCursor(cursorToken); }
+    catch (_) { return json({ ok: false, code: 'INVALID_ORDER_HISTORY_CURSOR', msg: 'Order history cursor is invalid.' }, 400); }
     if (matchingEngineRequested()) {
       if (!matchingEngineEnabled()) return json({ ok: false, code: 'MATCHING_ENGINE_UNAVAILABLE', msg: 'Order query is unavailable until matching engine cutover is approved.' }, 503);
       try {
         const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
-        const query = new URLSearchParams({ select: 'id,base_asset,quote_asset,side,price,quantity,remaining_quantity,status,client_order_id,created_at,updated_at', user_id: 'eq.' + String(user.uid), order: 'created_at.desc', limit: '50' });
-        const response = await fetch(base + '/rest/v1/financial_matching_orders?' + query.toString(), { headers: supabaseHeaders() });
+        const values = {
+          select: 'id,base_asset,quote_asset,side,price,quantity,remaining_quantity,status,client_order_id,created_at,updated_at',
+          user_id: 'eq.' + String(user.uid), order: 'created_at.desc,id.desc',
+          limit: String(ORDER_HISTORY_PAGE_SIZE + 1)
+        };
+        if (openOnly) values.status = 'in.(open,partially_filled)';
+        if (cursor) values.or = '(created_at.lt.' + cursor.created_at + ',and(created_at.eq.' + cursor.created_at + ',id.lt.' + cursor.id + '))';
+        const query = new URLSearchParams(values);
+        const response = await fetch(base + '/rest/v1/financial_matching_orders?' + query.toString(), {
+          headers: supabaseHeaders(), signal: AbortSignal.timeout(5000)
+        });
         const rows = await response.json().catch(() => null);
         if (!response.ok || !Array.isArray(rows)) return json({ ok: false, code: 'ORDER_READ_UNAVAILABLE', msg: 'Order data temporarily unavailable. Please try again later.' }, 503);
-        const orders = rows.map(row => ({ order_id: row.id, id: row.id, symbol: row.base_asset + row.quote_asset, side: row.side, type: 'limit',
+        const hasMore = rows.length > ORDER_HISTORY_PAGE_SIZE;
+        const pageRows = rows.slice(0, ORDER_HISTORY_PAGE_SIZE);
+        const orders = pageRows.map(row => ({ order_id: row.id, id: row.id, symbol: row.base_asset + row.quote_asset, side: row.side, type: 'limit',
           price: row.price, quantity: row.quantity, amount: row.quantity, remaining_quantity: row.remaining_quantity, status: row.status,
           client_order_id: row.client_order_id, created_at: row.created_at, time: row.created_at, updated_at: row.updated_at }));
-        return json({ ok: true, orders });
-      } catch (e) { return json({ ok: false, code: 'ORDER_READ_UNAVAILABLE', msg: 'Order data temporarily unavailable. Please try again later.' }, 503); }
+        const last = pageRows[pageRows.length - 1];
+        return json({ ok: true, orders, has_more: hasMore, next_cursor: hasMore && last ? encodeOrderHistoryCursor(last) : null });
+      } catch (_) { return json({ ok: false, code: 'ORDER_READ_UNAVAILABLE', msg: 'Order data temporarily unavailable. Please try again later.' }, 503); }
     }
-    return json({ ok: true, orders: (Array.isArray(user.orders) ? user.orders : []).slice(-50) });
+    const source = Array.isArray(user.orders) ? user.orders : [];
+    const normalized = source.map((record, index) => {
+      const value = record && typeof record === 'object' ? record : {};
+      const parsedAt = Date.parse(String(value.created_at || value.time || ''));
+      const createdAt = Number.isFinite(parsedAt) ? new Date(parsedAt).toISOString() : '1970-01-01T00:00:00.000Z';
+      const rawId = value.order_id != null ? value.order_id : value.id != null ? value.id : 'legacy-' + index;
+      const id = String(rawId);
+      return { record: value, created_at: createdAt, id: /^[A-Za-z0-9_-]{1,100}$/.test(id) ? id : 'legacy-' + index };
+    }).filter(entry => !openOnly || ['open', 'partially_filled', 'partially-filled', 'pending'].includes(String(entry.record.status || '').toLowerCase()));
+    normalized.sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id));
+    const afterCursor = cursor ? normalized.filter(entry => entry.created_at < cursor.created_at || (entry.created_at === cursor.created_at && entry.id < cursor.id)) : normalized;
+    const pageRows = afterCursor.slice(0, ORDER_HISTORY_PAGE_SIZE + 1);
+    const hasMore = pageRows.length > ORDER_HISTORY_PAGE_SIZE;
+    const selected = pageRows.slice(0, ORDER_HISTORY_PAGE_SIZE);
+    const last = selected[selected.length - 1];
+    return json({ ok: true, orders: selected.map(entry => entry.record), has_more: hasMore,
+      next_cursor: hasMore && last ? encodeOrderHistoryCursor(last) : null });
   }
 
   // ---------- GET /api/chat/unread（客服未读消息数）----------

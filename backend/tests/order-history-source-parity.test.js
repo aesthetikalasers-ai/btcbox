@@ -88,3 +88,28 @@ test('customer and admin PostgreSQL order projections use consistent status valu
   assert.ok(adminEngine.includes('financial_matching_orders'));
   assert.ok(!adminEngine.includes('u.orders'));
 });
+
+test('customer order history exposes stable authenticated cursor pagination for both data sources', () => {
+  const start = api.indexOf("if (path === 'orders' && method === 'GET')");
+  const end = api.indexOf('// ---------- GET /api/chat/unread', start);
+  assert.ok(start >= 0 && end > start);
+  const route = api.slice(start, end);
+  for (const contract of ['decodeOrderHistoryCursor(cursorToken)', "user_id: 'eq.' + String(user.uid)",
+    'created_at.desc,id.desc', 'ORDER_HISTORY_PAGE_SIZE + 1', 'next_cursor:', 'has_more:', 'open_only']) {
+    assert.ok(route.includes(contract), 'order history route missing ' + contract);
+  }
+  assert.ok(route.includes('created_at.lt.') && route.includes('id.lt.'));
+  assert.ok(route.includes('normalized.sort('));
+  assert.ok(route.includes('Array.isArray(user.orders)'));
+});
+
+test('order history frontend requests and appends server pages instead of slicing one capped response', () => {
+  assert.ok(client.includes('export async function getOrdersPage('));
+  assert.ok(client.includes('params.set("cursor", cursor)'));
+  assert.ok(client.includes('params.set("open_only", "1")'));
+  assert.ok(page.includes('getOrdersPage(null, controller.signal, openOnlyFilter)'));
+  assert.ok(page.includes('getOrdersPage(nextCursor, controller.signal, openOnly)'));
+  assert.ok(page.includes('setOrders(current =>'));
+  assert.ok(page.includes('hasMore && ('));
+  assert.ok(!page.includes('visibleOrders.slice(0, visibleCount)'));
+});
