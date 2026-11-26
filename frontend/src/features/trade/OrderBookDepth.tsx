@@ -50,7 +50,7 @@ function decimalsFor(precision: number): number {
  * Order-book depth panel. It renders only backend/provider depth levels.
  * Missing or stale depth is an unavailable state, never a synthetic book.
  */
-export function OrderBookDepth({ mid, book, streamState, baseAsset = "BTC", levels = 6, compact = false }: { mid?: number; book: DepthLevels | null; streamState?: "idle" | "connecting" | "live" | "degraded" | "closed"; baseAsset?: string; levels?: number; compact?: boolean }) {
+export function OrderBookDepth({ mid, book, streamState, baseAsset = "BTC", levels = 6, compact = false, onPriceSelect }: { mid?: number; book: DepthLevels | null; streamState?: "idle" | "connecting" | "live" | "degraded" | "closed"; baseAsset?: string; levels?: number; compact?: boolean; onPriceSelect?: (price: number, side?: "buy" | "sell") => void }) {
   const { t, language } = useI18n();
   const numberLocale = localeTags[language] || "en-US";
   const [precision, setPrecision] = useState<number>(0.01);
@@ -76,7 +76,7 @@ export function OrderBookDepth({ mid, book, streamState, baseAsset = "BTC", leve
 
   const renderRow = (level: Level, side: "ask" | "bid", keyId: string) => (
     /* Keep the original touch-friendly row rhythm on mobile; desktop opts into compact rows. */
-    <div key={keyId} className={cn("relative grid grid-cols-3 text-right font-mono tabular-nums", compact ? "gap-1 py-[2px] text-[11px] leading-[18px] sm:text-xs" : "gap-2 py-[3px] text-[11px] leading-[18px] sm:text-xs")}>
+    <button key={keyId} type="button" disabled={!onPriceSelect} onClick={() => onPriceSelect?.(level.price, side === "ask" ? "sell" : "buy")} aria-label={`${side === "ask" ? t("Sell") : t("Buy")} ${fmt(level.price)}`} className={cn("relative grid w-full grid-cols-3 text-right font-mono tabular-nums disabled:cursor-default", compact ? "gap-1 py-[2px] text-[11px] leading-[18px] sm:text-xs" : "gap-2 py-[3px] text-[11px] leading-[18px] sm:text-xs", onPriceSelect ? "cursor-pointer hover:bg-brand-surface-2/70 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-accent/60" : "")}>
       <span
         aria-hidden="true"
         className={
@@ -89,7 +89,7 @@ export function OrderBookDepth({ mid, book, streamState, baseAsset = "BTC", leve
       <span className={side === "ask" ? "relative text-brand-danger" : "relative text-brand-success"}>{fmt(level.price)}</span>
       <span className="relative text-brand-text-secondary">{fmt(level.size, 3)}</span>
       <span className="relative text-brand-text-muted">{fmt(level.total, 3)}</span>
-    </div>
+    </button>
   );
 
   return (
@@ -155,9 +155,7 @@ export function OrderBookDepth({ mid, book, streamState, baseAsset = "BTC", leve
         {view === "both" ? (
           <div className="flex items-center justify-between border-y border-brand-border-subtle py-2">
             <span className="text-[11px] font-medium text-brand-text-muted">{t("Mid price")}</span>
-            <span className="flex flex-col items-end">
-              <span className="font-mono text-lg font-semibold tabular-nums text-brand-success">{midText} <span className="text-xs font-medium">USDT</span></span>
-            </span>
+            <button type="button" disabled={!onPriceSelect || !Number.isFinite(mid) || Number(mid) <= 0} onClick={() => { if (mid && mid > 0) onPriceSelect?.(mid); }} className="font-mono text-lg font-semibold tabular-nums text-brand-success disabled:cursor-default hover:brightness-110 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-accent/60">{midText} <span className="text-xs font-medium">USDT</span></button>
           </div>
         ) : null}
         {view !== "asks" ? (
