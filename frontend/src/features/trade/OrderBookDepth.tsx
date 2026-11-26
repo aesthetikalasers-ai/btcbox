@@ -50,7 +50,7 @@ function decimalsFor(precision: number): number {
  * Order-book depth panel. It renders only backend/provider depth levels.
  * Missing or stale depth is an unavailable state, never a synthetic book.
  */
-export function OrderBookDepth({ mid, book, streamState, baseAsset = "BTC" }: { mid?: number; book: DepthLevels | null; streamState?: "idle" | "connecting" | "live" | "degraded" | "closed"; baseAsset?: string }) {
+export function OrderBookDepth({ mid, book, streamState, baseAsset = "BTC", levels = 8 }: { mid?: number; book: DepthLevels | null; streamState?: "idle" | "connecting" | "live" | "degraded" | "closed"; baseAsset?: string; levels?: number }) {
   const { t, language } = useI18n();
   const numberLocale = localeTags[language] || "en-US";
   const [precision, setPrecision] = useState<number>(0.01);
@@ -65,9 +65,9 @@ export function OrderBookDepth({ mid, book, streamState, baseAsset = "BTC" }: { 
   const effectivePrecision = precisionOptions.includes(precision) ? precision : precisionOptions[0];
   const decimals = decimalsFor(effectivePrecision);
   const levelled = useMemo(() => ({
-    asks: book ? levelsFromBook(book.asks, "ask", effectivePrecision, 6) : [],
-    bids: book ? levelsFromBook(book.bids, "bid", effectivePrecision, 6) : [],
-  }), [book, effectivePrecision]);
+    asks: book ? levelsFromBook(book.asks, "ask", effectivePrecision, levels) : [],
+    bids: book ? levelsFromBook(book.bids, "bid", effectivePrecision, levels) : [],
+  }), [book, effectivePrecision, levels]);
   const asks = levelled.asks;
   const bids = levelled.bids;
   const fmt = (v: number, digits = decimals) =>
@@ -75,10 +75,9 @@ export function OrderBookDepth({ mid, book, streamState, baseAsset = "BTC" }: { 
   const midText = Number.isFinite(mid) && Number(mid) > 0 ? fmt(Number(mid)) : "—";
 
   const renderRow = (level: Level, side: "ask" | "bid", keyId: string) => (
-    /* 24px row rhythm matching the spot book (`TerminalOrderBook`): 3px vertical
-       padding on an 18px line box. Nine levels per side made the panel scroll and
-       pushed the long/short ratio bar off-screen; six fits without scrolling. */
-    <div key={keyId} className="relative grid grid-cols-3 gap-2 py-[3px] text-right font-mono text-[11px] leading-[18px] tabular-nums sm:text-xs">
+    /* Compact 8-level desktop ladder: preserve readable tabular figures while keeping
+       both sides and the pressure indicator visible in the terminal column. */
+    <div key={keyId} className="relative grid grid-cols-3 gap-1 py-[2px] text-right font-mono text-[10px] leading-[17px] tabular-nums sm:text-[11px]">
       <span
         aria-hidden="true"
         className={
@@ -135,7 +134,7 @@ export function OrderBookDepth({ mid, book, streamState, baseAsset = "BTC" }: { 
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-1.5">
+      <CardContent className="space-y-1 px-3 pb-3 pt-1">
         {!book ? (
           <div className="py-10 text-center">
             <p className="text-[11.5px] text-brand-text-muted">
