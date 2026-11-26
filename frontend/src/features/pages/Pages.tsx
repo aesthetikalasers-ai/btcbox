@@ -1364,13 +1364,13 @@ export function InternalConversionPage(){
      </div>
     </div>
     <div className="relative mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-brand-border/70 pt-4 text-xs text-brand-text-muted">
-     <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-brand-accent"/>{t("Live market rate")}</span>
+     <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-brand-accent"/>{t("Convert assets")}</span>
      <span className="inline-flex items-center gap-1.5"><Clock3 className="h-3.5 w-3.5"/>{t("Quote valid for 30 seconds. The rate is locked until expiry.")}</span>
     </div>
    </section>
    {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="space-y-4 p-5" role="status"><div className="h-5 w-36 animate-pulse rounded bg-brand-surface-2"/><div className="h-24 animate-pulse rounded-xl bg-brand-surface-2"/><div className="h-24 animate-pulse rounded-xl bg-brand-surface-2"/></CardContent></Card>
    :!account?<Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-col items-center gap-3 p-8 text-center"><Wallet className="h-8 w-8 text-brand-text-muted"/><p className="text-sm text-brand-text-muted">{t("Account data is temporarily unavailable.")}</p><Button variant="outline" onClick={()=>setReload(value=>value+1)}>{t("Try again")}</Button></CardContent></Card>
-   :assets.length<2?<Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-col items-center gap-3 p-8 text-center"><ArrowLeftRight className="h-8 w-8 text-brand-text-muted"/><p className="font-medium text-brand-text">{t("No assets available for conversion.")}</p><p className="max-w-md text-sm text-brand-text-muted">{t("At least two supported assets are required to convert.")}</p></CardContent></Card>
+   :assets.length<2?<Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-col items-center gap-3 p-8 text-center"><ArrowLeftRight className="h-8 w-8 text-brand-text-muted"/><p className="font-medium text-brand-text">{t("No asset balances are currently available.")}</p><p className="max-w-md text-sm text-brand-text-muted">{t("No asset balances are currently available.")}</p></CardContent></Card>
    :<Card className="overflow-hidden border border-brand-border bg-brand-surface shadow-sm">
     <CardContent className="space-y-5 p-4 sm:p-6">
      <div className="grid items-stretch gap-3 lg:grid-cols-[minmax(0,1fr)_48px_minmax(0,1fr)]">
@@ -1390,7 +1390,7 @@ export function InternalConversionPage(){
         </div>
         <input id="conversion-amount" inputMode="decimal" autoComplete="off" value={amount} onChange={event=>{setAmount(event.target.value);resetQuote();}} placeholder="0.00" aria-label={t("Amount")} className="mt-2 min-h-12 w-full border-0 bg-transparent p-0 font-mono text-2xl font-semibold tabular-nums text-brand-text outline-none placeholder:text-brand-text-muted/50 focus:ring-0 sm:text-3xl"/>
         <div className="mt-2 flex justify-end">
-         <button type="button" onClick={()=>{setAmount(String(fromBalance));resetQuote();}} disabled={submitting||compareDecimalStrings(String(fromBalance),"0")!==1} className="rounded-md px-2.5 py-1 text-xs font-semibold text-brand-accent transition-colors hover:bg-brand-accent/10 disabled:cursor-not-allowed disabled:opacity-40">{t("Max")}</button>
+         <button type="button" onClick={()=>{setAmount(String(fromBalance));resetQuote();}} disabled={submitting||compareDecimalStrings(String(fromBalance),"0")!==1} className="rounded-md px-2.5 py-1 text-xs font-semibold text-brand-accent transition-colors hover:bg-brand-accent/10 disabled:cursor-not-allowed disabled:opacity-40">100%</button>
         </div>
        </div>
       </section>
@@ -1414,8 +1414,8 @@ export function InternalConversionPage(){
      </div>
      {quote?<section className="rounded-xl border border-brand-accent/25 bg-brand-accent/[0.045] p-4 sm:p-5" aria-live="polite">
       <div className="flex flex-wrap items-center justify-between gap-2">
-       <span className="text-sm font-semibold text-brand-text">{t("Conversion quote")}</span>
-       <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-accent/10 px-2.5 py-1 text-xs font-semibold text-brand-accent"><Check className="h-3.5 w-3.5"/>{t("Rate locked")}</span>
+       <span className="text-sm font-semibold text-brand-text">{t("Convert assets")}</span>
+       <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-accent/10 px-2.5 py-1 text-xs font-semibold text-brand-accent"><Check className="h-3.5 w-3.5"/>{t("Quote valid for 30 seconds. The rate is locked until expiry.")}</span>
       </div>
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
        <div><p className="text-xs text-brand-text-muted">{t("Exchange rate")}</p><p className="mt-1 break-all font-mono text-sm font-semibold tabular-nums text-brand-text">1 {fromAsset} = {quote.rate} {toAsset}</p></div>
