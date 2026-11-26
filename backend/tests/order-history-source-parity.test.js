@@ -7,6 +7,8 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const api = fs.readFileSync(path.join(root, 'api-core.js'), 'utf8');
+const client = fs.readFileSync(path.resolve(root, '../frontend/src/lib/api.ts'), 'utf8');
+const page = fs.readFileSync(path.resolve(root, '../frontend/src/features/orders/OrdersPage.tsx'), 'utf8');
 
 test('customer order history and admin order list use the same PostgreSQL matching source', () => {
   const customerStart = api.indexOf("if (path === 'orders' && method === 'GET')");

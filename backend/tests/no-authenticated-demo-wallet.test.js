@@ -40,8 +40,8 @@ test('real asset page reads only the authenticated account snapshot', () => {
 
 test('real order history does not merge browser paper orders', () => {
   const orders = fs.readFileSync(path.join(frontend, 'features/orders/OrdersPage.tsx'), 'utf8');
-  assert.ok(orders.includes('getOrders(controller.signal)'));
-  assert.ok(orders.includes('const visibleOrders = openOnly ? orders.filter'));
+  assert.ok(orders.includes('getOrdersPage(null, controller.signal, openOnlyFilter)'));
+  assert.ok(orders.includes('openOnlyRef.current = openOnly'));
   assert.ok(!orders.includes('useTrading'));
   assert.ok(!orders.includes('paperOrders'));
   assert.ok(!orders.includes('mergedOrders'));
