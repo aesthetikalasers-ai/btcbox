@@ -108,6 +108,8 @@ test('order history frontend requests and appends server pages instead of slicin
   assert.ok(client.includes('params.set("cursor", cursor)'));
   assert.ok(client.includes('params.set("open_only", "1")'));
   assert.ok(page.includes('getOrdersPage(null, controller.signal, openOnlyFilter)'));
+  assert.ok(page.includes('getOrdersPage, type OrderRecord'));
+  assert.ok(page.includes('openOnlyRef.current = openOnly'));
   assert.ok(page.includes('getOrdersPage(nextCursor, controller.signal, openOnly)'));
   assert.ok(page.includes('setOrders(current =>'));
   assert.ok(page.includes('hasMore && ('));

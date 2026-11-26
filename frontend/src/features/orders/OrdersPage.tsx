@@ -5,7 +5,7 @@ import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { SubPageLayout } from "../../components/layout/SubPageLayout";
-import { ApiError, getOrders, type OrderRecord } from "../../lib/api";
+import { ApiError, getOrdersPage, type OrderRecord } from "../../lib/api";
 import { useI18n, type Language } from "../../lib/i18n";
 
 const dateLocales: Record<Language, string> = { en: "en-US", ja: "ja-JP", "zh-CN": "zh-CN", es: "es-ES", pt: "pt-PT", it: "it-IT", de: "de-DE" };
@@ -44,10 +44,12 @@ export function OrdersPage() {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [signedOut, setSignedOut] = useState(false);
+  const openOnlyRef = useRef(openOnly);
+  openOnlyRef.current = openOnly;
   const requestIdRef = useRef(0);
   const controllerRef = useRef<AbortController | null>(null);
 
-  async function load(openOnlyFilter = openOnly) {
+  async function load(openOnlyFilter = openOnlyRef.current) {
     controllerRef.current?.abort();
     const controller = new AbortController();
     controllerRef.current = controller;
