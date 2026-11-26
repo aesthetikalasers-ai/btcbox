@@ -566,7 +566,7 @@ export function ContractPage() {
         return (
           <div key={pos.position_id} className="space-y-3 rounded-lg border border-brand-border bg-brand-surface-2/50 p-4 text-xs">
             <div className="flex items-center justify-between gap-2">
-              <div className="flex min-w-0 items-center gap-2">
+              <div className="flex min-w-0 items-center gap-2 xl:gap-3">
                 <span className="truncate text-sm font-bold text-brand-text">{pos.symbol}</span>
                 <span className="rounded border border-brand-border bg-brand-surface px-1.5 py-0.5 font-mono text-[10px] text-brand-text-muted">{pos.leverage || effectiveLeverage}×</span>
               </div>
@@ -599,7 +599,7 @@ export function ContractPage() {
   // without a mark/liquidation price render "—" rather than a computed guess;
   // the panel never fabricates a liquidation distance.
   const positionRiskCard = (
-    <Card className="border-brand-border bg-brand-surface">
+    <Card className="border-0 bg-transparent shadow-none">
       <CardHeader className="border-b border-brand-border/60 pb-3">
         <CardTitle className="text-sm font-bold">{t("Position risk")}</CardTitle>
         <CardDescription>{t("Distance to liquidation and margin ratio per position")}</CardDescription>
@@ -1122,8 +1122,8 @@ export function ContractPage() {
       <div className="xl:hidden">
         <TradeProductNav />
       </div>
-      <div className="mx-auto flex min-h-dvh w-full min-w-0 max-w-[430px] flex-col bg-brand-bg px-0 pb-[calc(132px+env(safe-area-inset-bottom))] text-brand-text min-[600px]:max-w-[1280px] min-[600px]:px-4 xl:max-w-[1560px] xl:gap-4 xl:px-8 xl:pb-6 xl:pt-4">
-        <header className="flex min-w-0 flex-col justify-center gap-2 px-4 pt-2.5 pb-1 xl:h-auto xl:rounded-xl xl:border xl:border-brand-border xl:bg-brand-surface xl:px-4 xl:py-2">
+      <div className="mx-auto flex min-h-dvh w-full min-w-0 max-w-[430px] flex-col bg-brand-bg px-0 pb-[calc(132px+env(safe-area-inset-bottom))] text-brand-text min-[600px]:max-w-none min-[600px]:px-4 xl:gap-4 xl:px-4 xl:pb-6 xl:pt-3">
+        <header className="flex min-w-0 flex-col justify-center gap-2 px-4 pt-2.5 pb-1 xl:h-auto xl:border-b xl:border-brand-border/70 xl:bg-brand-bg xl:px-1 xl:pb-3 xl:pt-1">
           {/* 行 1：合约名（市场选择）+ 永续标签 + 图表入口 */}
           <div className="flex min-w-0 items-center gap-2">
             <div className="relative min-w-0">
@@ -1133,7 +1133,7 @@ export function ContractPage() {
                 disabled={markets.length === 0}
                 aria-haspopup="dialog"
                 aria-expanded={symbolPickerOpen}
-                className="flex min-w-0 items-center gap-1 rounded text-[18px] font-bold leading-none text-brand-text transition-colors hover:text-brand-text-secondary"
+                className="flex min-w-0 items-center gap-1 rounded text-base font-semibold leading-none text-brand-text transition-colors hover:text-brand-text-secondary xl:text-lg"
               >
                 <span className="truncate">{selectedMarket ? `${selectedMarket.base_asset ?? selectedMarket.symbol.replace(/USDT$/i, "")}/USDT` : "—"}</span>
                 <ChevronDown className="h-4 w-4 shrink-0 text-brand-text-muted" aria-hidden="true" />
@@ -1149,7 +1149,7 @@ export function ContractPage() {
           {/* 币安式：涨跌幅紧跟交易对名下方（红绿醒目） */}
           <div className="flex min-w-0 items-baseline gap-2">
             <span className="shrink-0 text-[10px] text-brand-text-muted">{displayPriceLabel}</span>
-            <span className={cn("bf-tabular font-mono text-[24px] font-bold leading-none", displayChg !== null ? (displayChg >= 0 ? "text-brand-success" : "text-brand-danger") : "text-brand-text")}>{displayPrice !== null && displayPrice !== undefined ? money(displayPrice, locale) : EM_DASH}</span>
+            <span className={cn("bf-tabular font-mono text-2xl font-semibold leading-none", displayChg !== null ? (displayChg >= 0 ? "text-brand-success" : "text-brand-danger") : "text-brand-text")}>{displayPrice !== null && displayPrice !== undefined ? money(displayPrice, locale) : EM_DASH}</span>
             {/* 无行情时不再渲染孤立的“—”涨跌幅占位 */}
             {displayChg !== null ? (
               <span className={cn("bf-tabular font-mono text-[12px] font-semibold", displayChg >= 0 ? "text-brand-success" : "text-brand-danger")}>
@@ -1314,20 +1314,20 @@ export function ContractPage() {
               </div>
             </div>
 
-            <div data-testid="perp-desktop-terminal" className="hidden min-w-0 gap-3 xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(260px,320px)_minmax(280px,340px)]">
-              <section aria-label={t("Chart")} className="min-w-0 overflow-hidden rounded-xl border border-brand-border bg-brand-surface">
-                <KlinePanel symbol={selectedMarket?.symbol ?? symbol ?? "BTCUSDT"} height={440} />
+            <div data-testid="perp-desktop-terminal" className="hidden min-w-0 gap-3 xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(280px,320px)_minmax(320px,360px)] xl:items-stretch">
+              <section aria-label={t("Chart")} className="min-w-0 overflow-hidden rounded-xl border border-brand-border bg-brand-surface xl:min-h-[500px]">
+                <KlinePanel symbol={selectedMarket?.symbol ?? symbol ?? "BTCUSDT"} height={500} />
               </section>
-              <section aria-label={t("Order book")} className="min-w-0">
-                <OrderBookDepth mid={depthMid} book={displayBook} streamState={liveDepth.state} baseAsset={baseAsset} />
+              <section aria-label={t("Order book")} className="min-w-0 overflow-hidden rounded-xl border border-brand-border bg-brand-surface">
+                <div className="h-full min-h-[500px]"><OrderBookDepth mid={depthMid} book={displayBook} streamState={liveDepth.state} baseAsset={baseAsset} /></div>
               </section>
-              <section aria-label={t("Place order")} className="min-w-0">
-                {orderEntryCard}
+              <section aria-label={t("Place order")} className="min-w-0 overflow-hidden rounded-xl border border-brand-border bg-brand-surface">
+                <div className="max-h-[500px] overflow-y-auto overscroll-contain">{orderEntryCard}</div>
               </section>
-              <div className="col-span-full min-w-0">
+              <div className="col-span-full min-w-0 overflow-hidden rounded-xl border border-brand-border bg-brand-surface">
                 {historyCard}
               </div>
-              {!signedOut ? <div className="col-span-full min-w-0">{positionRiskCard}</div> : null}
+              {!signedOut ? <div className="col-span-full min-w-0 overflow-hidden rounded-xl border border-brand-border bg-brand-surface">{positionRiskCard}</div> : null}
             </div>
           </>
         ) : null}
