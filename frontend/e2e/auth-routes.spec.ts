@@ -524,8 +524,8 @@ test("Google-linked Supabase identity can add an email password through recovery
 
   await page.goto("/auth/react-callback?flow=recovery&code=e2e-google-linked-recovery-code");
   await expect(page.getByRole("heading", { name: "Reset your password" })).toBeVisible();
-  await page.getByLabel("New password").fill("NewEmailPassphrase123!");
-  await page.getByLabel("Confirm new password").fill("NewEmailPassphrase123!");
+  await page.getByLabel("New password", { exact: true }).fill("NewEmailPassphrase123!");
+  await page.getByLabel("Confirm new password", { exact: true }).fill("NewEmailPassphrase123!");
   await page.getByRole("button", { name: "Update password" }).click();
 
   await expect(page).toHaveURL(/\/home$/);
