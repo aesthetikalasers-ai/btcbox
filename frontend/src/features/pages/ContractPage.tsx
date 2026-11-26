@@ -899,12 +899,11 @@ export function ContractPage() {
           id="mobile-order-type"
           value={orderType}
           onChange={(event) => setOrderType(event.target.value as "limit" | "market")}
-          className="h-10 w-full rounded-lg bg-brand-surface-2 px-3 text-[13px] font-medium text-brand-text"
+          className="h-10 w-full rounded-lg bg-brand-surface-2 pl-3 text-[13px] font-medium text-brand-text"
         >
           <option value="market">{t("Market")}</option>
           <option value="limit">{t("Limit")}</option>
         </Select>
-        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-brand-text-muted">▾</span>
       </div>
 
       {/* 价格 / 市价提示 输入（币安风格） */}

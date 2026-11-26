@@ -247,6 +247,77 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   .type-micro { font-size: .71875rem; line-height: 1.4; }
   .type-price { font-size: clamp(1.375rem, 4vw, 1.875rem); line-height: 1.15; font-weight: 600; letter-spacing: -.035em; font-variant-numeric: tabular-nums; }
 }
+/* Shared form and empty-state primitives.
+   `components/ui/select.tsx` and `components/ui/empty-state.tsx` have always
+   referenced these classes, but the definitions were never written, so a default
+   Select rendered with no border, height or background and — because it also sets
+   `appearance-none` — no arrow at all, while every EmptyState rendered as an
+   unstyled paragraph. Utilities from a caller still win: @layer components sits
+   below the utilities layer, so page-level overrides keep working. */
+@layer components {
+  .field-control {
+    display: block;
+    width: 100%;
+    min-height: var(--bf-control-h);
+    padding: 0 12px;
+    border: 1px solid var(--color-brand-border);
+    border-radius: var(--bf-radius);
+    background-color: var(--color-brand-surface-2);
+    color: var(--color-brand-text);
+    font-size: .8125rem;
+    font-weight: 500;
+    line-height: 1.4;
+    transition: border-color .15s ease, background-color .15s ease;
+  }
+  .field-control::placeholder { color: var(--color-brand-text-faint); }
+  .field-control:hover:not(:disabled) { border-color: var(--color-brand-border-strong); }
+  .field-control:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-color: color-mix(in srgb, var(--color-brand-accent) 55%, transparent);
+  }
+  .field-control:disabled { opacity: .5; cursor: not-allowed; }
+  /* appearance-none removes the native indicator, so draw one here and reserve the
+     room for it. Callers that add their own arrow must not also keep `pr-9`. */
+  select.field-control {
+    padding-right: 32px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23A6B0BD' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 14px 14px;
+  }
+  .field-textarea {
+    min-height: 104px;
+    padding: 10px 12px;
+    line-height: 1.55;
+    resize: vertical;
+  }
+  /* Borderless on purpose: empty states are rendered inside panels that already
+     carry a border, and a second dashed box would nest borders. */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 28px 16px;
+    text-align: center;
+  }
+  .empty-state-icon {
+    display: inline-flex;
+    height: 40px;
+    width: 40px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--color-brand-accent) 22%, transparent);
+    background-color: color-mix(in srgb, var(--color-brand-accent) 10%, transparent);
+    color: var(--color-brand-accent);
+  }
+  .empty-state-title { font-size: .875rem; font-weight: 600; line-height: 1.4; color: var(--color-brand-text); }
+  .empty-state-hint { max-width: 52ch; font-size: .8125rem; line-height: 1.55; color: var(--color-brand-text-muted); text-wrap: balance; }
+}
+
 
 /* Page identity uses restrained semantic accents over the shared dark surfaces. */
 .tone-account { --page-accent: #21C7A8; --page-accent-soft: rgba(33,199,168,.08); }

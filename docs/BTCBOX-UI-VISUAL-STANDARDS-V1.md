@@ -152,8 +152,8 @@ BTCBOX 是**机构级深色交易终端**，不是营销页。
 ### 6.4 Input / Select / EmptyState
 
 - `Input`：`variant` `default|outline|secondary`，`size` `default|sm|lg`。
-- `Select`：原生 `<select>` + `.field-control`，`appearance-none` + 右侧留 `pr-9`，需要调用方自行放箭头图标或文字箭头。
-- `EmptyState`：`icon` + `title` + 可选 `hint` + 可选 `action`，样式来自 `.empty-state*`（见 §12 第 1 条）。
+- `Select`：原生 `<select>` + `.field-control`。`.field-control` 自带边框、背景、40px 高度、焦点环与禁用态；`select.field-control` 由 CSS 绘制右侧箭头，因此**调用方不要再额外放箭头**，左右内边距请用 `pl-*`（不要用 `px-*`，否则会把箭头需要的右侧留白覆盖掉）。
+- `EmptyState`：`icon` + `title` + 可选 `hint` + 可选 `action`，样式来自 `.empty-state*`（`@layer components`，无边框，避免在已有边框的面板里套第二层框）。
 
 ### 6.5 TokenIcon
 
@@ -288,10 +288,11 @@ npm run test:e2e --prefix frontend -- -g "continuous responsive sweep /convert"
 
 以下问题在代码中真实存在，按本文件标准属于不合格项。改动相关页面时**不得复制这些做法**，并应优先修复：
 
-1. **`EmptyState` / `Select` 的样式类未定义。** `components/ui/empty-state.tsx` 使用 `.empty-state`、`.empty-state-icon`、`.empty-state-title`、`.empty-state-hint`；`components/ui/select.tsx` 使用 `.field-control`、`.field-textarea`。这些类在 `index.css` 与构建产物 CSS 中均不存在，因此 `/contract` 的空状态没有任何布局与边框，默认 `Select` 也没有边框/背景/高度（调用方需自行补 `bg-* px-* h-*`，`appearance-none` 还会隐藏原生箭头）。
-2. **`.type-page-title` 被定义两次。** `index.css` 先在 `@layer components` 声明 `clamp(1.5rem,3.5vw,1.875rem)`，随后在另一个 `@layer components` 块又声明 `clamp(1.4rem,2.5vw,1.85rem)`；同层后者胜出，所以**当前实际生效的是 1.4–1.85rem 版本**。§3 表格按生效值填写。收敛成一处前，不要依赖第一个值。
-3. **`.tone-*` 全部同色。** `tone-home`、`tone-assets`、`tone-trading` 等九个 tone 的 `--page-accent` 都是 `#21C7A8`，页面身份目前只靠标题与内容区分。新增页面不必再发明 tone。
-4. **旧静态页残留类名。** `index.css` 中仍有 `.spot-terminal`、`.term-*`、`.bf-*` 等终端专用类，属于交易页独立系统；非交易页面不得复用。
+1. **`.type-page-title` 被定义两次。** `index.css` 先在 `@layer components` 声明 `clamp(1.5rem,3.5vw,1.875rem)`，随后在另一个 `@layer components` 块又声明 `clamp(1.4rem,2.5vw,1.85rem)`；同层后者胜出，所以**当前实际生效的是 1.4–1.85rem 版本**。§3 表格按生效值填写。收敛成一处前，不要依赖第一个值。
+2. **`.tone-*` 全部同色。** `tone-home`、`tone-assets`、`tone-trading` 等九个 tone 的 `--page-accent` 都是 `#21C7A8`，页面身份目前只靠标题与内容区分。新增页面不必再发明 tone。
+3. **旧静态页残留类名。** `index.css` 中仍有 `.spot-terminal`、`.term-*`、`.bf-*` 等终端专用类，属于交易页独立系统；非交易页面不得复用。
+
+> 已修复记录：`.field-control` / `.field-textarea` / `.empty-state*` 曾经被组件引用但从未定义，导致默认 `Select` 无边框、无高度、无箭头，`EmptyState` 完全无样式。现已补齐定义（见 §6.4），因此不再列为偏差。
 
 ## 13. 变更检查清单
 

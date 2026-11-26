@@ -182,20 +182,24 @@ else {
   }
 }
 
-// ---------- 8. Known deviations must stay honest ----------
-const fieldControlDefined = /\.field-control\s*\{/.test(css);
-const emptyStateDefined = /\.empty-state\s*\{/.test(css);
-if (!fieldControlDefined && !doc.includes(".field-control")) {
-  fail("components/ui/select.tsx uses .field-control, which index.css does not define, and section 12 does not record it");
+// ---------- 8. Component classes documented in §6.4 must exist ----------
+// These were referenced by components/ui/select.tsx and empty-state.tsx for a long
+// time without any definition (see the fixed-deviation note in §12). Now that the
+// standard documents them as styled primitives, their absence is a regression.
+for (const className of [
+  "field-control",
+  "field-textarea",
+  "empty-state",
+  "empty-state-icon",
+  "empty-state-title",
+  "empty-state-hint",
+]) {
+  if (!new RegExp("\\." + className + "\\s*\\{").test(css)) {
+    fail(`components/ui uses .${className}, but index.css no longer defines it`);
+  }
 }
-if (!emptyStateDefined && !doc.includes(".empty-state")) {
-  fail("components/ui/empty-state.tsx uses .empty-state, which index.css does not define, and section 12 does not record it");
-}
-if (fieldControlDefined && doc.includes("`.field-control`、`.field-textarea`。这些类在 `index.css` 与构建产物 CSS 中均不存在")) {
-  warn("section 12 still reports the missing .field-control styles, but they now exist — update the deviation list");
-}
-if (emptyStateDefined && doc.includes("`.empty-state`、`.empty-state-icon`、`.empty-state-title`、`.empty-state-hint`；")) {
-  warn("section 12 still reports the missing .empty-state styles, but they now exist — update the deviation list");
+if (!/select\.field-control\s*\{/.test(css)) {
+  fail("select.field-control lost its arrow styling; Select sets appearance-none and would render without an indicator");
 }
 
 // ---------- report ----------
