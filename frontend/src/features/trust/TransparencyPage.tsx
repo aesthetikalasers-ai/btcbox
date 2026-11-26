@@ -2,45 +2,66 @@ import { useI18n } from "../../lib/i18n";
 import { TrustPage, TrustSection } from "./TrustLayout";
 
 /**
- * Custody transparency.
+ * Customer-facing transparency.
  *
  * Two hard rules for this page:
  *   1. Never state a reserve ratio, audit result or wallet balance that has not
  *      been independently verified — an unverifiable claim is worse than none.
- *   2. Describe only mechanics that are actually implemented. The deposit flow
- *      in this codebase credits accounts manually after staff verification, so
- *      that is what this page says.
+ *   2. Describe only what a customer needs in order to move funds safely. Internal
+ *      operating detail (manual crediting steps, staff review queues, ledger and
+ *      audit-log internals) is deliberately not published here: it is not customer
+ *      guidance, and it tells anyone probing the platform how the back office works.
  */
 export function TransparencyPage() {
   const { t } = useI18n();
 
-  const mechanics: Array<{ title: string; body: string }> = [
+  const deposits: Array<{ title: string; body: string }> = [
+    {
+      title: "Only send supported assets on the correct network",
+      body: "Use the deposit address shown for the asset and network you selected. Funds sent on an unsupported network, or to an address that is not yours, may be permanently lost.",
+    },
     {
       title: "Deposits are verified before crediting",
-      body: "An incoming transfer does not credit your balance automatically. BTCBOX staff verify receipt on-chain and then credit your account manually, which is why deposits can take longer than the network confirmation time.",
+      body: "A deposit appears in your deposit history once the incoming transfer has been verified on-chain. Credit can take longer than the network confirmation time.",
+    },
+  ];
+
+  const withdrawals: Array<{ title: string; body: string }> = [
+    {
+      title: "Identity verification is required",
+      body: "You must complete identity verification before withdrawing.",
     },
     {
-      title: "Withdrawals are reviewed before broadcast",
-      body: "Every withdrawal request enters a review queue. Staff approve the request, then the transfer is broadcast manually. You can follow the status of each request under Withdrawals in Assets.",
+      title: "Two-factor authentication is required",
+      body: "A time-based code from your authenticator app is required for withdrawals and sensitive changes.",
     },
     {
-      title: "The ledger is double-entry and append-only",
-      body: "Balance changes are recorded as ledger entries with a request identifier, so a retry cannot post twice. Audit records are append-only and cannot be edited after the fact.",
+      title: "Every withdrawal is reviewed",
+      body: "Withdrawal requests are checked before the transfer is sent. A request can be delayed or declined if identity verification is incomplete or a risk check is triggered. You can follow its status in withdrawal history.",
     },
     {
-      title: "Staff cannot silently move funds",
-      body: "Administrative adjustments require an authorised role and are written to an audit log that the operator can review. Customer balances and operator actions are recorded separately.",
+      title: "Fees are shown before you confirm",
+      body: "Network fees are set per asset, and are shown again on the Withdraw page before you confirm.",
     },
+  ];
+
+  const responsibilities = [
+    "You are responsible for confirming the asset, network and address of every withdrawal.",
+    "You must complete identity verification before withdrawing.",
+    "You are responsible for securing your login credentials and two-factor device.",
   ];
 
   return (
     <TrustPage
       title="Transparency"
-      lead="How BTCBOX handles customer funds and what you should expect when you deposit or withdraw."
+      lead="How deposits and withdrawals work, and the rules that protect your funds."
     >
-      <TrustSection title="How custody works">
+      <TrustSection
+        title="Deposits"
+        description="What happens after you send funds to your BTCBOX deposit address."
+      >
         <div>
-          {mechanics.map((item) => (
+          {deposits.map((item) => (
             <div key={item.title} className="border-b border-brand-border/60 px-4 py-4 sm:px-5 sm:py-5 last:border-b-0">
               <h3 className="text-[14px] sm:text-[15px] font-bold text-brand-text tracking-tight">{t(item.title)}</h3>
               <p className="mt-1.5 text-[13px] leading-relaxed text-brand-text-secondary">{t(item.body)}</p>
@@ -49,26 +70,36 @@ export function TransparencyPage() {
         </div>
       </TrustSection>
 
-      {/* Reserve attestation is intentionally shown as not-yet-published rather
-          than as an empty table, so nobody reads the absence of data as a claim. */}
       <TrustSection
-        title="Proof of reserves"
-        description="An independent attestation of customer liabilities against held assets."
+        title="Withdrawals"
+        description="Conditions that apply before a withdrawal is sent."
       >
-        <div className="px-4 py-6 text-center sm:px-5 sm:py-8">
-          <p className="text-[13px] font-medium text-brand-text-secondary">{t("No independent attestation has been published yet.")}</p>
-          <p className="mx-auto mt-2 max-w-md text-[12px] leading-relaxed text-brand-text-muted">
-            {t("BTCBOX will publish the auditor name, reporting period and methodology here once an attestation is complete. Until then, no reserve ratio is claimed on this page.")}
+        <div>
+          {withdrawals.map((item) => (
+            <div key={item.title} className="border-b border-brand-border/60 px-4 py-4 sm:px-5 sm:py-5 last:border-b-0">
+              <h3 className="text-[14px] sm:text-[15px] font-bold text-brand-text tracking-tight">{t(item.title)}</h3>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-brand-text-secondary">{t(item.body)}</p>
+            </div>
+          ))}
+        </div>
+      </TrustSection>
+
+      <TrustSection title="Irreversible blockchain transfers">
+        <div className="px-4 py-4 sm:px-5 sm:py-5">
+          <p className="text-[13px] leading-relaxed text-brand-text-secondary">
+            {t("Crypto deposits and withdrawals are irreversible. Sending an asset on the wrong network, or to an address you do not control, results in permanent loss that BTCBOX cannot recover.")}
           </p>
         </div>
       </TrustSection>
 
-      <TrustSection
-        title="Security incidents"
-        description="Any incident affecting customer funds or data is disclosed here."
-      >
-        <div className="px-4 py-6 text-center sm:px-5 sm:py-8">
-          <p className="text-[13px] text-brand-text-muted">{t("No incidents have been reported.")}</p>
+      <TrustSection title="Your responsibilities">
+        <div className="space-y-3 p-4 sm:p-5">
+          {responsibilities.map((line) => (
+            <div key={line} className="flex items-start gap-2.5 text-[13px] sm:text-sm leading-relaxed text-brand-text-secondary">
+              <span className="mt-2 h-1.5 w-1.5 rounded-full bg-brand-accent shrink-0" />
+              <span>{t(line)}</span>
+            </div>
+          ))}
         </div>
       </TrustSection>
     </TrustPage>

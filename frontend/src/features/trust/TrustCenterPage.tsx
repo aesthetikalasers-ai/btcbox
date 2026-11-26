@@ -5,7 +5,7 @@ import { TrustPage } from "./TrustLayout";
 
 const ENTRIES = [
   { to: "/security", icon: ShieldCheck, title: "Security", body: "Two-factor authentication, sign-in methods and verification status." },
-  { to: "/transparency", icon: Wallet, title: "Transparency", body: "How customer funds are held, and what BTCBOX can and cannot do with them." },
+  { to: "/transparency", icon: Wallet, title: "Transparency", body: "How deposits and withdrawals work, and the rules that protect your funds." },
   { to: "/fees", icon: CircleDollarSign, title: "Fees and limits", body: "Spot, perpetual and withdrawal fees, with volume tiers." },
   { to: "/rules", icon: FileText, title: "Trading rules", body: "Order types, precision, funding and settlement behaviour." },
   { to: "/risk", icon: ShieldAlert, title: "Risk disclosure", body: "What you can lose, and the risks specific to each product." },

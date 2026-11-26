@@ -53,7 +53,7 @@ export function SecurityPage() {
         </div>
       </TrustSection>
 
-      <TrustSection title="Fund protection" description="How customer funds are held and what BTCBOX can and cannot do.">
+      <TrustSection title="Fund protection" description="Safeguards applied to customer funds.">
         <div className="space-y-3 p-4 sm:p-5">
           <div className="flex items-start gap-3.5 rounded-lg border border-brand-border/40 bg-brand-surface-2/30 p-3 sm:p-3.5">
             <Lock className="mt-0.5 h-5 w-5 shrink-0 text-brand-text-muted" />
@@ -61,7 +61,7 @@ export function SecurityPage() {
           </div>
           <div className="flex items-start gap-3.5 rounded-lg border border-brand-border/40 bg-brand-surface-2/30 p-3 sm:p-3.5">
             <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-brand-text-muted" />
-            <p className="text-[13px] sm:text-sm leading-relaxed text-brand-text-secondary">{t("Withdrawals are reviewed by staff and paid manually after approval.")}</p>
+            <p className="text-[13px] sm:text-sm leading-relaxed text-brand-text-secondary">{t("Withdrawals require review")}</p>
           </div>
         </div>
       </TrustSection>
