@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { useI18n, localeTags } from "../../lib/i18n";
 import { cn } from "../../lib/utils";
+import { aggregateLevels, precisionOptionsFor } from "./TerminalOrderBook";
 
 type Level = { price: number; size: number; total: number; depthPct: number };
 type ViewMode = "both" | "asks" | "bids";
@@ -14,17 +15,19 @@ export interface DepthLevels {
 
 /**
  * Turns raw levels into cumulative rows with a depth percentage.
- * `asks` are returned highest-first so they render on top, converging on the mid.
+ *
+ * Levels are aggregated into the selected price bucket first: the provider can
+ * return several rows at the same tick (0.15, 0.15, 0.15), which previously
+ * printed one price three times and made the ladder look deeper than it is.
+ * Asks come back highest-first so they render on top, converging on the mid.
  */
-function levelsFromBook(rows: Array<[string, string]>, side: "ask" | "bid", limit: number): Level[] {
-  const parsed = rows
-    .map(([price, size]) => ({ price: Number(price), size: Number(size) }))
-    .filter((row) => Number.isFinite(row.price) && row.price > 0 && Number.isFinite(row.size) && row.size > 0)
-    .slice(0, limit);
+function levelsFromBook(rows: Array<[string, string]>, side: "ask" | "bid", step: number, limit: number): Level[] {
+  const aggregated = aggregateLevels(rows, side, step, limit);
   let cumul = 0;
-  const levels = parsed.map((row) => {
-    cumul += row.size;
-    return { price: row.price, size: row.size, total: cumul, depthPct: 0 };
+  const levels = aggregated.map(([price, size]) => {
+    const sizeNum = Number(size);
+    cumul += sizeNum;
+    return { price: Number(price), size: sizeNum, total: cumul, depthPct: 0 };
   });
   const maxCumul = cumul || 1;
   for (const level of levels) level.depthPct = Math.min(100, (level.total / maxCumul) * 100);
@@ -34,7 +37,7 @@ function levelsFromBook(rows: Array<[string, string]>, side: "ask" | "bid", limi
 
 
 /** Available price precisions for the order book. */
-const PRECISIONS = [0.1, 0.01, 0.001, 0.0001] as const;
+const FALLBACK_PRECISIONS = [0.01, 0.1, 1] as const;
 
 /** Decimal places implied by a precision step (0.01 -> 2). */
 function decimalsFor(precision: number): number {
@@ -47,29 +50,29 @@ function decimalsFor(precision: number): number {
  * Order-book depth panel. It renders only backend/provider depth levels.
  * Missing or stale depth is an unavailable state, never a synthetic book.
  */
-export function OrderBookDepth({ mid, book, streamState, usdtUsd, baseAsset = "BTC" }: { mid?: number; book: DepthLevels | null; streamState?: "idle" | "connecting" | "live" | "degraded" | "closed"; usdtUsd?: number | null; baseAsset?: string }) {
+export function OrderBookDepth({ mid, book, streamState, baseAsset = "BTC" }: { mid?: number; book: DepthLevels | null; streamState?: "idle" | "connecting" | "live" | "degraded" | "closed"; baseAsset?: string }) {
   const { t, language } = useI18n();
   const numberLocale = localeTags[language] || "en-US";
   const [precision, setPrecision] = useState<number>(0.01);
   const [view, setView] = useState<ViewMode>("both");
-  const decimals = decimalsFor(precision);
+  /* Bucket sizes follow the traded price: a fixed 0.01 ladder merges a 0.15
+     market's ticks, while a fixed 0.0001 ladder is noise on BTC. The finest
+     option is the default so no real level is hidden. */
+  const precisionOptions = useMemo<number[]>(() => {
+    const derived = precisionOptionsFor(Number(mid)).map(Number);
+    return derived.length ? derived : [...FALLBACK_PRECISIONS];
+  }, [mid]);
+  const effectivePrecision = precisionOptions.includes(precision) ? precision : precisionOptions[0];
+  const decimals = decimalsFor(effectivePrecision);
   const levelled = useMemo(() => ({
-    asks: book ? levelsFromBook(book.asks, "ask", 6) : [],
-    bids: book ? levelsFromBook(book.bids, "bid", 6) : [],
-  }), [book]);
+    asks: book ? levelsFromBook(book.asks, "ask", effectivePrecision, 6) : [],
+    bids: book ? levelsFromBook(book.bids, "bid", effectivePrecision, 6) : [],
+  }), [book, effectivePrecision]);
   const asks = levelled.asks;
   const bids = levelled.bids;
   const fmt = (v: number, digits = decimals) =>
     v.toLocaleString(numberLocale, { minimumFractionDigits: digits, maximumFractionDigits: digits });
   const midText = Number.isFinite(mid) && Number(mid) > 0 ? fmt(Number(mid)) : "—";
-
-  /* Dollar value is shown only when the caller has a verified USDT/USD rate. */
-  const usdText = useMemo(() => {
-    const rate = Number(usdtUsd);
-    const price = Number(mid);
-    if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(rate) || rate <= 0) return "";
-    return "$" + (price * rate).toLocaleString(numberLocale, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-  }, [mid, usdtUsd, decimals, numberLocale]);
 
   const renderRow = (level: Level, side: "ask" | "bid", keyId: string) => (
     /* 24px row rhythm matching the spot book (`TerminalOrderBook`): 3px vertical
@@ -98,15 +101,15 @@ export function OrderBookDepth({ mid, book, streamState, usdtUsd, baseAsset = "B
         <div className="flex items-center gap-1">
           {/* Precision selector — compact segmented control, touch-friendly. */}
           <div className="flex items-center rounded-md border border-brand-border/60 bg-brand-surface-2/60 p-0.5" role="group" aria-label={t("Order book precision")}>
-            {PRECISIONS.map((p) => (
+            {precisionOptions.map((p) => (
               <button
                 key={p}
                 type="button"
-                aria-pressed={precision === p}
+                aria-pressed={effectivePrecision === p}
                 onClick={() => setPrecision(p)}
                 className={cn(
                   "min-h-6 rounded px-1.5 text-[10px] font-semibold tabular-nums transition-all duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/50",
-                  precision === p ? "bg-brand-surface text-brand-text shadow-sm" : "text-brand-text-muted hover:text-brand-text",
+                  effectivePrecision === p ? "bg-brand-surface text-brand-text shadow-sm" : "text-brand-text-muted hover:text-brand-text",
                 )}
               >
                 {String(p)}
@@ -156,7 +159,6 @@ export function OrderBookDepth({ mid, book, streamState, usdtUsd, baseAsset = "B
             <span className="text-[11px] uppercase tracking-wide text-brand-text-muted">{t("Mid price")}</span>
             <span className="flex flex-col items-end">
               <span className="font-mono text-lg font-bold tabular-nums text-brand-success">{midText} <span className="text-xs font-medium">USDT</span></span>
-              {usdText ? <span className="font-mono text-[10px] tabular-nums text-brand-text-muted">≈ {usdText}</span> : null}
             </span>
           </div>
         ) : null}

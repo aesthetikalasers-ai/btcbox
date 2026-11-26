@@ -1897,5 +1897,16 @@
   "The converted amount is below the supported precision.": "兑换后的数量低于支持的最小精度。",
   "Insufficient available balance. No conversion was made.": "可用余额不足，未执行兑换。",
   "This request ID was already used for a different conversion.": "此请求编号已用于其他兑换，请重新发起。",
-  "The conversion was not confirmed. Check your asset balances before retrying.": "兑换结果尚未确认，请刷新资产余额并检查记录后再重试。"
+  "The conversion was not confirmed. Check your asset balances before retrying.": "兑换结果尚未确认，请刷新资产余额并检查记录后再重试。",
+  "Hot": "热门",
+  "Internal conversion is not open yet.": "内部兑换暂未开放。",
+  "BTCBOX has not enabled internal conversion yet, so quoting and confirmation are closed. Your assets have not changed. Deposit, withdrawal, trading and Earn remain available.": "BTCBOX 尚未开放内部兑换，报价与确认暂不可用。您的资产没有发生变动，充值、提现、交易与理财仍可正常使用。",
+  "Conversion service is temporarily unavailable. No assets were moved.": "兑换服务暂时不可用，资产没有发生变动。",
+  "Secure conversion quotes are not configured. No assets were moved.": "安全兑换报价尚未配置，资产没有发生变动。",
+  "Market orders are disabled for this market: BTCBOX spot trading currently accepts limit orders only. Nothing has been submitted.": "该市场已停用市价单：BTCBOX 现货目前仅支持限价单。本次没有提交任何订单。",
+  "Switch to limit order": "切换为限价单",
+  "The order was rejected. Check the price, quantity, margin and position mode, then submit again.": "订单被拒绝。请检查价格、数量、保证金与持仓模式后重新提交。",
+  "We couldn't confirm whether this order was accepted. Check Open orders and Positions before placing another order.": "无法确认该订单是否已被接受。再次下单前，请先查看「未成交委托」和「持仓」。",
+  "Technical details": "技术信息",
+  "Request reference": "请求编号"
 }

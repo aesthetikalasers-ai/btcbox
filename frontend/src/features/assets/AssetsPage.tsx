@@ -166,14 +166,14 @@ export function AssetsPage() {
               <span className="font-mono font-semibold tabular-nums text-brand-text-muted">— USDT (—%)</span>
             </div>
           )}
-          {/* Keep deposit and withdrawal as independent first-level asset actions. */}
-          <div className="relative grid w-full grid-cols-2 gap-2 sm:w-auto sm:min-w-[340px]">
-            <Button asChild className="min-h-11 text-sm font-bold"><Link to="/deposit"><ArrowDownToLine className="h-4 w-4"/>{t("Deposit")}</Link></Button>
-            <Button asChild variant="outline" className="min-h-11 text-sm font-bold"><Link to="/withdraw"><ArrowUpFromLine className="h-4 w-4"/>{t("Withdraw")}</Link></Button>
-          </div>
-          <div className="relative flex flex-wrap gap-2">
-            <Button asChild variant="ghost" className="min-h-10 text-sm"><Link to="/convert"><ArrowLeftRight className="h-4 w-4"/>{t("Convert")}</Link></Button>
-            <Button asChild variant="ghost" className="min-h-10 text-sm"><Link to="/earn"><Sprout className="h-4 w-4"/>{t("Earn")}</Link></Button>
+          {/* One funding group instead of two toolbars: deposit/withdraw stay the
+              primary pair (filled + outline) and convert/earn sit in the same row
+              at the same height, so the four money movements read as one flow. */}
+          <div className="relative grid w-full grid-cols-4 gap-1.5">
+            <Button asChild className="min-h-11 gap-1.5 px-2 text-[12px] font-bold"><Link to="/deposit"><ArrowDownToLine className="h-4 w-4 shrink-0"/><span className="truncate">{t("Deposit")}</span></Link></Button>
+            <Button asChild variant="outline" className="min-h-11 gap-1.5 px-2 text-[12px] font-bold"><Link to="/withdraw"><ArrowUpFromLine className="h-4 w-4 shrink-0"/><span className="truncate">{t("Withdraw")}</span></Link></Button>
+            <Button asChild variant="secondary" className="min-h-11 gap-1.5 px-2 text-[12px] font-semibold"><Link to="/convert"><ArrowLeftRight className="h-4 w-4 shrink-0"/><span className="truncate">{t("Convert")}</span></Link></Button>
+            <Button asChild variant="secondary" className="min-h-11 gap-1.5 px-2 text-[12px] font-semibold"><Link to="/earn"><Sprout className="h-4 w-4 shrink-0"/><span className="truncate">{t("Earn")}</span></Link></Button>
           </div>
         </CardContent>
       </Card>
@@ -184,14 +184,14 @@ export function AssetsPage() {
       : balances.length ? <div data-testid="asset-balance-list" className="overflow-hidden pb-[calc(120px+env(safe-area-inset-bottom))] md:pb-4">
         <div className="divide-y divide-white/[0.06]">
           {balances.map(([coin, balance]) => {
-            const coinName = COIN_NAMES[coin] ?? coin;
+            const coinName = COIN_NAMES[coin];
             return (
               <div key={coin} className="px-4 py-3.5 transition-colors hover:bg-white/[0.02]">
                 <div className="flex items-start gap-3">
                   <TokenIcon symbol={coin} className="h-9 w-9 shrink-0" />
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-brand-text">{coin}</p>
-                    <p className="mt-0.5 truncate text-[11px] text-brand-text-muted">{t(coinName)}</p>
+                    <p className="mt-0.5 truncate text-[11px] text-brand-text-muted">{coinName ? t(coinName) : coin}</p>
                   </div>
                   <div className="shrink-0 text-right">
                     <p className="font-mono text-sm font-bold tabular-nums text-brand-text">{formatDecimalAmount(balance.free, numberLocale)}</p>
@@ -200,9 +200,9 @@ export function AssetsPage() {
                   </div>
                 </div>
                 <div className="mt-2.5 flex justify-end gap-2">
-                  <Link to="/earn" className="inline-flex items-center rounded-md bg-brand-surface-2 px-3 py-1.5 text-xs font-semibold text-brand-text-secondary transition-colors hover:bg-brand-surface-hover">
-                    {t("Earn")}
-                  </Link>
+                  {/* Earn is a first-level entry in the card above and in the global
+                      navigation. Repeating it on every asset row split the same
+                      action across three places, so each row keeps only Trade. */}
                   <Link to={`/trade/${coin}USDT`} className="inline-flex items-center rounded-md bg-brand-surface-2 px-3 py-1.5 text-xs font-semibold text-brand-text-secondary transition-colors hover:bg-brand-surface-hover">
                     {t("Trade")}
                   </Link>

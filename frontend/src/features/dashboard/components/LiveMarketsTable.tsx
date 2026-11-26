@@ -4,7 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { TokenIcon } from "../../../components/ui/TokenIcon";
 import { Card } from "./Card";
 import type { MarketTicker } from "../../../lib/api";
-import { getAssetName } from "../../../lib/marketData";
+import { assetNameLabel } from "../../../lib/marketData";
 import { useI18n, localeTags } from "../../../lib/i18n";
 
 const names: Record<string, string> = {
@@ -157,7 +157,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
                       <span className="truncate text-sm font-bold text-brand-text">{item.sym}</span>
                       <span className="text-[11px] font-medium text-brand-text-muted shrink-0">/USDT</span>
                     </div>
-                    <p className="type-meta mt-0.5 truncate text-brand-text-muted">{t(getAssetName(item.sym))}</p>
+                    <p className="type-meta mt-0.5 truncate text-brand-text-muted">{assetNameLabel(item.sym, t)}</p>
                   </div>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1.5">
@@ -184,7 +184,7 @@ export function LiveMarketsTable({ markets, loading, error }: {
                           <span className="text-sm font-bold text-brand-text group-hover:text-brand-accent">{item.sym}</span>
                           <span className="text-xs font-medium text-brand-text-muted shrink-0">/USDT</span>
                         </div>
-                        <p className="text-xs text-brand-text-muted">{t(getAssetName(item.sym))}</p>
+                        <p className="text-xs text-brand-text-muted">{assetNameLabel(item.sym, t)}</p>
                       </Link>
                     </div>
                   </td>

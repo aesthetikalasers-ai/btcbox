@@ -1,7 +1,7 @@
 import { Card } from "./Card";
 import { TokenIcon } from "../../../components/ui/TokenIcon";
 import type { MarketTicker } from "../../../lib/api";
-import { getAssetName } from "../../../lib/marketData";
+import { assetNameLabel } from "../../../lib/marketData";
 import { useI18n, localeTags } from "../../../lib/i18n";
 
 function price(value: number, locale: string) {
@@ -34,7 +34,7 @@ export function TopTokensTable({ markets = [] }: { markets?: MarketTicker[] }) {
                         <span className="text-sm font-bold text-brand-text">{item.sym}</span>
                         <span className="text-xs font-medium text-brand-text-muted shrink-0">/USDT</span>
                       </div>
-                      <p className="text-xs text-brand-text-muted">{t(getAssetName(item.sym))}</p>
+                      <p className="text-xs text-brand-text-muted">{assetNameLabel(item.sym, t)}</p>
                     </div>
                   </div>
                 </td>

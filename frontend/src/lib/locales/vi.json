@@ -1897,5 +1897,16 @@
   "The converted amount is below the supported precision.": "Số lượng sau chuyển đổi thấp hơn độ chính xác tối thiểu được hỗ trợ.",
   "Insufficient available balance. No conversion was made.": "Số dư khả dụng không đủ. Chưa thực hiện chuyển đổi.",
   "This request ID was already used for a different conversion.": "Mã yêu cầu này đã được sử dụng cho một giao dịch chuyển đổi khác.",
-  "The conversion was not confirmed. Check your asset balances before retrying.": "Chưa xác nhận được kết quả chuyển đổi. Hãy kiểm tra số dư và lịch sử trước khi thử lại."
+  "The conversion was not confirmed. Check your asset balances before retrying.": "Chưa xác nhận được kết quả chuyển đổi. Hãy kiểm tra số dư và lịch sử trước khi thử lại.",
+  "Hot": "Phổ biến",
+  "Internal conversion is not open yet.": "Chuyển đổi nội bộ chưa mở.",
+  "BTCBOX has not enabled internal conversion yet, so quoting and confirmation are closed. Your assets have not changed. Deposit, withdrawal, trading and Earn remain available.": "BTCBOX chưa bật chuyển đổi nội bộ, nên việc báo giá và xác nhận đang đóng. Tài sản của bạn không thay đổi. Nạp, rút, giao dịch và Earn vẫn khả dụng.",
+  "Conversion service is temporarily unavailable. No assets were moved.": "Dịch vụ chuyển đổi tạm thời không khả dụng. Không có tài sản nào bị thay đổi.",
+  "Secure conversion quotes are not configured. No assets were moved.": "Báo giá chuyển đổi an toàn chưa được cấu hình. Không có tài sản nào bị thay đổi.",
+  "Market orders are disabled for this market: BTCBOX spot trading currently accepts limit orders only. Nothing has been submitted.": "Lệnh thị trường bị tắt trên thị trường này: giao dịch spot của BTCBOX hiện chỉ nhận lệnh giới hạn. Không có lệnh nào được gửi.",
+  "Switch to limit order": "Chuyển sang lệnh giới hạn",
+  "The order was rejected. Check the price, quantity, margin and position mode, then submit again.": "Lệnh đã bị từ chối. Hãy kiểm tra giá, số lượng, ký quỹ và chế độ vị thế rồi gửi lại.",
+  "We couldn't confirm whether this order was accepted. Check Open orders and Positions before placing another order.": "Không thể xác nhận lệnh đã được chấp nhận hay chưa. Hãy kiểm tra «Lệnh mở» và «Vị thế» trước khi gửi lệnh mới.",
+  "Technical details": "Thông tin kỹ thuật",
+  "Request reference": "Mã tham chiếu yêu cầu"
 }

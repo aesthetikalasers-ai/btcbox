@@ -70,10 +70,40 @@ function loadDictionary(language: Language): Promise<Dictionary> {
 type I18nValue = { language: Language; canChangeLanguage: boolean; setLanguage: (language: Language) => void; t: (value: string) => string };
 const missingTranslationWarnings = new Set<string>();
 
+/**
+ * Text that is never a translation key.
+ *
+ * Market identifiers (`BTCUSDT`, `INJ`, `ARB`) and book/order vocabulary that a
+ * translated value can look like are passed through `t()` in a few shared
+ * components. Warning about them drowned real missing-copy signal in the console
+ * — a trading screen emitted a dozen "missing translation" lines just by listing
+ * its markets.
+ */
+const IDENTIFIER_PATTERN = /^[A-Z0-9]{2,20}$/;
+
+/** Values already published by a dictionary, per language (double-translation guard). */
+const translatedValues = new Map<Language, Set<string>>();
+function isAlreadyTranslated(language: Language, text: string): boolean {
+  const dictionary = dictionaries[language];
+  if (!dictionary) return false;
+  let values = translatedValues.get(language);
+  if (!values) {
+    values = new Set(Object.values(dictionary));
+    translatedValues.set(language, values);
+  }
+  return values.has(text);
+}
+
 function translateText(language: Language, text: string): string {
   const loading = (loadingMessages as Record<Language, Record<string, string>>)[language];
   const translated = dictionaries[language]?.[text] ?? loading?.[text];
   if (translated !== undefined) return translated;
+  // A ticker/pair code is data, not copy: render it as-is without a warning.
+  if (IDENTIFIER_PATTERN.test(text)) return text;
+  // A caller occasionally feeds a value that this language already produced
+  // (`t(t("Take profit / Stop loss"))` yields the translated string, which is not
+  // a key). Returning it unchanged is correct and keeps the console honest.
+  if (isAlreadyTranslated(language, text)) return text;
   const warningKey = `${language}:${text}`;
   if (!missingTranslationWarnings.has(warningKey)) {
     missingTranslationWarnings.add(warningKey);

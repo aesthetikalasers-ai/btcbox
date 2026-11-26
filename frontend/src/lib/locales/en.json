@@ -1897,5 +1897,16 @@
   "The converted amount is below the supported precision.": "The converted amount is below the supported precision.",
   "Insufficient available balance. No conversion was made.": "Insufficient available balance. No conversion was made.",
   "This request ID was already used for a different conversion.": "This request ID was already used for a different conversion.",
-  "The conversion was not confirmed. Check your asset balances before retrying.": "The conversion was not confirmed. Check your asset balances before retrying."
+  "The conversion was not confirmed. Check your asset balances before retrying.": "The conversion was not confirmed. Check your asset balances before retrying.",
+  "Hot": "Hot",
+  "Internal conversion is not open yet.": "Internal conversion is not open yet.",
+  "BTCBOX has not enabled internal conversion yet, so quoting and confirmation are closed. Your assets have not changed. Deposit, withdrawal, trading and Earn remain available.": "BTCBOX has not enabled internal conversion yet, so quoting and confirmation are closed. Your assets have not changed. Deposit, withdrawal, trading and Earn remain available.",
+  "Conversion service is temporarily unavailable. No assets were moved.": "Conversion service is temporarily unavailable. No assets were moved.",
+  "Secure conversion quotes are not configured. No assets were moved.": "Secure conversion quotes are not configured. No assets were moved.",
+  "Market orders are disabled for this market: BTCBOX spot trading currently accepts limit orders only. Nothing has been submitted.": "Market orders are disabled for this market: BTCBOX spot trading currently accepts limit orders only. Nothing has been submitted.",
+  "Switch to limit order": "Switch to limit order",
+  "The order was rejected. Check the price, quantity, margin and position mode, then submit again.": "The order was rejected. Check the price, quantity, margin and position mode, then submit again.",
+  "We couldn't confirm whether this order was accepted. Check Open orders and Positions before placing another order.": "We couldn't confirm whether this order was accepted. Check Open orders and Positions before placing another order.",
+  "Technical details": "Technical details",
+  "Request reference": "Request reference"
 }

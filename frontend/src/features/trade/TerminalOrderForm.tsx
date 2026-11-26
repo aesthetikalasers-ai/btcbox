@@ -39,6 +39,14 @@ export interface TerminalOrderFormProps {
   sliderValue: number;
   onSliderChange: (percent: number) => void;
   /**
+   * Last traded / mid price. Preset buttons and the percentage slider anchor to
+   * this market reference, never to the price the customer already typed, so
+   * "-1%" always means "1% below the market" instead of compounding.
+   */
+  referencePrice?: number | null;
+  /** False when the server trading contract does not list market orders. */
+  marketOrdersSupported?: boolean;
+  /**
    * Opens the sign-in dialog in place. Signed-out visitors get the whole order
    * form as one click target, so tapping any field opens sign-in instead of
    * doing nothing (the inputs are `disabled` and cannot accept typing).
@@ -76,7 +84,8 @@ export function TerminalOrderForm(props: TerminalOrderFormProps) {
     price, onPriceChange, quantity, onQuantityChange,
     availableBalance, availableAsset, isAuthenticated, orderEntryEnabled,
     disabledReason, busy, pendingRequestId, pendingIntentInvalid, onSubmit,
-    sliderValue, onSliderChange, onRequestSignIn,
+    sliderValue, onSliderChange, onRequestSignIn, referencePrice,
+    marketOrdersSupported = false,
   } = props;
 
   const quoteAsset = "USDT";
@@ -99,15 +108,19 @@ export function TerminalOrderForm(props: TerminalOrderFormProps) {
     return t("Sell") + " " + base;
   };
 
-  // Preset price nudges around the current price.
+  // Preset price nudges around the market reference.
   const quickPrices = [-1, -0.5, 0, 0.5, 1] as const;
-  const quickPriceBase = Number(price || 0);
+  const referenceBase = Number(referencePrice);
+  const quickPriceBase = Number.isFinite(referenceBase) && referenceBase > 0
+    ? referenceBase
+    : Number(price || 0);
+  const effectivePrice = Number(price) > 0 ? Number(price) : quickPriceBase;
 
   /** Percentage stop writes the quantity and never bypasses submit validation. */
   const applySlider = (percent: number) => {
     onSliderChange(percent);
     const free = Number(availableBalance ?? 0);
-    const px = Number(price);
+    const px = effectivePrice;
     if (!Number.isFinite(free) || free <= 0) return;
     if (side === "buy") {
       if (!Number.isFinite(px) || px <= 0) return;
@@ -125,7 +138,7 @@ export function TerminalOrderForm(props: TerminalOrderFormProps) {
     : undefined;
   const insufficient = balanceCompare !== undefined && balanceCompare < 0;
 
-  const quickPriceDecimals = Math.min(8, Math.max(2, (price.split(".")[1] || "").length));
+  const quickPriceDecimals = Math.min(8, Math.max(2, (String(quickPriceBase > 0 ? quickPriceBase : price).split(".")[1] || "").length));
   const stepPrice = 10 ** -quickPriceDecimals;
 
   /**
@@ -221,8 +234,17 @@ export function TerminalOrderForm(props: TerminalOrderFormProps) {
         <option value="limit">{t("Limit order")}</option>
         <option value="market">{t("Market order")}</option>
       </select>
-      {orderType === "market" ? (
-        <p className="spot-policy">{t("Market orders are unavailable under the current trading contract. Switch to limit order to continue.")}</p>
+      {orderType === "market" && !marketOrdersSupported ? (
+        <div className="spot-policy flex-col gap-1.5" role="status">
+          <p>{t("Market orders are disabled for this market: BTCBOX spot trading currently accepts limit orders only. Nothing has been submitted.")}</p>
+          <button
+            type="button"
+            onClick={() => onOrderTypeChange("limit")}
+            className="font-semibold text-brand-accent underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/50"
+          >
+            {t("Switch to limit order")}
+          </button>
+        </div>
       ) : null}
 
       <div className="term-balance">

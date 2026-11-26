@@ -21,7 +21,6 @@ import {
   getPerpPositions,
   getPerpTrades,
   submitPerpOrder,
-  getUsdtUsdRate,
   type AccountBalance,
   type OrderBookSnapshot,
   type PerpMarket,
@@ -30,9 +29,11 @@ import {
 } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { localeTags, useI18n } from "../../lib/i18n";
+import { formatBookSize } from "../../lib/format";
 import { PositionRiskPanel, fromPerpPosition } from "../trade/PositionRiskPanel";
 import { useMarketStreamEvent } from "../../lib/useMarketStreamEvent";
 import { OrderBookDepth } from "../trade/OrderBookDepth";
+import { aggregateLevels, precisionOptionsFor, type DepthPrecision } from "../trade/TerminalOrderBook";
 import { ChartDrawer } from "../trade/ChartDrawer";
 import { KlinePanel } from "../trade/KlinePanel";
 import { BottomOrderPanel, BottomPanelEmpty } from "../trade/BottomOrderPanel";
@@ -145,6 +146,8 @@ export function ContractPage() {
   const [leveragePills, setLeveragePills] = useState<10 | 20 | 50 | 100>(10);
   const [busy, setBusy] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  /** Idempotency key of the last unconfirmed request, shown only on demand. */
+  const [submitFailure, setSubmitFailure] = useState<{ reference: string } | null>(null);
   const [submitOk, setSubmitOk] = useState("");
   const [positions, setPositions] = useState<PerpPosition[]>([]);
   const [positionsLoading, setPositionsLoading] = useState(false);
@@ -153,20 +156,6 @@ export function ContractPage() {
   const [orderHistory, setOrderHistory] = useState<PerpOrder[]>([]);
   const [ordersError, setOrdersError] = useState("");
   const [historyError, setHistoryError] = useState("");
-  /** Verified USDT→USD rate for the optional dollar-equivalent hint. */
-  const [usdtUsd, setUsdtUsd] = useState<number | null>(null);
-  useEffect(() => {
-    const controller = new AbortController();
-    let cancelled = false;
-    const load = () => {
-      getUsdtUsdRate(controller.signal)
-        .then((r) => { if (!cancelled) setUsdtUsd(r.rate); })
-        .catch(() => {});
-    };
-    load();
-    const timer = window.setInterval(load, 60000);
-    return () => { cancelled = true; controller.abort(); window.clearInterval(timer); };
-  }, []);
   const [trades, setTrades] = useState<Array<{ trade_id: string; side: string; price: number | string; quantity: number | string; created_at?: string }>>([]);
   const [funding, setFunding] = useState<Array<{ funding_at: string; funding_rate: number | string | null; payment?: number | string; mark_price?: number | string | null }>>([]);
   const [tabLoading, setTabLoading] = useState(false);
@@ -178,8 +167,8 @@ export function ContractPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   // 交易对选择弹窗：深色抽屉，遍历 markets，支持搜索。
   const [symbolPickerOpen, setSymbolPickerOpen] = useState(false);
-  // 移动端盘口深度聚合精度（点击循环切换）。
-  const [depthStep, setDepthStep] = useState<"0.001" | "0.01" | "0.1" | "1">("0.001");
+  // 移动端盘口深度聚合精度（点击在可用档位间循环切换）。
+  const [depthStep, setDepthStep] = useState<DepthPrecision>("0.001");
   // Mobile compact order form (Binance-style): open/close intent, quick percentage
   // of available balance, and TP/SL toggle. These are presentation-only helpers;
   // they map onto the existing side / reduceOnly / closePosition order fields.
@@ -207,24 +196,19 @@ export function ContractPage() {
   const validMarkPrice = markPrice !== null && Number(markPrice) > 0 ? Number(markPrice) : null;
   const validIndexPrice = indexPrice !== null && Number(indexPrice) > 0 ? Number(indexPrice) : null;
   const depthMid = validMarkPrice ?? validIndexPrice ?? undefined;
-
   /**
-   * Dollar value of the mid price for the compact mobile book's "≈ $" hint.
-   *
-   * Declared before `handleMarginChange`/`applyMarginPercent` and before the
-   * mobile book block so no render path can read a `const` that has not been
-   * initialised yet (a TDZ error `tsc` cannot catch but the browser throws as
-   * "Cannot access before initialization", blanking the page).
-   *
-   * The contract is quoted in USDT, so this is `mid × USDT/USD rate`, not the
-   * USDT figure relabelled with a "$". No conversion is shown without a verified rate.
+   * Bucket sizes this contract's price can actually resolve. A fixed 0.001 ladder
+   * merges the distinct levels of a 0.15 market into one row (printing 0.15 three
+   * times), while a 0.01 ladder on BTC keeps a needless cent. The ladder follows
+   * the mark price and the user's choice survives while it is still valid.
    */
-  const midUsd = useMemo(() => {
-    const px = Number(depthMid);
-    const rate = Number(usdtUsd);
-    if (!Number.isFinite(px) || px <= 0 || !Number.isFinite(rate) || rate <= 0) return "";
-    return (px * rate).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }, [depthMid, usdtUsd]);
+  const depthOptions = useMemo<DepthPrecision[]>(() => precisionOptionsFor(depthMid), [depthMid]);
+  const effectiveDepthStep: DepthPrecision = depthOptions.includes(depthStep) ? depthStep : depthOptions[0];
+
+  // The compact book used to print an "≈ $" line under the mid price. The
+  // contract is already quoted in USDT, so the line repeated the same price scale
+  // at a lower precision and pushed the depth ladder down. The mid price and the
+  // spread are the reference; no second dollar figure is shown.
 
   /**
    * Contract quantity precision, derived from the market's `quantity_step`.
@@ -508,6 +492,8 @@ export function ContractPage() {
       return;
     }
     setBusy(true);
+    setSubmitFailure(null);
+    const clientOrderId = window.crypto.randomUUID();
     try {
       // The exchange is the only source of truth for positions. A local
       // "paper" position is never created here: if the request fails the user
@@ -521,13 +507,23 @@ export function ContractPage() {
         leverage: effectiveLeverage,
         reduceOnly,
         closePosition,
-        clientOrderId: window.crypto.randomUUID(),
+        clientOrderId,
       });
       setSubmitOk(`${t("Order submitted")} — ${result.order_id.slice(0, 12)}`);
       setQuantity("");
       setReload((n) => n + 1);
     } catch (reason: unknown) {
-      setSubmitError(t("Order result is unconfirmed. Keep the same request ID and check open positions before retrying."));
+      // Two different situations used to share one sentence: a rejection the
+      // customer can correct, and a transport failure whose result is unknown.
+      // Both now read as plain language. The idempotency key stays available
+      // under "Technical details" instead of dominating the message.
+      const status = reason instanceof ApiError ? reason.status : 0;
+      if (status >= 400 && status < 500 && status !== 409) {
+        setSubmitError(t("The order was rejected. Check the price, quantity, margin and position mode, then submit again."));
+      } else {
+        setSubmitError(t("We couldn't confirm whether this order was accepted. Check Open orders and Positions before placing another order."));
+      }
+      setSubmitFailure({ reference: clientOrderId });
     } finally {
       setBusy(false);
     }
@@ -831,7 +827,7 @@ export function ContractPage() {
             <span className="bf-tabular font-mono font-bold text-brand-text">{estimatedMargin === null ? EM_DASH : `${money(estimatedMargin, locale, 2)} USDT`}</span>
           </div>
 
-          {submitError ? <p role="alert" className="flex items-start gap-2 rounded-lg border border-brand-danger/30 bg-brand-danger/10 p-2.5 text-xs text-brand-danger"><AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />{submitError}</p> : null}
+          {submitError ? <div role="alert" className="flex items-start gap-2 rounded-lg border border-brand-danger/30 bg-brand-danger/10 p-2.5 text-xs text-brand-danger"><AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" /><div className="min-w-0 space-y-1"><p>{submitError}</p>{submitFailure ? <details className="text-[11px] leading-5 text-brand-text-muted"><summary className="cursor-pointer select-none font-semibold text-brand-text-secondary">{t("Technical details")}</summary><p className="mt-1 break-all font-mono">{t("Request reference")}: {submitFailure.reference}</p></details> : null}</div></div> : null}
           {submitOk ? <p role="status" className="flex items-start gap-2 rounded-lg border border-brand-success/30 bg-brand-success/10 p-2.5 text-xs text-brand-success"><CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />{submitOk}</p> : null}
 
           <Button
@@ -855,7 +851,7 @@ export function ContractPage() {
   const leverageOptions = ([10, 20, 50, 100] as const).filter((n) => n <= maxLeverage);
 
   const mobileOrderEntry = (
-    <form onSubmit={(e) => void submitOrder(e)} className="compact-trade-form flex h-full flex-col gap-1 text-brand-text">
+    <form onSubmit={(e) => void submitOrder(e)} className="compact-trade-form flex h-full flex-col gap-1.5 text-brand-text">
       {/* 开仓 / 平仓 胶囊切换（币安风格大胶囊） */}
       <div className="grid grid-cols-2 gap-1 rounded-lg bg-brand-surface-2 p-[3px]" role="group" aria-label={t("Position intent")}>
         {(["open", "close"] as const).map((kind) => (
@@ -1018,7 +1014,7 @@ export function ContractPage() {
         </button>
       </div>
 
-      {submitError ? <p role="alert" className="flex items-start gap-1.5 rounded-md border border-brand-danger/30 bg-brand-danger/10 p-2 text-[11px] text-brand-danger"><AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />{submitError}</p> : null}
+      {submitError ? <div role="alert" className="flex items-start gap-1.5 rounded-md border border-brand-danger/30 bg-brand-danger/10 p-2 text-[11px] text-brand-danger"><AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" /><div className="min-w-0 space-y-0.5"><p>{submitError}</p>{submitFailure ? <details className="text-[10px] leading-4 text-brand-text-muted"><summary className="cursor-pointer select-none font-semibold text-brand-text-secondary">{t("Technical details")}</summary><p className="mt-0.5 break-all font-mono">{t("Request reference")}: {submitFailure.reference}</p></details> : null}</div></div> : null}
       {submitOk ? <p role="status" className="flex items-start gap-1.5 rounded-md border border-brand-success/30 bg-brand-success/10 p-2 text-[11px] text-brand-success"><CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />{submitOk}</p> : null}
     </form>
   );
@@ -1225,52 +1221,57 @@ export function ContractPage() {
                         </div>
                       );
                     }
-                    const asks = mobileDepthBook ? mobileDepthBook.asks.slice(0, 5).reverse() : [];
-                    const bids = mobileDepthBook ? mobileDepthBook.bids.slice(0, 5) : [];
+                    // Aggregate the raw provider ladder into the selected bucket.
+                    // Rendering the raw rows printed the same price several times
+                    // (0.15, 0.15, 0.15) and six-to-eight decimal sizes, which made
+                    // the depth look deeper than it is and hid the spread. The
+                    // desktop book already aggregates; the phone now matches it.
+                    const bookStep = Number(effectiveDepthStep);
+                    const bookDecimals = Math.max(0, Math.min(8, (effectiveDepthStep.split(".")[1] || "").length));
+                    const sizeDecimals = bookDecimals >= 2 ? 5 : bookDecimals === 1 ? 4 : 2;
+                    const asks = aggregateLevels(mobileDepthBook.asks, "ask", bookStep, 6).reverse();
+                    const bids = aggregateLevels(mobileDepthBook.bids, "bid", bookStep, 6);
                     let max = 0;
                     for (const [, q] of [...asks, ...bids]) { const n = Number(q); if (n > max) max = n; }
-                    const fmt = (v: unknown) => (v === undefined || v === null || v === "" ? "—" : Number(v).toLocaleString("en-US", { maximumFractionDigits: 8 }));
+                    const fmtPrice = (v: unknown) => (
+                      v === undefined || v === null || v === "" || !Number.isFinite(Number(v))
+                        ? "—"
+                        : Number(v).toLocaleString("en-US", { minimumFractionDigits: bookDecimals, maximumFractionDigits: bookDecimals })
+                    );
+                    const fmtSize = (v: unknown) => formatBookSize(v as string | number, sizeDecimals);
                     return (
                       <>
                         <div className="flex flex-col space-y-0.5">
                           {asks.map((row, i) => {
                             const depth = max ? (Number(row[1]) / max) * 100 : 0;
                             return (
-                              <div key={`a${i}`} role="button" tabIndex={0} aria-label={`${t("Sell")} ${fmt(row[0])}`}
+                              <div key={`a${i}`} data-side="ask" role="button" tabIndex={0} aria-label={`${t("Sell")} ${fmtPrice(row[0])}`}
                                 onClick={() => { setOrderType("limit"); setSide("sell"); setPrice(String(row[0])); }}
-                                className="relative grid cursor-pointer grid-cols-[1.1fr_0.9fr] h-[21px] leading-[21px] text-[11px] transition-colors hover:brightness-125">
+                                className="relative grid cursor-pointer grid-cols-[1.1fr_0.9fr] h-[24px] leading-[24px] text-[11px] transition-colors hover:brightness-125">
                                 <span className="absolute inset-y-0 right-0 bg-brand-danger/15 transition-all duration-150" style={{ width: `${depth}%` }} />
-                                <span className="relative text-left text-brand-danger">{fmt(row[0])}</span>
-                                <span className="relative text-right text-brand-text-secondary">{fmt(row[1])}</span>
+                                <span className="relative text-left text-brand-danger">{fmtPrice(row[0])}</span>
+                                <span className="relative text-right text-brand-text-secondary">{fmtSize(row[1])}</span>
                               </div>
                             );
                           })}
                         </div>
                         <div className="my-0.5 text-center leading-tight">
                           <button type="button" onClick={() => { setOrderType("limit"); if (depthMid !== undefined) setPrice(String(depthMid)); }}
-                            aria-label={`${t("Last price")} ${fmt(depthMid)}`}
+                            aria-label={`${t("Last price")} ${fmtPrice(depthMid)}`}
                             className="mx-auto block cursor-pointer text-[17px] font-bold leading-none text-brand-success hover:brightness-125">
-                            {fmt(depthMid)}
+                            {fmtPrice(depthMid)}
                           </button>
-                          {/* Secondary line under the mid price. It used to echo
-                              `markPrice`, which is the same number as `depthMid`
-                              and therefore carried no information. It now shows the
-                              dollar conversion (USDT price × USDT/USD rate), kept
-                              at 10px/tabular-nums so six levels per side still fit. */}
-                          {midUsd ? (
-                            <div className="mt-0.5 font-mono text-[10px] tabular-nums text-brand-text-muted">{"≈ $"}{midUsd}</div>
-                          ) : null}
                         </div>
                         <div className="flex flex-col space-y-0.5">
                           {bids.map((row, i) => {
                             const depth = max ? (Number(row[1]) / max) * 100 : 0;
                             return (
-                              <div key={`b${i}`} role="button" tabIndex={0} aria-label={`${t("Buy")} ${fmt(row[0])}`}
+                              <div key={`b${i}`} data-side="bid" role="button" tabIndex={0} aria-label={`${t("Buy")} ${fmtPrice(row[0])}`}
                                 onClick={() => { setOrderType("limit"); setSide("buy"); setPrice(String(row[0])); }}
-                                className="relative grid cursor-pointer grid-cols-[1.1fr_0.9fr] h-[21px] leading-[21px] text-[11px] transition-colors hover:brightness-125">
+                                className="relative grid cursor-pointer grid-cols-[1.1fr_0.9fr] h-[24px] leading-[24px] text-[11px] transition-colors hover:brightness-125">
                                 <span className="absolute inset-y-0 right-0 bg-brand-success/15 transition-all duration-150" style={{ width: `${depth}%` }} />
-                                <span className="relative text-left text-brand-success">{fmt(row[0])}</span>
-                                <span className="relative text-right text-brand-text-secondary">{fmt(row[1])}</span>
+                                <span className="relative text-left text-brand-success">{fmtPrice(row[0])}</span>
+                                <span className="relative text-right text-brand-text-secondary">{fmtSize(row[1])}</span>
                               </div>
                             );
                           })}
@@ -1292,9 +1293,9 @@ export function ContractPage() {
                     ) : null}
                     <div className="flex items-center gap-1">
                       <button type="button"
-                        onClick={() => setDepthStep((cur) => cur === "0.001" ? "0.01" : cur === "0.01" ? "0.1" : cur === "0.1" ? "1" : "0.001")}
+                        onClick={() => setDepthStep(depthOptions[(depthOptions.indexOf(effectiveDepthStep) + 1) % depthOptions.length])}
                         className="flex h-7 flex-1 items-center justify-between rounded-md bg-brand-surface-2 px-2 text-[11px] leading-none text-brand-text">
-                        <span>{depthStep}</span>
+                        <span>{effectiveDepthStep}</span>
                         <span className="text-[10px] leading-none text-brand-text-muted">▾</span>
                       </button>
                       <button type="button" aria-label={t("Order book view")}
@@ -1318,7 +1319,7 @@ export function ContractPage() {
                 <KlinePanel symbol={selectedMarket?.symbol ?? symbol ?? "BTCUSDT"} height={440} />
               </section>
               <section aria-label={t("Order book")} className="min-w-0">
-                <OrderBookDepth mid={depthMid} book={displayBook} streamState={liveDepth.state} usdtUsd={usdtUsd} baseAsset={baseAsset} />
+                <OrderBookDepth mid={depthMid} book={displayBook} streamState={liveDepth.state} baseAsset={baseAsset} />
               </section>
               <section aria-label={t("Place order")} className="min-w-0">
                 {orderEntryCard}
