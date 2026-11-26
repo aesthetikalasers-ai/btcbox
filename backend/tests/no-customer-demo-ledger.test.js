@@ -246,9 +246,15 @@ test("perpetual page labels spot data and funding caps honestly", () => {
   assert.ok(page.includes("estimatedMargin === null ? EM_DASH"));
   const depth = fs.readFileSync(path.join(root, "features/trade/OrderBookDepth.tsx"), "utf8");
   assert.ok(depth.includes('t("Market depth")'));
-  assert.ok(depth.includes('({ mid, book, streamState, usdtUsd, baseAsset = "BTC" }'));
+  assert.ok(depth.includes('({ mid, book, streamState, baseAsset = "BTC" }'));
   assert.ok(depth.includes('t("Size")} ({baseAsset})'));
   assert.ok(!depth.includes('t("Spot reference only — not the perpetual execution book.")'));
+  // Provider levels are bucketed before rendering: the raw ladder printed the same
+  // price two or three times. The second "≈ $" figure under the mid price is gone
+  // because the contract is already quoted in USDT (it repeated the same number).
+  assert.ok(depth.includes("aggregateLevels(rows, side, step, limit)"),
+    "depth rows must be aggregated into the selected price bucket");
+  assert.ok(!depth.includes("≈ {usdText}"), "no redundant dollar line under the mid price");
 });
 
 test("the live app routes seconds trading through the policy-backed page", () => {

@@ -60,6 +60,24 @@ test('conversion API validates signed user quote and invokes the atomic database
   assert.ok(api.includes('Internal conversion is not available yet. No assets were moved.'));
 });
 
+test('a closed conversion feature answers 403 (policy), not 503 (outage)', () => {
+  // The client distinguishes "not open yet" from "service unavailable" by code,
+  // but a 503 also told every operator the server was broken and forced the
+  // customer through the whole form before the refusal. The policy answer is 403.
+  assert.match(api, /code: 'CONVERSION_NOT_ENABLED',[^\n]*\}, 403\);/);
+  assert.match(api, /internal_conversion_enabled: process\.env\.FINANCIAL_INTERNAL_CONVERSION_ENABLED === '1'/,
+    'the public config endpoint must publish the conversion capability so /convert can pre-empt the form');
+});
+
+test('referral endpoints answer an explicit not-enabled capability instead of 404', () => {
+  // A 404 here looked like a broken deployment in the browser console. The
+  // programme is closed, so the documented endpoints answer 501 with a code.
+  assert.match(api, /path === 'referral\/profile' \|\| path === 'referral\/commissions'/);
+  assert.match(api, /REFERRAL_NOT_ENABLED/);
+  assert.doesNotMatch(api, /path === 'referral\/profile'[\s\S]{0,400}?btcbox_referral/i,
+    'no referral table may be assumed before the programme is implemented');
+});
+
 test('conversion output precision is floored to the destination asset decimal count', () => {
   const floor = apiModule._test.floorMoneyToDecimals;
   assert.equal(floor('1.239999', 2), '1.23');

@@ -109,6 +109,13 @@ test('vercel.json CSP script-src has no unsafe-inline and enables upgrade-insecu
   assert.ok(scriptSrc.includes('https://cdn.jsdelivr.net'), 'CDN origin must remain allowed');
   assert.ok(csp.includes('upgrade-insecure-requests'), 'upgrade-insecure-requests missing');
   assert.ok(csp.includes("object-src 'none'"), 'object-src none missing (defense in depth)');
+  // Vercel's preview feedback toolbar injects a script (and an iframe/WebSocket)
+  // from vercel.live. Without an explicit allow-list entry every deployment logged
+  // a CSP violation and the toolbar silently failed, drowning real CSP errors.
+  assert.ok(scriptSrc.includes('https://vercel.live'), 'vercel.live script origin must be allowed');
+  assert.ok(/frame-src[^;]*https:\/\/vercel\.live/.test(csp), 'vercel.live frame origin must be allowed');
+  const connectSrc = csp.split(';').map(d => d.trim()).find(d => d.startsWith('connect-src'));
+  assert.ok(connectSrc && connectSrc.includes('https://vercel.live'), 'vercel.live connect origin must be allowed');
 });
 
 /* ---------- CDN pinning + SRI ---------- */
