@@ -53,6 +53,33 @@ function localizedFailure(reason: unknown, fallbackKey: string) {
   if (gateway) return gateway[1];
   return fallbackKey;
 }
+/**
+ * Server conversion failures are specific ("below the supported precision",
+ * "insufficient available balance"). Collapsing them into one fallback told the
+ * customer nothing and invited blind retries, so the known codes map onto copy
+ * that already ships with every dictionary.
+ */
+const CONVERSION_FAILURE_KEYS: Array<[string, string]> = [
+  ["CONVERSION_QUOTE_EXPIRED", "The conversion quote has expired. Request a new quote."],
+  ["CONVERSION_QUOTE_USED", "This conversion quote has already been used. Request a new quote."],
+  ["INVALID_CONVERSION_QUOTE", "Select two different assets and enter a valid amount."],
+  ["INVALID_CONVERSION_REQUEST", "Refresh the quote and try again."],
+  ["INVALID_CONVERSION_PRECISION", "The amount exceeds the source asset precision."],
+  ["CONVERSION_AMOUNT_TOO_SMALL", "The converted amount is below the supported precision."],
+  ["CONVERSION_ASSET_UNAVAILABLE", "One of the selected assets is not enabled for conversion."],
+  ["CONVERSION_MARKET_UNAVAILABLE", "Live conversion prices are temporarily unavailable."],
+  ["CONVERSION_NOT_ENABLED", "Internal conversion is not available yet. No assets were moved."],
+  ["CONVERSION_QUOTE_UNAVAILABLE", "Secure conversion quotes are not configured."],
+  ["INSUFFICIENT_FUNDS", "Insufficient available balance. No conversion was made."],
+  ["CONVERSION_REQUEST_CONFLICT", "This request ID was already used for a different conversion."],
+  ["CONVERSION_NOT_CONFIRMED", "The conversion was not confirmed. Check your asset balances before retrying."],
+  ["ACCOUNT_FROZEN", "Account frozen. Asset conversion is not available."],
+];
+function conversionFailure(reason: unknown, fallbackKey: string) {
+  const code = reason instanceof ApiError && reason.code ? reason.code : "";
+  const match = CONVERSION_FAILURE_KEYS.find(([candidate]) => candidate === code);
+  return match ? match[1] : localizedFailure(reason, fallbackKey);
+}
 export function PageFrame({eyebrow,title,description,children,className="",tone,backTo,action,onBack}:{eyebrow?:string;title:string;description?:string;children:ReactNode;className?:string;tone:PageFrameTone;backTo?:string;action?:ReactNode;onBack?:()=>void}){
  const {t}=useI18n();
  return <div className={`${className} tone-${tone} mx-auto flex w-full max-w-[1520px] min-w-0 flex-col gap-5 p-3 sm:p-4 md:p-6 lg:p-8`}><div className={`flex min-w-0 items-center gap-3 ${className.includes("funds-flow-page")?"mx-auto w-full max-w-3xl justify-start":"justify-start"}`}>{onBack?<button type="button" onClick={onBack} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-brand-border text-brand-text-muted transition-colors hover:border-brand-accent/40 hover:text-brand-text" aria-label={t("Back")}><ArrowLeft className="h-4 w-4"/></button>:backTo?<Link to={backTo} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-brand-border text-brand-text-muted transition-colors hover:border-brand-accent/40 hover:text-brand-text" aria-label={t("Back")}><ArrowLeft className="h-4 w-4"/></Link>:null}<h1 className="type-page-title min-w-0 truncate text-brand-text">{t(title)}</h1>{action ? <div className="ml-auto shrink-0">{action}</div> : null}</div>{children}</div>;
@@ -1307,6 +1334,7 @@ export function InternalConversionPage(){
  const [message,setMessage]=useState("");
  const [requestId,setRequestId]=useState("");
  const [reload,setReload]=useState(0);
+ const [catalogAssets,setCatalogAssets]=useState<string[]>([]);
  useEffect(()=>{
   const controller=new AbortController();
   setLoading(true);setError("");
@@ -1323,7 +1351,29 @@ export function InternalConversionPage(){
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return ()=>controller.abort();
  },[reload]);
- const assets=Object.keys(account?.balances||{}).sort();
+ // Conversion is offered for every asset the account holds plus every asset with
+ // an enabled USDT market. Building the selector from balances alone hid the page
+ // from a customer whose first deposit left them holding a single asset — exactly
+ // the customer who wants to convert. A catalogue failure keeps the balance list.
+ useEffect(()=>{
+  const controller=new AbortController();
+  getSpotMarketPairs(controller.signal).then(pairs=>{
+   if(controller.signal.aborted)return;
+   setCatalogAssets(Array.from(new Set(pairs.map(pair=>String(pair.base_asset||"").toUpperCase()).filter(Boolean))).sort());
+  }).catch(()=>{ /* Balances still provide a usable list when the catalogue is down. */ });
+  return ()=>controller.abort();
+ },[reload]);
+ const assets=useMemo(()=>Array.from(new Set([...Object.keys(account?.balances||{}),"USDT",...catalogAssets]))
+  .filter(asset=>asset.trim()!=="").sort(),[account,catalogAssets]);
+ // Keep the two selectors valid as the asset list grows from the catalogue.
+ useEffect(()=>{
+  if(assets.length<2)return;
+  const nextFrom=assets.includes(fromAsset)?fromAsset:(assets.includes("USDT")?"USDT":assets[0]);
+  if(nextFrom!==fromAsset){setFromAsset(nextFrom);return;}
+  if(!toAsset||toAsset===nextFrom||!assets.includes(toAsset)){
+   setToAsset(assets.includes("BTC")&&nextFrom!=="BTC"?"BTC":assets.find(asset=>asset!==nextFrom)||"");
+  }
+ },[assets,fromAsset,toAsset]);
  const fromBalance=account?.balances?.[fromAsset]?.free??"0";
  const toBalance=account?.balances?.[toAsset]?.free??"0";
  const resetQuote=()=>{setQuote(null);setRequestId("");setError("");setMessage("");};
@@ -1334,10 +1384,20 @@ export function InternalConversionPage(){
    const next=await getInternalConversionQuote(fromAsset,toAsset,amount.trim());
    setQuote(next);
    setRequestId(window.crypto.randomUUID());
-  }catch(reason){setError(localizedFailure(reason,"Live conversion prices are temporarily unavailable."));}
+  }catch(reason){setError(conversionFailure(reason,"Live conversion prices are temporarily unavailable."));}
   finally{setQuoting(false);}
  };
  const swapAssets=()=>{const previous=fromAsset;setFromAsset(toAsset);setToAsset(previous);resetQuote();};
+ // The signed quote is valid for 30 seconds. Clearing it when it expires stops the
+ // customer from confirming a quote the server must reject.
+ useEffect(()=>{
+  if(!quote)return;
+  const expire=()=>{setQuote(null);setRequestId("");setError("The conversion quote has expired. Request a new quote.");};
+  const remaining=quote.expires_at-Date.now();
+  if(remaining<=0){expire();return;}
+  const timer=window.setTimeout(expire,remaining);
+  return ()=>window.clearTimeout(timer);
+ },[quote]);
  const confirm=async()=>{
   if(!quote||!requestId||submitting)return;
   setSubmitting(true);setError("");setMessage("");
@@ -1347,8 +1407,8 @@ export function InternalConversionPage(){
    setQuote(null);setRequestId("");setAmount("");
    setReload(value=>value+1);
   }catch(reason){
-   if(reason instanceof ApiError&&(reason.code==="CONVERSION_QUOTE_EXPIRED"||reason.code==="CONVERSION_QUOTE_USED")){setQuote(null);setRequestId("");setError(reason.code==="CONVERSION_QUOTE_EXPIRED"?"The conversion quote has expired. Request a new quote.":"This conversion quote has already been used. Request a new quote.");}
-   else setError(localizedFailure(reason,"Conversion result is unconfirmed. Refresh your balances and check operation history before retrying."));
+   if(reason instanceof ApiError&&(reason.code==="CONVERSION_QUOTE_EXPIRED"||reason.code==="CONVERSION_QUOTE_USED")){setQuote(null);setRequestId("");}
+   setError(conversionFailure(reason,"Conversion result is unconfirmed. Refresh your balances and check operation history before retrying."));
   }
   finally{setSubmitting(false);}
  };
@@ -1360,7 +1420,7 @@ export function InternalConversionPage(){
    </div>
    {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="space-y-4 p-5" role="status"><div className="h-5 w-36 animate-pulse rounded bg-brand-surface-2"/><div className="h-28 animate-pulse rounded-xl bg-brand-surface-2"/><div className="h-28 animate-pulse rounded-xl bg-brand-surface-2"/></CardContent></Card>
    :!account?<Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-col items-center gap-3 p-8 text-center"><Wallet className="h-8 w-8 text-brand-text-muted"/><p className="text-sm text-brand-text-muted">{t("Account data is temporarily unavailable.")}</p><Button variant="outline" onClick={()=>setReload(value=>value+1)}>{t("Try again")}</Button></CardContent></Card>
-   :assets.length<2?<Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-col items-center gap-3 p-8 text-center"><ArrowLeftRight className="h-8 w-8 text-brand-text-muted"/><p className="font-medium text-brand-text">{t("No asset balances are currently available.")}</p><p className="max-w-md text-sm text-brand-text-muted">{t("No asset balances are currently available.")}</p></CardContent></Card>
+   :assets.length<2?<Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-col items-center gap-3 p-8 text-center"><ArrowLeftRight className="h-8 w-8 text-brand-text-muted"/><p className="font-medium text-brand-text">{t("No asset balances are currently available.")}</p><Button variant="outline" onClick={()=>setReload(value=>value+1)}>{t("Try again")}</Button></CardContent></Card>
    :<Card className="overflow-hidden border-brand-border bg-brand-surface shadow-sm">
     <CardContent className="space-y-4 p-3.5 sm:space-y-5 sm:p-5">
      <div className="grid items-stretch gap-2.5 lg:grid-cols-[minmax(0,1fr)_44px_minmax(0,1fr)] lg:gap-3">
