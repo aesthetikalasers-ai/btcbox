@@ -1860,5 +1860,7 @@
   "No deposit history yet.": "Aún no hay historial de depósitos.",
   "No available withdrawal address. Add one to continue.": "No hay direcciones de retiro disponibles. Añade una para continuar.",
   "Withdrawal status is being confirmed. Re-enter your fund password and, if enabled, your 2FA code, then retry.": "Se está confirmando el estado del retiro. Vuelve a introducir tu contraseña de fondos y, si está activado, el código 2FA; después, inténtalo de nuevo.",
-  "No withdrawal history yet.": "Aún no hay historial de retiros."
+  "No withdrawal history yet.": "Aún no hay historial de retiros.",
+  "Funds": "Fondos",
+  "Withdrawals are currently unavailable.": "Los retiros no están disponibles actualmente."
 }

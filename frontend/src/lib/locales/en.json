@@ -1860,5 +1860,7 @@
   "No deposit history yet.": "No deposit history yet.",
   "No available withdrawal address. Add one to continue.": "No available withdrawal address. Add one to continue.",
   "Withdrawal status is being confirmed. Re-enter your fund password and, if enabled, your 2FA code, then retry.": "Withdrawal status is being confirmed. Re-enter your fund password and, if enabled, your 2FA code, then retry.",
-  "No withdrawal history yet.": "No withdrawal history yet."
+  "No withdrawal history yet.": "No withdrawal history yet.",
+  "Funds": "Funds",
+  "Withdrawals are currently unavailable.": "Withdrawals are currently unavailable."
 }

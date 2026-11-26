@@ -11,7 +11,7 @@ import { useAuthDialog } from "../../lib/auth-dialog";
 import { ChartDrawer } from "../trade/ChartDrawer";
 
 import type { ReactNode } from "react";
-import { ArrowUpRight, LockKeyhole, Wallet, ChartNoAxesCombined, ArrowLeftRight, Sprout, BadgeCheck, ShieldCheck, Headset, Columns2, Gift, Rocket } from "lucide-react";
+import { ArrowUpRight, ArrowDownToLine, ArrowUpFromLine, LockKeyhole, Wallet, ChartNoAxesCombined, ArrowLeftRight, Sprout, BadgeCheck, ShieldCheck, Headset, Columns2, Gift, Rocket } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -55,7 +55,7 @@ function localizedFailure(reason: unknown, fallbackKey: string) {
 }
 export function PageFrame({eyebrow,title,description,children,className="",tone,backTo,action,onBack}:{eyebrow?:string;title:string;description?:string;children:ReactNode;className?:string;tone:PageFrameTone;backTo?:string;action?:ReactNode;onBack?:()=>void}){
  const {t}=useI18n();
- return <div className={`${className} tone-${tone} mx-auto flex w-full max-w-[1520px] min-w-0 flex-col gap-5 p-3 sm:p-4 md:p-6 lg:p-8`}><div className="flex min-w-0 items-center justify-between gap-3">{onBack?<button type="button" onClick={onBack} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-brand-border text-brand-text-muted transition-colors hover:border-brand-accent/40 hover:text-brand-text" aria-label={t("Back")}><ArrowLeft className="h-4 w-4"/></button>:backTo?<Link to={backTo} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-brand-border text-brand-text-muted transition-colors hover:border-brand-accent/40 hover:text-brand-text" aria-label={t("Back")}><ArrowLeft className="h-4 w-4"/></Link>:null}<h1 className="type-page-title min-w-0 truncate text-brand-text">{t(title)}</h1>{action}</div>{children}</div>;
+ return <div className={`${className} tone-${tone} mx-auto flex w-full max-w-[1520px] min-w-0 flex-col gap-5 p-3 sm:p-4 md:p-6 lg:p-8`}><div className={`flex min-w-0 items-center gap-3 ${className.includes("funds-flow-page")?"mx-auto w-full max-w-3xl justify-start":"justify-between"}`}>{onBack?<button type="button" onClick={onBack} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-brand-border text-brand-text-muted transition-colors hover:border-brand-accent/40 hover:text-brand-text" aria-label={t("Back")}><ArrowLeft className="h-4 w-4"/></button>:backTo?<Link to={backTo} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-brand-border text-brand-text-muted transition-colors hover:border-brand-accent/40 hover:text-brand-text" aria-label={t("Back")}><ArrowLeft className="h-4 w-4"/></Link>:null}<h1 className="type-page-title min-w-0 truncate text-brand-text">{t(title)}</h1>{action}</div>{children}</div>;
 }
 /**
  * Displays the TradeHub service directory and its available product entry points.
@@ -1192,6 +1192,28 @@ const depositNetworks:Record<string,string[]>={BTC:["BTC"],ETH:["ERC20"],USDT:["
  * Displays deposit instructions, address selection, and deposit history.
  * Uses the configured deposit networks and existing wallet data sources.
  */
+
+/**
+ * Second-level funds directory. Keeps deposit and withdrawal as separate
+ * third-level workflows instead of sending users directly from Assets.
+ */
+export function FundsPage(){
+ const {t}=useI18n();
+ const services=[
+  {title:"Deposit",description:"Deposit address",to:"/deposit",icon:ArrowDownToLine},
+  {title:"Withdraw",description:"Submit withdrawal",to:"/withdraw",icon:ArrowUpFromLine},
+ ];
+ return <PageFrame title="Funds" tone="assets" backTo="/assets" className="funds-flow-page">
+  <div className="mx-auto grid w-full max-w-3xl min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+   {services.map(({title,description,to,icon:Icon})=><Link key={to} to={to} className="group flex min-w-0 items-center gap-4 rounded-xl border border-white/[0.08] bg-brand-surface p-5 transition-colors hover:border-brand-accent/40 hover:bg-brand-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent sm:p-6">
+    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent"><Icon className="h-5 w-5"/></span>
+    <span className="min-w-0 flex-1"><span className="block text-base font-semibold text-brand-text">{t(title)}</span><span className="mt-1 block text-sm text-brand-text-muted">{t(description)}</span></span>
+    <ChevronRight className="h-5 w-5 shrink-0 text-brand-text-muted transition-transform group-hover:translate-x-0.5"/>
+   </Link>)}
+  </div>
+ </PageFrame>;
+}
+
 export function DepositPage(){
  const {t}=useI18n();
  const [depositHistory,setDepositHistory]=useState<DepositRecord[]>([]);
@@ -1244,7 +1266,8 @@ export function DepositPage(){
  },[]);
  const changeCoin=(next:string)=>{setAddress("");setError("");setCopyMessage("");setCoin(next);setNetwork(depositNetworks[next][0]);};
  const changeNetwork=(next:string)=>{setAddress("");setError("");setCopyMessage("");setNetwork(next);};
- return <PageFrame title="Deposit" tone="assets" backTo="/assets">
+ return <PageFrame title="Deposit" tone="assets" backTo="/funds" className="funds-flow-page">
+  <div className="mx-auto w-full max-w-3xl space-y-5">
   <Card className="relative overflow-hidden border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)]"><span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-brand-surface"/><CardHeader className="border-b border-brand-border bg-brand-surface"><div className="flex items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent"><Wallet className="h-5 w-5"/></span><div><CardTitle>{t("Deposit address")}</CardTitle></div></div></CardHeader><CardContent className="space-y-5 p-4 sm:p-6">
    <div className="grid gap-3 sm:grid-cols-2"><label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Asset")}</span><select value={coin} onChange={e=>changeCoin(e.target.value)} className="h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15">{Object.keys(depositNetworks).map(x=><option key={x}>{x}</option>)}</select></label><label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Network")}</span><select value={network} onChange={e=>changeNetwork(e.target.value)} className="h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15">{depositNetworks[coin].map(x=><option key={x}>{x}</option>)}</select></label></div>
    {loading?<p className="rounded-xl border border-brand-border p-4 text-sm text-brand-text-muted" role="status">{t("Loading configured deposit address…")}</p>
@@ -1258,6 +1281,7 @@ export function DepositPage(){
    :depositHistory.length?depositHistory.map((item,index)=><div key={item.id||`${item.time||"deposit"}-${item.coin}-${index}`} className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-brand-border bg-brand-surface-2/40 p-4 transition-colors hover:bg-brand-surface-2/70"><div className="min-w-0"><p className="font-semibold">{item.amount} {item.coin} · {item.network||"—"}</p><p className="mt-1 text-xs text-brand-text-muted">{item.time||"—"}</p>{item.reference||item.txid?<p className="mt-1 break-all text-xs text-brand-text-muted">{t("Reference")}: {item.reference||item.txid}</p>:null}</div><Badge variant={depositStatusBadgeVariant(normalizeDepositStatus(item.status))}>{depositStatusLabel(normalizeDepositStatus(item.status), t)}</Badge></div>)
    :<p className="rounded-xl border border-dashed border-brand-border p-5 text-sm text-brand-text-muted">{t("No deposit history yet.")}</p>}
   </CardContent></Card>
+  </div>
  </PageFrame>;
 }
 
@@ -1479,6 +1503,7 @@ export function WithdrawPage(){
  const fee=feeValue==null?null:Number(feeValue);
  const available=balance?.free==null?null:Number(balance.free);
  const feeVerified=fee!==null&&Number.isFinite(fee)&&fee>=0;
+ const estimatedNetAmount=amount.trim()&&feeVerified&&feeValue!=null?withdrawalNetAmount(amount.trim(),String(feeValue)):null;
  const balanceVerified=available!==null&&Number.isFinite(available)&&available>=0;
  const conversionRate=selectedAddress?.coin==="USDC"?String(config?.usdc_usdt_rate??""):"1";
  const conversionVerified=selectedAddress?.coin!=="USDC"||compareDecimalStrings(conversionRate,"0")===1;
@@ -1542,17 +1567,13 @@ export function WithdrawPage(){
   }catch{setHistoryError("Withdrawal history is temporarily unavailable.");}
   finally{setHistoryLoading(false);}
  };
- return <PageFrame title="Withdraw" tone="assets" backTo="/assets">
+ return <PageFrame title="Withdraw" tone="assets" backTo="/funds" className="funds-flow-page">
+  <div className="mx-auto w-full max-w-3xl space-y-5">
   {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-5 text-sm text-brand-text-muted" role="status">{t("Loading wallet and saved addresses…")}</CardContent></Card>
   :needsSignIn&&!DEV_OPEN_ACCOUNT_PAGES?<Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-4"><p className="text-xs text-brand-text-muted">{t("Please sign in to view your account data")}</p><Button asChild size="sm" className="h-10"><Link to="/login">{t("Go to sign in")}</Link></Button></CardContent></Card>
   :error&&!account?<Card className="border-brand-danger/30 bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-5"><p className="text-sm text-brand-danger" role="alert">{t(error)}</p><Button size="sm" variant="outline" onClick={()=>setReload(n=>n+1)}>{t("Try again")}</Button></CardContent></Card>
   :<>
-   <Card aria-busy={loading} className="overflow-hidden border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)]"><CardHeader className="border-b border-brand-border bg-brand-surface"><div className="flex min-w-0 items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-cyan/10 text-brand-cyan"><Wallet className="h-4 w-4"/></span><div className="min-w-0"><CardTitle>{t("Available balances")}</CardTitle><CardDescription>{account?.valuation_complete?t("Estimated total value"):t("Some asset prices are unavailable; total valuation is incomplete.")}</CardDescription></div></div></CardHeader><CardContent className="p-4 sm:p-5">
-    {Object.keys(account?.balances||{}).length===0?<p className="rounded-xl border border-dashed border-brand-border p-5 text-sm text-brand-text-muted">{t("No asset balances are currently available.")}</p>:<div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 xl:grid-cols-3">
-    {(Object.entries(account?.balances||{}) as Array<[string,AccountBalance]>).map(([asset,row],index)=><div key={asset} className="relative overflow-hidden rounded-xl border border-brand-border bg-brand-surface-2/60 p-4"><div className={"absolute inset-y-0 left-0 w-1 "+(index%3===0?"bg-brand-cyan":index%3===1?"bg-brand-violet":"bg-brand-teal")}/><div className="flex items-center gap-3"><TokenIcon symbol={asset} className="h-9 w-9"/><div className="min-w-0"><p className="font-semibold text-brand-text">{asset}</p><p className="type-meta text-brand-text-muted">{t("Wallet balance")}</p></div></div><div className="mt-4 grid grid-cols-2 gap-2"><div className="rounded-lg bg-brand-bg/70 p-3"><p className="type-meta text-brand-text-muted">{t("Available")}</p><p className="mt-1 break-all text-sm font-semibold tabular-nums text-brand-text">{row.free==null?"—":String(row.free)}</p></div><div className="rounded-lg bg-brand-bg/70 p-3"><p className="type-meta text-brand-text-muted">{t("Frozen")}</p><p className="mt-1 break-all text-sm font-semibold tabular-nums text-brand-text-secondary">{row.frozen==null?"—":String(row.frozen)}</p></div></div></div>)}
-    </div>}
-   </CardContent></Card>
-
+   {!config?.actions_enabled ? <div className="rounded-xl border border-brand-border bg-brand-surface p-4 text-sm text-brand-text-muted" role="status">{t("Withdrawals are currently unavailable.")}</div> : null}
    {config?.actions_enabled ? (
 <Card aria-busy={submitting} className="relative overflow-hidden border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)]"><span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-brand-surface"/><CardHeader className="border-b border-brand-border bg-brand-surface"><div className="flex min-w-0 items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent"><ArrowUpRight className="h-5 w-5"/></span><div className="min-w-0"><CardTitle>{t("Submit withdrawal")}</CardTitle><Link to="/address-book" className="mt-2 inline-flex min-h-9 items-center text-sm font-medium text-brand-accent hover:underline">{t("Saved crypto addresses")}</Link></div></div></CardHeader><CardContent className="p-4 sm:p-6">
     {usableAddresses.length===0?<div className="rounded-xl border border-dashed border-brand-border p-5 text-sm text-brand-text-muted">{t("No available withdrawal address. Add one to continue.")}</div>
@@ -1560,7 +1581,7 @@ export function WithdrawPage(){
      <label className="block space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Withdrawal address")}</span><select value={selectedId} disabled={!!pendingIntent||pendingIntentInvalid||submitting} onChange={event=>{setSelectedId(event.target.value);setError("");}} className="h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15">{usableAddresses.map(item=><option key={item.id} value={item.id}>{item.coin} · {item.network} · {item.address}</option>)}</select></label>
      {selectedAddress?<div className="min-w-0 rounded-xl border border-brand-border bg-brand-surface-2/70 p-3 text-xs leading-5 text-brand-text-muted sm:p-4"><p>{t("Selected destination")}: {selectedAddress.coin} · {selectedAddress.network}</p><p className="mt-1 break-all font-mono">{selectedAddress.address.length>18?selectedAddress.address.slice(0,8)+"—"+selectedAddress.address.slice(-8):selectedAddress.address}</p></div>:<p className="text-xs text-brand-text-muted">{t("Loading selected address…")}</p>}
      <label className="block space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Amount")} {selectedAddress ? "(" + selectedAddress.coin + ")" : ""}</span><input inputMode="decimal" value={amount} disabled={!!pendingIntent||pendingIntentInvalid||submitting||!balanceVerified||!feeVerified} onChange={event=>setAmount(event.target.value)} placeholder="0.00" className="min-h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-brand-text outline-none transition-colors focus:border-brand-violet/60 focus:ring-2 focus:ring-brand-violet/15"/></label>
-      {selectedAddress?<div className="grid grid-cols-1 gap-3 rounded-xl border border-brand-border bg-brand-surface-2/50 p-4 text-sm min-[420px]:grid-cols-2"><div><p className="text-xs text-brand-text-muted">{t("Available")}</p><p className="mt-1 tabular-nums">{balanceVerified&&available!==null?available.toLocaleString(localeTags[language],{maximumFractionDigits:10}):"—"} {settlementCoin}</p></div><div><p className="text-xs text-brand-text-muted">{t("Withdrawal fee")}</p><p className="mt-1 tabular-nums">{feeVerified&&fee!==null?fee.toLocaleString(localeTags[language],{maximumFractionDigits:10}):"—"} {selectedAddress.coin}</p></div>{selectedAddress.coin==="USDC"?<div className="min-[420px]:col-span-2 border-t border-brand-border pt-3"><p className="text-xs text-brand-text-muted">{t("Estimated USDT deduction")}</p><p className="mt-1 font-semibold tabular-nums">{estimatedSettlement!==null?Number(estimatedSettlement).toLocaleString(localeTags[language],{maximumFractionDigits:10}):"—"} USDT</p><p className="mt-1 text-xs text-brand-text-muted">{config?.usdc_usdt_rate?"1 USDC ≈ "+config.usdc_usdt_rate+" USDT · "+t("Final rate is locked when you submit."):t("USDC/USDT conversion is temporarily unavailable.")}</p></div>:null}</div>:null}
+      {selectedAddress?<div className="grid grid-cols-1 gap-3 rounded-xl border border-brand-border bg-brand-surface-2/50 p-4 text-sm min-[420px]:grid-cols-2"><div><p className="text-xs text-brand-text-muted">{t("Available")}</p><p className="mt-1 tabular-nums">{balanceVerified&&available!==null?available.toLocaleString(localeTags[language],{maximumFractionDigits:10}):"—"} {settlementCoin}</p></div><div><p className="text-xs text-brand-text-muted">{t("Withdrawal fee")}</p><p className="mt-1 tabular-nums">{feeVerified&&fee!==null?fee.toLocaleString(localeTags[language],{maximumFractionDigits:10}):"—"} {selectedAddress.coin}</p></div><div><p className="text-xs text-brand-text-muted">{t("Net amount")}</p><p className="mt-1 font-semibold tabular-nums">{estimatedNetAmount!==null?estimatedNetAmount:"—"} {selectedAddress.coin}</p></div>{selectedAddress.coin==="USDC"?<div className="min-[420px]:col-span-2 border-t border-brand-border pt-3"><p className="text-xs text-brand-text-muted">{t("Estimated USDT deduction")}</p><p className="mt-1 font-semibold tabular-nums">{estimatedSettlement!==null?Number(estimatedSettlement).toLocaleString(localeTags[language],{maximumFractionDigits:10}):"—"} USDT</p><p className="mt-1 text-xs text-brand-text-muted">{config?.usdc_usdt_rate?"1 USDC ≈ "+config.usdc_usdt_rate+" USDT · "+t("Final rate is locked when you submit."):t("USDC/USDT conversion is temporarily unavailable.")}</p></div>:null}</div>:null}
      <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Fund password")}</span><input type="password" autoComplete="current-password" value={fundPassword} disabled={submitting} onChange={event=>setFundPassword(event.target.value)} className="min-h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-brand-text outline-none transition-colors focus:border-brand-violet/60 focus:ring-2 focus:ring-brand-violet/15" required/></label>
      {account?.twofa_enabled?<label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Two-factor code")}</span><input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={twofaCode} disabled={submitting} onChange={event=>setTwofaCode(event.target.value.replace(/\D/g,"").slice(0,6))} className="min-h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-brand-text outline-none transition-colors focus:border-brand-violet/60 focus:ring-2 focus:ring-brand-violet/15" required/></label>:null}
      {error?<p role="alert" className="text-sm text-brand-danger">{error}</p>:null}
@@ -1612,5 +1633,6 @@ export function WithdrawPage(){
 
    
   </>}
+  </div>
  </PageFrame>;
 }

@@ -20,22 +20,22 @@ export const STANDALONE_ROUTES = ["/login", "/register", "/account-setup", "/aut
 /** Routes that are entered *from* a top-level tab and need a back affordance. */
 export const SUB_PAGE_ROUTES = [
   "/orders",
+  "/funds",
+  "/deposit",
+  "/withdraw",
 ] as const;
 
 /**
  * Sub-page routes that are documented but not yet migrated to `SubPageLayout`.
  *
- * These intentionally keep the top-level chrome for now. Moving a path here would
- * remove its global header and bottom tab bar without a replacement navigation
- * surface, so a route may only move into `SUB_PAGE_ROUTES` in the same change that
- * wraps the page in `SubPageLayout`.
+ * These intentionally keep the top-level chrome for now. Moving a path into
+ * `SUB_PAGE_ROUTES` removes the global header and bottom tab bar, so the page must
+ * provide its own title and back affordance in the same change.
  *
- * Pending migration: /deposit, /withdraw, /settings, /kyc, /earn, /seconds,
- * /contract, /support, /trade-hub.
+ * Pending migration: /settings, /kyc, /earn, /seconds, /contract, /support,
+ * /trade-hub.
  */
 export const PENDING_SUB_PAGE_ROUTES = [
-  "/deposit",
-  "/withdraw",
   "/settings",
   "/kyc",
   "/earn",

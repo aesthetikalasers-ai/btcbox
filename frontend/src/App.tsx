@@ -23,6 +23,7 @@ const OrdersPage = lazy(() => import("./features/orders/OrdersPage").then((m) =>
 const SecondsPage = lazy(() => import("./features/pages/SecondsPage").then((m) => ({ default: m.SecondsPage })));
 const KycPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.KycPage })));
 const SupportPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.SupportPage })));
+const FundsPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.FundsPage })));
 const DepositPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.DepositPage })));
 const WithdrawPage = lazy(() => import("./features/pages/Pages").then((m) => ({ default: m.WithdrawPage })));
 const AddressBookPage = lazy(() => import("./features/pages/AddressBookPage").then((m) => ({ default: m.AddressBookPage })));
@@ -107,7 +108,7 @@ function CustomerRoutes() {
     <Route path="/trade/:symbol" element={<SpotTradingPage />} />
     <Route path="/chart/:symbol" element={<KlineChartPage />} />
     <Route path="/seconds" element={<SecondsPage />} />
-    <Route path="/assets" element={<ProtectedAccountRoute><AssetsPage /></ProtectedAccountRoute>} /><Route path="/me" element={<MyPage />} />
+    <Route path="/assets" element={<ProtectedAccountRoute><AssetsPage /></ProtectedAccountRoute>} /><Route path="/funds" element={<ProtectedAccountRoute><FundsPage /></ProtectedAccountRoute>} /><Route path="/me" element={<MyPage />} />
     <Route path="/orders" element={<ProtectedAccountRoute><OrdersPage /></ProtectedAccountRoute>} />
     <Route path="/deposit" element={<ProtectedAccountRoute><DepositPage /></ProtectedAccountRoute>} />
     <Route path="/withdraw" element={<ProtectedAccountRoute><WithdrawPage /></ProtectedAccountRoute>} />

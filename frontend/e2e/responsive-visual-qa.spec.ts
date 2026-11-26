@@ -17,6 +17,7 @@ const routes = [
   { path: "/trade/BTCUSDT", heading: "BTCUSDT" },
   { path: "/trade-hub", heading: "Choose your trading mode" },
   { path: "/assets", heading: "Assets" },
+  { path: "/funds", heading: "Funds" },
   { path: "/me", heading: "My account" },
   { path: "/settings", heading: "Security settings" },
   { path: "/support", heading: "Customer support" },
@@ -77,6 +78,68 @@ async function installVisualApiMocks(page: Page) {
           }),
         });
       }
+      return;
+    }
+    if (pathname === "/api/deposit" && route.request().method() === "POST") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, address: "TQ9xE2EVisualFixtureAddress000000000000" }),
+      });
+      return;
+    }
+    if (pathname === "/api/addresses" && route.request().method() === "GET") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          addresses: [{
+            id: "visual-qa-withdrawal-address",
+            type: "crypto",
+            coin: "USDT",
+            network: "TRC20",
+            address: "TQ9xE2EVisualFixtureAddress000000000000",
+            blocked: false,
+            unbound: false,
+          }],
+        }),
+      });
+      return;
+    }
+    if (pathname === "/api/addresses/select") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          address: "TQ9xE2EVisualFixtureAddress000000000000",
+          coin: "USDT",
+          network: "TRC20",
+        }),
+      });
+      return;
+    }
+    if (pathname === "/api/withdrawal/config") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          actions_enabled: true,
+          fees: { USDT: "1", USDC: "1" },
+          allowed_networks: { USDT: ["TRC20"], USDC: ["ERC20"] },
+          usdc_usdt_rate: "1",
+        }),
+      });
+      return;
+    }
+    if (pathname === "/api/withdrawal/history") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, withdrawals: [], has_more: false, next_cursor: null }),
+      });
       return;
     }
     if (pathname === "/api/perpetual/markets") {
@@ -294,11 +357,17 @@ async function assertPageAtWidth(
   // Standalone history pages intentionally use their own compact secondary
   // navigation instead of the application shell. Only shell routes own the
   // BTCBOX home logo.
-  if (["/home", "/markets", "/trade/BTCUSDT", "/trade-hub", "/assets", "/me", "/settings", "/support", "/deposit", "/withdraw", "/earn", "/kyc", "/contract", "/seconds"].includes(route.path) && width <= 480) {
+  if (["/home", "/markets", "/trade/BTCUSDT", "/trade-hub", "/assets", "/me", "/settings", "/support", "/earn", "/kyc", "/contract", "/seconds"].includes(route.path) && width <= 480) {
     await expect(
       page.getByRole("link", { name: "BTCBOX home" }).getByRole("img", { name: "BTCBOX" }),
     ).toBeVisible();
   }
+  if (["/funds", "/deposit", "/withdraw"].includes(route.path)) {
+    await expect(page.locator(".bf-bottom-nav"), "Funds workflows must hide the global mobile tab bar.").toBeHidden();
+    await expect(page.getByRole("link", { name: "BTCBOX home" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Back" })).toBeVisible();
+  }
+
   if (route.path === "/markets") {
     await expect(page.getByRole("heading", {
       name: "Explore the market. Trade with confidence.",
@@ -728,6 +797,35 @@ for (const route of routes) {
   });
 }
 
+test("funds workflows render usable deposit and withdrawal states", async ({ page, context }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installVisualApiMocks(page);
+
+  await page.goto("/deposit", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: "Deposit" })).toBeVisible();
+  await expect(page.getByLabel("Asset")).toHaveValue("USDT");
+  await expect(page.getByLabel("Network")).toHaveValue("TRC20");
+  await expect(page.getByText("TQ9xE2EVisualFixtureAddress000000000000")).toBeVisible();
+  const copyButton = page.getByRole("button", { name: "Copy address" });
+  await expect(copyButton).toBeEnabled();
+  await copyButton.click();
+  await expect(page.getByRole("status").filter({ hasText: "Deposit address copied." })).toBeVisible();
+
+  await page.goto("/withdraw", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: "Withdraw" })).toBeVisible();
+  await expect(page.getByLabel("Withdrawal address")).toBeVisible();
+  await expect(page.getByText("Selected destination: USDT · TRC20")).toBeVisible();
+  await expect(page.getByText("Available", { exact: true })).toBeVisible();
+  await expect(page.getByText("Withdrawal fee", { exact: true })).toBeVisible();
+  const amount = page.getByLabel(/Amount/);
+  await amount.fill("10");
+  await expect(page.getByText("9 USDT", { exact: true })).toBeVisible();
+  await page.getByLabel("Fund password").fill("visual-only-password");
+  await expect(page.getByRole("button", { name: "Submit withdrawal" })).toBeEnabled();
+  // The visual fixture must never submit a financial operation.
+});
+
 test("trade interaction QA mobile spot market selection and order-book handoff", async ({ page }) => {
   test.skip(test.info().project.name !== "mobile-chromium", "Trade interaction QA runs in the mobile touch project.");
   await page.setViewportSize({ width: 390, height: 844 });
@@ -827,7 +925,7 @@ test("trade interaction QA desktop order-book side and price handoff", async ({ 
 // passing only at the seven required snapshot widths. These are desktop-browser
 // viewport sweeps; independent touch-device coverage is provided above.
 for (const route of routes.filter((item) => [
-  "/home", "/markets", "/trade/BTCUSDT", "/trade-hub", "/assets", "/contract",
+  "/home", "/markets", "/trade/BTCUSDT", "/trade-hub", "/assets", "/funds", "/deposit", "/withdraw", "/contract",
 ].includes(item.path))) {
   test("continuous responsive sweep " + route.path, async ({ page }) => {
     test.setTimeout(300_000);

@@ -1860,5 +1860,7 @@
   "No deposit history yet.": "入金履歴はありません。",
   "No available withdrawal address. Add one to continue.": "利用可能な出金アドレスがありません。先にアドレスを追加してください。",
   "Withdrawal status is being confirmed. Re-enter your fund password and, if enabled, your 2FA code, then retry.": "出金状況を確認中です。資金パスワードと（有効な場合）2FAコードを再入力して再試行してください。",
-  "No withdrawal history yet.": "出金履歴はありません。"
+  "No withdrawal history yet.": "出金履歴はありません。",
+  "Funds": "資金管理",
+  "Withdrawals are currently unavailable.": "現在、出金をご利用いただけません。"
 }

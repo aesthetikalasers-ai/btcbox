@@ -1860,5 +1860,7 @@
   "No deposit history yet.": "Noch keine Einzahlungshistorie.",
   "No available withdrawal address. Add one to continue.": "Keine Auszahlungsadresse verfügbar. Füge eine hinzu, um fortzufahren.",
   "Withdrawal status is being confirmed. Re-enter your fund password and, if enabled, your 2FA code, then retry.": "Der Auszahlungsstatus wird bestätigt. Gib dein Fondspasswort und, falls aktiviert, deinen 2FA-Code erneut ein und versuche es noch einmal.",
-  "No withdrawal history yet.": "Noch kein Auszahlungsverlauf."
+  "No withdrawal history yet.": "Noch kein Auszahlungsverlauf.",
+  "Funds": "Finanzen",
+  "Withdrawals are currently unavailable.": "Auszahlungen sind derzeit nicht verfügbar."
 }

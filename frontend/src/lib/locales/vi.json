@@ -1860,5 +1860,7 @@
   "No deposit history yet.": "Chưa có lịch sử nạp tiền.",
   "No available withdrawal address. Add one to continue.": "Không có địa chỉ rút tiền khả dụng. Hãy thêm địa chỉ để tiếp tục.",
   "Withdrawal status is being confirmed. Re-enter your fund password and, if enabled, your 2FA code, then retry.": "Trạng thái rút tiền đang được xác nhận. Nhập lại mật khẩu quỹ và mã 2FA nếu được bật, sau đó thử lại.",
-  "No withdrawal history yet.": "Chưa có lịch sử rút tiền."
+  "No withdrawal history yet.": "Chưa có lịch sử rút tiền.",
+  "Funds": "Quản lý vốn",
+  "Withdrawals are currently unavailable.": "Hiện tại, chức năng rút tiền chưa khả dụng."
 }

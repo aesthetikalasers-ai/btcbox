@@ -1860,5 +1860,7 @@
   "No deposit history yet.": "Nessuna cronologia dei depositi.",
   "No available withdrawal address. Add one to continue.": "Nessun indirizzo di prelievo disponibile. Aggiungine uno per continuare.",
   "Withdrawal status is being confirmed. Re-enter your fund password and, if enabled, your 2FA code, then retry.": "Lo stato del prelievo è in fase di verifica. Inserisci nuovamente la password dei fondi e, se attivo, il codice 2FA; quindi riprova.",
-  "No withdrawal history yet.": "Nessuna cronologia dei prelievi."
+  "No withdrawal history yet.": "Nessuna cronologia dei prelievi.",
+  "Funds": "Fondi",
+  "Withdrawals are currently unavailable.": "I prelievi non sono attualmente disponibili."
 }
