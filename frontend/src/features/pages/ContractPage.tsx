@@ -715,8 +715,8 @@ export function ContractPage() {
   };
 
   const orderEntryCard = (
-    <Card className="border-brand-border bg-brand-surface">
-      <CardHeader className="border-b border-brand-border/60 pb-3">
+    <Card className="border-0 bg-transparent shadow-none">
+      <CardHeader className="border-b border-brand-border/60 pb-3 px-4">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-sm font-bold">{t("Place order")}</CardTitle>
           <Badge variant="outline" className="border-brand-violet/30 bg-brand-violet/10 font-mono text-[11px] text-brand-violet">{effectiveLeverage}×</Badge>
@@ -1324,10 +1324,8 @@ export function ContractPage() {
               <section aria-label={t("Place order")} className="min-w-0 overflow-hidden rounded-xl border border-brand-border bg-brand-surface">
                 <div className="max-h-[500px] overflow-y-auto overscroll-contain">{orderEntryCard}</div>
               </section>
-              <div className="col-span-full min-w-0 overflow-hidden rounded-xl border border-brand-border bg-brand-surface">
-                {historyCard}
-              </div>
-              {!signedOut ? <div className="col-span-full min-w-0 overflow-hidden rounded-xl border border-brand-border bg-brand-surface">{positionRiskCard}</div> : null}
+              <div className="col-span-full min-w-0">{historyCard}</div>
+              {!signedOut ? <div className="col-span-full min-w-0">{positionRiskCard}</div> : null}
             </div>
           </>
         ) : null}
