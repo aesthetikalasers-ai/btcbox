@@ -1319,7 +1319,7 @@ export function ContractPage() {
                 <KlinePanel symbol={selectedMarket?.symbol ?? symbol ?? "BTCUSDT"} height={500} />
               </section>
               <section aria-label={t("Order book")} className="min-w-[300px] overflow-hidden rounded-xl border border-brand-border bg-brand-surface">
-                <div className="h-full min-h-[500px]"><OrderBookDepth mid={depthMid} book={displayBook} streamState={liveDepth.state} baseAsset={baseAsset} /></div>
+                <div className="h-full min-h-[500px]"><OrderBookDepth mid={depthMid} book={displayBook} streamState={liveDepth.state} baseAsset={baseAsset} levels={8} compact /></div>
               </section>
               <section aria-label={t("Place order")} className="min-w-[350px] overflow-hidden rounded-xl border border-brand-border bg-brand-surface">
                 <div className="max-h-[560px] overflow-y-auto overscroll-contain">{orderEntryCard}</div>
