@@ -20,7 +20,7 @@ test('customer order history and admin order list use the same PostgreSQL matchi
   const customer = api.slice(customerStart, customerEnd);
   const admin = api.slice(adminStart, adminEnd);
   const customerEngineStart = customer.indexOf('if (matchingEngineRequested())');
-  const customerLegacyStart = customer.indexOf('return json({ ok: true, orders: (Array.isArray(user.orders)');
+  const customerLegacyStart = customer.indexOf('const source = Array.isArray(user.orders)');
   const adminEngineStart = admin.indexOf('if (matchingEngineRequested())');
   const adminLegacyStart = admin.indexOf('const list = [];');
 
@@ -60,7 +60,7 @@ test('customer and admin PostgreSQL order projections use consistent status valu
   const adminEnd = api.indexOf('// POST /api/admin/support/reply', adminStart);
   const customer = api.slice(customerStart, customerEnd);
   const admin = api.slice(adminStart, adminEnd);
-  const customerEngine = customer.slice(customer.indexOf('if (matchingEngineRequested())'), customer.indexOf('return json({ ok: true, orders: (Array.isArray(user.orders)'));
+  const customerEngine = customer.slice(customer.indexOf('if (matchingEngineRequested())'), customer.indexOf('const source = Array.isArray(user.orders)'));
   const adminEngine = admin.slice(admin.indexOf('if (matchingEngineRequested())'), admin.indexOf('const list = [];'));
   // Both must select client_order_id from the canonical table.
   assert.ok(customerEngine.includes('client_order_id'));

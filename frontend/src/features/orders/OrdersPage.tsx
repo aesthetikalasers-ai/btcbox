@@ -205,7 +205,7 @@ export function OrdersPage() {
               {hasMore && (
                 <div className="flex justify-center border-t border-brand-border p-4">
                   <Button type="button" variant="outline" size="sm" onClick={() => void loadMore()} disabled={loadingMore}>
-                    {loadingMore ? t("Loading...") : t("Show more")}
+                    {t("Show more")}
                   </Button>
                 </div>
               )}
