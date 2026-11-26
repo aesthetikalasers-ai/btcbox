@@ -4,7 +4,7 @@ import { multiplyDecimalStrings, multiplyDecimalStringsCeil, addDecimalStrings, 
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldAlert, ArrowLeft, ChevronRight, ChevronDown, ChevronsLeft, ChevronsRight, KeyRound, Copy, Check, Plus, Minus, History, WifiOff, Search } from "lucide-react";
-import { ApiError, getAccount, getOrders, getMarkets, getSpotMarketPairs, getKlines, getOrderBook, getUsdtUsdRate, getTradingStatus, submitSpotOrder, cancelSpotOrder, getDepositAddress, getSavedCryptoAddresses, getSelectedCryptoAddress, getWithdrawalConfig, getWithdrawalHistoryPage, submitWithdrawal, getEarnCatalog, submitEarnAction, getSupportUnread, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type DepositRecord, type OrderRecord, type MarketTicker, type SpotMarketPair, type MarketCandle, type OrderBookSnapshot, type TradingStatus, type SelectedCryptoAddress, type WithdrawalConfig, type WithdrawalRecord, submitKyc } from "../../lib/api";
+import { ApiError, getAccount, getOrders, getMarkets, getSpotMarketPairs, getKlines, getOrderBook, getUsdtUsdRate, getTradingStatus, submitSpotOrder, cancelSpotOrder, getDepositAddress, getSavedCryptoAddresses, getWithdrawalConfig, getWithdrawalHistoryPage, submitWithdrawal, getEarnCatalog, submitEarnAction, getSupportUnread, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type DepositRecord, type OrderRecord, type MarketTicker, type SpotMarketPair, type MarketCandle, type OrderBookSnapshot, type TradingStatus, type WithdrawalConfig, type WithdrawalRecord, submitKyc } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { DEV_ACCOUNT_PLACEHOLDER, DEV_OPEN_ACCOUNT_PAGES } from "../../lib/devAccess";
 import { useAuthDialog } from "../../lib/auth-dialog";
@@ -1266,7 +1266,7 @@ export function DepositPage(){
  },[]);
  const changeCoin=(next:string)=>{setAddress("");setError("");setCopyMessage("");setCoin(next);setNetwork(depositNetworks[next][0]);};
  const changeNetwork=(next:string)=>{setAddress("");setError("");setCopyMessage("");setNetwork(next);};
- return <PageFrame title="Deposit" tone="assets" backTo="/funds" className="funds-flow-page">
+ return <PageFrame title="Deposit" tone="assets" backTo="/assets" className="funds-flow-page">
   <div className="mx-auto w-full max-w-3xl space-y-5">
   <Card className="relative overflow-hidden border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)]"><span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-brand-surface"/><CardHeader className="border-b border-brand-border bg-brand-surface"><div className="flex items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent"><Wallet className="h-5 w-5"/></span><div><CardTitle>{t("Deposit address")}</CardTitle></div></div></CardHeader><CardContent className="space-y-5 p-4 sm:p-6">
    <div className="grid gap-3 sm:grid-cols-2"><label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Asset")}</span><select value={coin} onChange={e=>changeCoin(e.target.value)} className="h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15">{Object.keys(depositNetworks).map(x=><option key={x}>{x}</option>)}</select></label><label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Network")}</span><select value={network} onChange={e=>changeNetwork(e.target.value)} className="h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 p-3 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15">{depositNetworks[coin].map(x=><option key={x}>{x}</option>)}</select></label></div>
@@ -1415,7 +1415,7 @@ export function WithdrawPage(){
  const [addresses,setAddresses]=useState<SavedCryptoAddress[]>([]);
  const [config,setConfig]=useState<WithdrawalConfig|null>(null);
  const [selectedId,setSelectedId]=useState("");
- const [selectedAddress,setSelectedAddress]=useState<SelectedCryptoAddress|null>(null);
+ const [addressPickerOpen,setAddressPickerOpen]=useState(false);
  const [amount,setAmount]=useState("");
  const [fundPassword,setFundPassword]=useState("");
  const [twofaCode,setTwofaCode]=useState("");
@@ -1437,7 +1437,7 @@ export function WithdrawPage(){
 
  useEffect(()=>{
   const controller=new AbortController();
-  setLoading(true);setHistoryLoading(true);setHistoryRecords([]);setHistoryCursor(null);setHistoryHasMore(false);setHistoryError("");setAccount(null);setAddresses([]);setConfig(null);setSelectedAddress(null);setError("");setNeedsSignIn(false);
+  setLoading(true);setHistoryLoading(true);setHistoryRecords([]);setHistoryCursor(null);setHistoryHasMore(false);setHistoryError("");setAccount(null);setAddresses([]);setConfig(null);setError("");setNeedsSignIn(false);
   Promise.all([getAccount(controller.signal),getSavedCryptoAddresses(controller.signal),getWithdrawalConfig(controller.signal),getWithdrawalHistoryPage(null,controller.signal).catch(()=>null)])
    .then(([snapshot,book,withdrawalConfig,historyPage])=>{
     if(controller.signal.aborted)return;
@@ -1461,7 +1461,7 @@ export function WithdrawPage(){
    .catch(reason=>{
     if(reason instanceof Error&&reason.name==="AbortError")return;
     if(!controller.signal.aborted){
-    setAccount(null);setAddresses([]);setConfig(null);setSelectedAddress(null);
+    setAccount(null);setAddresses([]);setConfig(null);
     // A signed-out visitor is not an error: show the same localized sign-in
     // prompt as every other account page instead of a red alert carrying the
     // server's raw English message plus a retry that can never succeed.
@@ -1480,23 +1480,11 @@ export function WithdrawPage(){
   return ()=>document.removeEventListener("visibilitychange",refreshWhenVisible);
  },[]);
 
- useEffect(()=>{
-  if(!selectedId){setSelectedAddress(null);return;}
-  const controller=new AbortController();
-  setSelectedAddress(null);
-  getSelectedCryptoAddress(selectedId,controller.signal).then(value=>{
-   if(!controller.signal.aborted)setSelectedAddress(value);
-  }).catch(reason=>{
-   if(reason instanceof Error&&reason.name==="AbortError")return;
-   if(!controller.signal.aborted){setSelectedAddress(null);setError(t("Account data is temporarily unavailable."));}
-  });
-  return ()=>controller.abort();
- },[selectedId]);
-
  const usableAddresses=addresses.filter(item=>{
   if(item.blocked||item.unbound||!config)return false;
   return config.fees[item.coin]!==undefined&&config.allowed_networks[item.coin]?.includes(item.network)===true;
  });
+ const selectedAddress=usableAddresses.find(item=>item.id===selectedId)??null;
  const settlementCoin=selectedAddress?.coin==="USDC"?"USDT":selectedAddress?.coin;
  const balance=settlementCoin&&account?.balances?(account.balances[settlementCoin]??{free:"0",frozen:"0"}):undefined;
  const feeValue=selectedAddress&&config?config.fees?.[selectedAddress.coin]:undefined;
@@ -1567,7 +1555,7 @@ export function WithdrawPage(){
   }catch{setHistoryError("Withdrawal history is temporarily unavailable.");}
   finally{setHistoryLoading(false);}
  };
- return <PageFrame title="Withdraw" tone="assets" backTo="/funds" className="funds-flow-page">
+ return <PageFrame title="Withdraw" tone="assets" backTo="/assets" className="funds-flow-page">
   <div className="mx-auto w-full max-w-3xl space-y-5">
   {loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-5 text-sm text-brand-text-muted" role="status">{t("Loading wallet and saved addresses…")}</CardContent></Card>
   :needsSignIn&&!DEV_OPEN_ACCOUNT_PAGES?<Card className="border-brand-border bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-4"><p className="text-xs text-brand-text-muted">{t("Please sign in to view your account data")}</p><Button asChild size="sm" className="h-10"><Link to="/login">{t("Go to sign in")}</Link></Button></CardContent></Card>
@@ -1578,8 +1566,19 @@ export function WithdrawPage(){
 <Card aria-busy={submitting} className="relative overflow-hidden border border-white/[0.08] bg-brand-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)]"><span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-brand-surface"/><CardHeader className="border-b border-brand-border bg-brand-surface"><div className="flex min-w-0 items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent"><ArrowUpRight className="h-5 w-5"/></span><div className="min-w-0"><CardTitle>{t("Submit withdrawal")}</CardTitle><Link to="/address-book" className="mt-2 inline-flex min-h-9 items-center text-sm font-medium text-brand-accent hover:underline">{t("Saved crypto addresses")}</Link></div></div></CardHeader><CardContent className="p-4 sm:p-6">
     {usableAddresses.length===0?<div className="rounded-xl border border-dashed border-brand-border p-5 text-sm text-brand-text-muted">{t("No available withdrawal address. Add one to continue.")}</div>
     :<form aria-busy={submitting} className="space-y-4" onSubmit={submit}>
-     <label className="block space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Withdrawal address")}</span><select value={selectedId} disabled={!!pendingIntent||pendingIntentInvalid||submitting} onChange={event=>{setSelectedId(event.target.value);setError("");}} className="h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-sm text-brand-text outline-none transition-colors focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15">{usableAddresses.map(item=><option key={item.id} value={item.id}>{item.coin} · {item.network} · {item.address}</option>)}</select></label>
-     {selectedAddress?<div className="min-w-0 rounded-xl border border-brand-border bg-brand-surface-2/70 p-3 text-xs leading-5 text-brand-text-muted sm:p-4"><p>{t("Selected destination")}: {selectedAddress.coin} · {selectedAddress.network}</p><p className="mt-1 break-all font-mono">{selectedAddress.address.length>18?selectedAddress.address.slice(0,8)+"—"+selectedAddress.address.slice(-8):selectedAddress.address}</p></div>:<p className="text-xs text-brand-text-muted">{t("Loading selected address…")}</p>}
+     <div className="space-y-1.5 text-sm">
+      <span className="text-brand-text-muted">{t("Withdrawal address")}</span>
+      <button type="button" disabled={!!pendingIntent||pendingIntentInvalid||submitting} aria-expanded={addressPickerOpen} aria-controls="withdraw-address-options" onClick={()=>setAddressPickerOpen(value=>!value)} className="flex min-h-12 w-full min-w-0 items-center justify-between gap-3 rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-left text-sm text-brand-text outline-none transition-colors hover:border-brand-accent/50 focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/15 disabled:cursor-not-allowed disabled:opacity-60">
+       <span className="min-w-0">{selectedAddress?<><span className="block font-medium">{selectedAddress.coin} · {selectedAddress.network}</span><span className="mt-0.5 block truncate font-mono text-xs text-brand-text-muted">{selectedAddress.address}</span></>:<span className="text-brand-text-muted">{t("Select")}</span>}</span>
+       <ChevronDown className={`h-4 w-4 shrink-0 text-brand-text-muted transition-transform ${addressPickerOpen?"rotate-180":""}`} aria-hidden="true"/>
+      </button>
+      {addressPickerOpen?<div id="withdraw-address-options" role="group" aria-label={t("Withdrawal address")} className="max-h-64 space-y-1 overflow-y-auto overscroll-contain rounded-xl border border-brand-border bg-brand-surface p-2 shadow-lg">
+       {usableAddresses.map(item=><button key={item.id} type="button" aria-pressed={item.id===selectedId} onClick={()=>{if(item.id!==selectedId)setAmount("");setSelectedId(item.id);setAddressPickerOpen(false);setError("");}} className={`flex min-h-12 w-full min-w-0 items-center justify-between gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-brand-surface-2 focus:bg-brand-surface-2 focus:outline-none ${item.id===selectedId?"bg-brand-accent/10 ring-1 ring-brand-accent/30":""}`}>
+        <span className="min-w-0"><span className="block font-medium text-brand-text">{item.coin} · {item.network}</span><span className="mt-0.5 block truncate font-mono text-xs text-brand-text-muted">{item.address}</span></span>
+        {item.id===selectedId?<Check className="h-4 w-4 shrink-0 text-brand-accent" aria-hidden="true"/>:null}
+       </button>)}
+      </div>:null}
+     </div>
      <label className="block space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Amount")} {selectedAddress ? "(" + selectedAddress.coin + ")" : ""}</span><input inputMode="decimal" value={amount} disabled={!!pendingIntent||pendingIntentInvalid||submitting||!balanceVerified||!feeVerified} onChange={event=>setAmount(event.target.value)} placeholder="0.00" className="min-h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-brand-text outline-none transition-colors focus:border-brand-violet/60 focus:ring-2 focus:ring-brand-violet/15"/></label>
       {selectedAddress?<div className="grid grid-cols-1 gap-3 rounded-xl border border-brand-border bg-brand-surface-2/50 p-4 text-sm min-[420px]:grid-cols-2"><div><p className="text-xs text-brand-text-muted">{t("Available")}</p><p className="mt-1 tabular-nums">{balanceVerified&&available!==null?available.toLocaleString(localeTags[language],{maximumFractionDigits:10}):"—"} {settlementCoin}</p></div><div><p className="text-xs text-brand-text-muted">{t("Withdrawal fee")}</p><p className="mt-1 tabular-nums">{feeVerified&&fee!==null?fee.toLocaleString(localeTags[language],{maximumFractionDigits:10}):"—"} {selectedAddress.coin}</p></div><div><p className="text-xs text-brand-text-muted">{t("Net amount")}</p><p className="mt-1 font-semibold tabular-nums">{estimatedNetAmount!==null?estimatedNetAmount:"—"} {selectedAddress.coin}</p></div>{selectedAddress.coin==="USDC"?<div className="min-[420px]:col-span-2 border-t border-brand-border pt-3"><p className="text-xs text-brand-text-muted">{t("Estimated USDT deduction")}</p><p className="mt-1 font-semibold tabular-nums">{estimatedSettlement!==null?Number(estimatedSettlement).toLocaleString(localeTags[language],{maximumFractionDigits:10}):"—"} USDT</p><p className="mt-1 text-xs text-brand-text-muted">{config?.usdc_usdt_rate?"1 USDC ≈ "+config.usdc_usdt_rate+" USDT · "+t("Final rate is locked when you submit."):t("USDC/USDT conversion is temporarily unavailable.")}</p></div>:null}</div>:null}
      <label className="block space-y-1.5 text-sm"><span className="text-brand-text-secondary">{t("Fund password")}</span><input type="password" autoComplete="current-password" value={fundPassword} disabled={submitting} onChange={event=>setFundPassword(event.target.value)} className="min-h-12 w-full rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-3 text-brand-text outline-none transition-colors focus:border-brand-violet/60 focus:ring-2 focus:ring-brand-violet/15" required/></label>
@@ -1602,27 +1601,25 @@ export function WithdrawPage(){
     <CardContent className="space-y-3 p-3 sm:p-4">
      {historyRecords.length ? historyRecords.filter(item=>historyFilter==="all"||normalizeWithdrawalStatus(item.status)===historyFilter).map((item:WithdrawalRecord)=>{
       const normalized=normalizeWithdrawalStatus(item.status),net=withdrawalNetAmount(item.amount,item.fee??"0"),destination=item.address||"—";
-      const masked=destination.length>24?destination.slice(0,10)+"…"+destination.slice(-8):destination;
       return <article key={item.id} className="min-w-0 rounded-lg border border-brand-border bg-brand-surface-2/35 p-3 sm:p-4">
-       <div className="flex min-w-0 flex-wrap items-start justify-between gap-3"><div className="min-w-0"><p className="font-semibold text-brand-text">{item.coin} <span className="text-brand-text-muted">· {item.network||"—"}</span></p><p className="mt-1 text-xs text-brand-text-muted">{t("Submitted")}: {item.time||"—"}</p></div><Badge variant={withdrawalStatusBadgeVariant(normalized)}>{withdrawalStatusLabel(normalized,t)}</Badge></div>
-       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <div className="min-w-0 rounded-md bg-brand-surface-2 p-2"><p className="text-[11px] text-brand-text-muted">{t("Amount")}</p><p className="mt-1 break-all text-sm font-semibold tabular-nums">{item.amount} {item.coin}</p></div>
-        <div className="min-w-0 rounded-md bg-brand-surface-2 p-2"><p className="text-[11px] text-brand-text-muted">{t("Withdrawal fee")}</p><p className="mt-1 break-all text-sm tabular-nums">{item.fee??"—"} {item.coin}</p></div>
-        <div className="min-w-0 rounded-md bg-brand-surface-2 p-2"><p className="text-[11px] text-brand-text-muted">{t("Net amount")}</p><p className="mt-1 break-all text-sm font-semibold tabular-nums">{net===null?"—":net+" "+item.coin}</p></div>
-         {item.settlement_asset&&item.settlement_asset!==item.coin?<div className="min-w-0 rounded-md bg-brand-surface-2 p-2"><p className="text-[11px] text-brand-text-muted">{t("Balance debit")}</p><p className="mt-1 break-all text-sm font-semibold tabular-nums">{item.settlement_amount} {item.settlement_asset}</p><p className="mt-1 text-[11px] text-brand-text-muted">Rate {item.conversion_rate}</p></div>:null}
-        <div className="min-w-0 rounded-md bg-brand-surface-2 p-2"><p className="text-[11px] text-brand-text-muted">{t("Status")}</p><p className="mt-1 text-sm">{withdrawalStatusLabel(normalized,t)}</p></div>
+       <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0"><p className="font-semibold text-brand-text">{item.coin} <span className="text-brand-text-muted">· {item.network||"—"}</span></p><p className="mt-1 text-xs text-brand-text-muted">{t("Submitted")}: {item.time||"—"}</p></div>
+        <div className="flex shrink-0 flex-col items-end gap-1"><p className="font-semibold tabular-nums text-brand-text">{item.amount} {item.coin}</p><Badge variant={withdrawalStatusBadgeVariant(normalized)}>{withdrawalStatusLabel(normalized,t)}</Badge></div>
        </div>
-       <div className="mt-3 flex min-w-0 items-center justify-between gap-2"><p className="min-w-0 truncate font-mono text-xs text-brand-text-muted">{masked}</p>
-        <details className="shrink-0"><summary className="min-h-9 cursor-pointer rounded-md border border-brand-border px-3 py-2 text-xs font-medium text-brand-text">{t("Details")}</summary>
-         <div className="mt-2 w-[min(78vw,34rem)] max-w-full space-y-2 rounded-lg border border-brand-border bg-brand-surface p-3 text-xs sm:w-[min(60vw,34rem)]">
-          <div className="flex min-w-0 items-start justify-between gap-2"><div className="min-w-0"><p className="text-brand-text-muted">{t("Application ID")}</p><p className="mt-1 break-all font-mono text-brand-text">{item.id}</p></div><button type="button" className="min-h-8 shrink-0 text-brand-accent" onClick={()=>void navigator.clipboard?.writeText(item.id)}>{t("Copy")}</button></div>
-          <div><p className="text-brand-text-muted">{t("Address")}</p><p className="mt-1 break-all font-mono text-brand-text">{destination}</p><button type="button" className="mt-1 min-h-8 text-brand-accent" onClick={()=>{if(destination!=="—")void navigator.clipboard?.writeText(destination);}}>{t("Copy")}</button></div>
-          {item.reviewed_at?<div><p className="text-brand-text-muted">{t("Reviewed")}</p><p className="mt-1 break-all text-brand-text">{item.reviewed_at}</p></div>:null}
-          {item.rejection_reason?<div><p className="text-brand-text-muted">{t("Rejection reason")}</p><p className="mt-1 break-words text-brand-text">{item.rejection_reason}</p></div>:null}
-
+       <details className="mt-3 border-t border-brand-border pt-2">
+        <summary className="min-h-9 cursor-pointer text-xs font-medium text-brand-accent">{t("Details")}</summary>
+        <div className="mt-2 space-y-3 rounded-lg bg-brand-surface p-3 text-xs">
+         <div className="grid grid-cols-2 gap-3">
+          <div><p className="text-brand-text-muted">{t("Withdrawal fee")}</p><p className="mt-1 break-all tabular-nums text-brand-text">{item.fee??"—"} {item.coin}</p></div>
+          <div><p className="text-brand-text-muted">{t("Net amount")}</p><p className="mt-1 break-all font-semibold tabular-nums text-brand-text">{net===null?"—":net+" "+item.coin}</p></div>
+          {item.settlement_asset&&item.settlement_asset!==item.coin?<div className="min-w-0 rounded-md bg-brand-surface-2 p-2"><p className="text-brand-text-muted">{t("Balance debit")}</p><p className="mt-1 break-all font-semibold tabular-nums text-brand-text">{item.settlement_amount} {item.settlement_asset}</p><p className="mt-1 text-brand-text-muted">Rate {item.conversion_rate}</p></div>:null}
          </div>
-        </details>
-       </div>
+         <div className="flex min-w-0 items-start justify-between gap-2"><div className="min-w-0"><p className="text-brand-text-muted">{t("Application ID")}</p><p className="mt-1 break-all font-mono text-brand-text">{item.id}</p></div><button type="button" className="min-h-8 shrink-0 text-brand-accent" onClick={()=>void navigator.clipboard?.writeText(item.id)}>{t("Copy")}</button></div>
+         <div><p className="text-brand-text-muted">{t("Address")}</p><p className="mt-1 break-all font-mono text-brand-text">{destination}</p><button type="button" className="mt-1 min-h-8 text-brand-accent" onClick={()=>{if(destination!=="—")void navigator.clipboard?.writeText(destination);}}>{t("Copy")}</button></div>
+         {item.reviewed_at?<div><p className="text-brand-text-muted">{t("Reviewed")}</p><p className="mt-1 break-all text-brand-text">{item.reviewed_at}</p></div>:null}
+         {item.rejection_reason?<div><p className="text-brand-text-muted">{t("Rejection reason")}</p><p className="mt-1 break-words text-brand-text">{item.rejection_reason}</p></div>:null}
+        </div>
+       </details>
       </article>;
      }) : <p className="rounded-xl border border-dashed border-brand-border p-5 text-sm text-brand-text-muted">{t("No withdrawal history yet.")}</p>}
      {historyRecords.length>0 && !historyRecords.some(item=>historyFilter==="all"||normalizeWithdrawalStatus(item.status)===historyFilter)?<p className="rounded-lg border border-dashed border-brand-border p-5 text-center text-sm text-brand-text-muted">{t("No withdrawal history yet.")}</p>:null}

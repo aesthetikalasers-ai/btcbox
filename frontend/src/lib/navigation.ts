@@ -20,7 +20,6 @@ export const STANDALONE_ROUTES = ["/login", "/register", "/account-setup", "/aut
 /** Routes that are entered *from* a top-level tab and need a back affordance. */
 export const SUB_PAGE_ROUTES = [
   "/orders",
-  "/funds",
   "/deposit",
   "/withdraw",
 ] as const;
