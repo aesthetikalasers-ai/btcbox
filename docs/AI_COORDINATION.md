@@ -137,3 +137,9 @@ PR #102 只有在下列項目全部完成後才可提出合併：
 - Hosted Supabase full schema parity、Email/Google staging real-login、worker deployment/readiness、production financial flags、真實金融執行、所有者獨立視覺簽收仍 NOT VERIFIED。
 - **下一優先順序：** (1) API/DB owner 修復 close-position stable-intent replay + dedicated shared rate limit，補 full/partial retry 和 fail-closed tests；(2) Admin UI/API/DB owner 對 Perpetual market upsert 增加 request_id/hash/replay RPC 與原子 audit；(3) Core/Backend owner 補 worker readiness env example；(4) 在新 integration branch/後續 Draft PR 對精確 HEAD 執行 Backend、PostgreSQL Schema、Frontend production-preview E2E 和 Change Guard，完成 review 與 owner acceptance。
 - PR #67 已合併，不能再改回 Draft。任何後續新 PR 必須保持 Draft，直到必要 CI、review、驗收及 owner approval 全部完成。不得合併、部署、修改 Vercel、寫入 hosted Supabase、改 Auth/flags、執行真實金融操作或改動鎖定 Spot 交易頁布局。
+
+### 本次文檔提交的精確 SHA 與驗證
+
+- 本節首個文檔更新 commit：`b6d037f4dbcd81131d3dcd8b04de972e9e936a8e`（parent/source baseline：main `156e2571158968d717e8de0e5bbdd84850b6f97d`）。
+- 對該精確 SHA 查詢 GitHub Actions：workflow runs 0；Check Runs 只有 Supabase Preview `139681118357`，結果 skipped；combined status contexts 為空。
+- 該提交只修改 `docs/AI_COORDINATION.md`，不觸發本倉庫限定 main/PR 的 Backend、Frontend 或 PostgreSQL workflow；因此不能把它標記為應用 CI PASS。本輪未執行本地應用測試，也未修改應用/SQL。
