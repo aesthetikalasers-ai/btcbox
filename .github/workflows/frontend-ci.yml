@@ -5,12 +5,14 @@ on:
   pull_request:
     paths:
       - "frontend/**"
+      - "docs/BTCBOX-UI-VISUAL-STANDARDS-V1.md"
       - ".github/workflows/frontend-ci.yml"
   push:
     branches:
       - main
     paths:
       - "frontend/**"
+      - "docs/BTCBOX-UI-VISUAL-STANDARDS-V1.md"
       - ".github/workflows/frontend-ci.yml"
 
 jobs:
@@ -28,6 +30,8 @@ jobs:
       - run: npm run lint
       - name: Verify all locale dictionaries
         run: npm run check:i18n
+      - name: Verify the UI visual standard matches the code
+        run: npm run check:visual
       - name: Verify exact decimal estimates
         run: node --experimental-strip-types --test tests/decimal.test.ts tests/kline-data.test.ts
       - run: npm run build
