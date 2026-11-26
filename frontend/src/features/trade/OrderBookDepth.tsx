@@ -50,7 +50,7 @@ function decimalsFor(precision: number): number {
  * Order-book depth panel. It renders only backend/provider depth levels.
  * Missing or stale depth is an unavailable state, never a synthetic book.
  */
-export function OrderBookDepth({ mid, book, streamState, baseAsset = "BTC", levels = 8 }: { mid?: number; book: DepthLevels | null; streamState?: "idle" | "connecting" | "live" | "degraded" | "closed"; baseAsset?: string; levels?: number }) {
+export function OrderBookDepth({ mid, book, streamState, baseAsset = "BTC", levels = 6, compact = false }: { mid?: number; book: DepthLevels | null; streamState?: "idle" | "connecting" | "live" | "degraded" | "closed"; baseAsset?: string; levels?: number; compact?: boolean }) {
   const { t, language } = useI18n();
   const numberLocale = localeTags[language] || "en-US";
   const [precision, setPrecision] = useState<number>(0.01);
@@ -75,9 +75,8 @@ export function OrderBookDepth({ mid, book, streamState, baseAsset = "BTC", leve
   const midText = Number.isFinite(mid) && Number(mid) > 0 ? fmt(Number(mid)) : "—";
 
   const renderRow = (level: Level, side: "ask" | "bid", keyId: string) => (
-    /* Compact 8-level desktop ladder: preserve readable tabular figures while keeping
-       both sides and the pressure indicator visible in the terminal column. */
-    <div key={keyId} className="relative grid grid-cols-3 gap-1 py-[2px] text-right font-mono text-[10px] leading-[17px] tabular-nums sm:text-[11px]">
+    /* Keep the original touch-friendly row rhythm on mobile; desktop opts into compact rows. */
+    <div key={keyId} className={cn("relative grid grid-cols-3 text-right font-mono tabular-nums", compact ? "gap-1 py-[2px] text-[10px] leading-[17px] sm:text-[11px]" : "gap-2 py-[3px] text-[11px] leading-[18px] sm:text-xs")}>
       <span
         aria-hidden="true"
         className={
@@ -134,7 +133,7 @@ export function OrderBookDepth({ mid, book, streamState, baseAsset = "BTC", leve
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-1 px-3 pb-3 pt-1">
+      <CardContent className={cn(compact ? "space-y-1 px-3 pb-3 pt-1" : "space-y-1.5")}>
         {!book ? (
           <div className="py-10 text-center">
             <p className="text-[11.5px] text-brand-text-muted">
