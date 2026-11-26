@@ -32,6 +32,9 @@ The frontend can also be checked independently:
 npm install --prefix frontend
 npm run lint --prefix frontend
 npm run build --prefix frontend
+npm run check:i18n --prefix frontend
+npm run check:visual --prefix frontend
+npm run test:e2e --prefix frontend
 ```
 
 ## Static compatibility surface

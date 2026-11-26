@@ -21,6 +21,7 @@
     "lint": "tsc --noEmit",
     "test:e2e": "playwright test",
     "check:i18n": "node scripts/check-i18n.mjs",
+    "check:visual": "node scripts/check-visual-standard.mjs",
     "check:supabase-auth": "node scripts/check-supabase-auth.mjs"
   },
   "dependencies": {
