@@ -4,7 +4,7 @@ import { multiplyDecimalStrings, multiplyDecimalStringsCeil, addDecimalStrings, 
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldAlert, ArrowLeft, ChevronRight, ChevronDown, ChevronsLeft, ChevronsRight, KeyRound, Copy, Check, Plus, Minus, History, WifiOff, Search } from "lucide-react";
-import { ApiError, getAccount, getOrders, getMarkets, getSpotMarketPairs, getKlines, getOrderBook, getUsdtUsdRate, getTradingStatus, submitSpotOrder, cancelSpotOrder, getDepositAddress, getSavedCryptoAddresses, getSelectedCryptoAddress, getWithdrawalConfig, getWithdrawalHistoryPage, submitWithdrawal, getEarnCatalog, submitEarnAction, getSupportUnread, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type DepositRecord, type OrderRecord, type MarketTicker, type SpotMarketPair, type MarketCandle, type OrderBookSnapshot, type TradingStatus, type SelectedCryptoAddress, type WithdrawalConfig, type WithdrawalRecord, submitKyc } from "../../lib/api";
+import { ApiError, getAccount, getOrders, getMarkets, getSpotMarketPairs, getKlines, getOrderBook, getUsdtUsdRate, getTradingStatus, submitSpotOrder, cancelSpotOrder, getDepositAddress, getSavedCryptoAddresses, getWithdrawalConfig, getWithdrawalHistoryPage, submitWithdrawal, getEarnCatalog, submitEarnAction, getSupportUnread, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type DepositRecord, type OrderRecord, type MarketTicker, type SpotMarketPair, type MarketCandle, type OrderBookSnapshot, type TradingStatus, type WithdrawalConfig, type WithdrawalRecord, submitKyc } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { DEV_ACCOUNT_PLACEHOLDER, DEV_OPEN_ACCOUNT_PAGES } from "../../lib/devAccess";
 import { useAuthDialog } from "../../lib/auth-dialog";
@@ -1415,7 +1415,6 @@ export function WithdrawPage(){
  const [addresses,setAddresses]=useState<SavedCryptoAddress[]>([]);
  const [config,setConfig]=useState<WithdrawalConfig|null>(null);
  const [selectedId,setSelectedId]=useState("");
- const [selectedAddress,setSelectedAddress]=useState<SelectedCryptoAddress|null>(null);
  const [amount,setAmount]=useState("");
  const [fundPassword,setFundPassword]=useState("");
  const [twofaCode,setTwofaCode]=useState("");
@@ -1437,7 +1436,7 @@ export function WithdrawPage(){
 
  useEffect(()=>{
   const controller=new AbortController();
-  setLoading(true);setHistoryLoading(true);setHistoryRecords([]);setHistoryCursor(null);setHistoryHasMore(false);setHistoryError("");setAccount(null);setAddresses([]);setConfig(null);setSelectedAddress(null);setError("");setNeedsSignIn(false);
+  setLoading(true);setHistoryLoading(true);setHistoryRecords([]);setHistoryCursor(null);setHistoryHasMore(false);setHistoryError("");setAccount(null);setAddresses([]);setConfig(null);setError("");setNeedsSignIn(false);
   Promise.all([getAccount(controller.signal),getSavedCryptoAddresses(controller.signal),getWithdrawalConfig(controller.signal),getWithdrawalHistoryPage(null,controller.signal).catch(()=>null)])
    .then(([snapshot,book,withdrawalConfig,historyPage])=>{
     if(controller.signal.aborted)return;
@@ -1461,7 +1460,7 @@ export function WithdrawPage(){
    .catch(reason=>{
     if(reason instanceof Error&&reason.name==="AbortError")return;
     if(!controller.signal.aborted){
-    setAccount(null);setAddresses([]);setConfig(null);setSelectedAddress(null);
+    setAccount(null);setAddresses([]);setConfig(null);
     // A signed-out visitor is not an error: show the same localized sign-in
     // prompt as every other account page instead of a red alert carrying the
     // server's raw English message plus a retry that can never succeed.
@@ -1480,23 +1479,11 @@ export function WithdrawPage(){
   return ()=>document.removeEventListener("visibilitychange",refreshWhenVisible);
  },[]);
 
- useEffect(()=>{
-  if(!selectedId){setSelectedAddress(null);return;}
-  const controller=new AbortController();
-  setSelectedAddress(null);
-  getSelectedCryptoAddress(selectedId,controller.signal).then(value=>{
-   if(!controller.signal.aborted)setSelectedAddress(value);
-  }).catch(reason=>{
-   if(reason instanceof Error&&reason.name==="AbortError")return;
-   if(!controller.signal.aborted){setSelectedAddress(null);setError(t("Account data is temporarily unavailable."));}
-  });
-  return ()=>controller.abort();
- },[selectedId]);
-
  const usableAddresses=addresses.filter(item=>{
   if(item.blocked||item.unbound||!config)return false;
   return config.fees[item.coin]!==undefined&&config.allowed_networks[item.coin]?.includes(item.network)===true;
  });
+ const selectedAddress=usableAddresses.find(item=>item.id===selectedId)??null;
  const settlementCoin=selectedAddress?.coin==="USDC"?"USDT":selectedAddress?.coin;
  const balance=settlementCoin&&account?.balances?(account.balances[settlementCoin]??{free:"0",frozen:"0"}):undefined;
  const feeValue=selectedAddress&&config?config.fees?.[selectedAddress.coin]:undefined;
@@ -1602,27 +1589,25 @@ export function WithdrawPage(){
     <CardContent className="space-y-3 p-3 sm:p-4">
      {historyRecords.length ? historyRecords.filter(item=>historyFilter==="all"||normalizeWithdrawalStatus(item.status)===historyFilter).map((item:WithdrawalRecord)=>{
       const normalized=normalizeWithdrawalStatus(item.status),net=withdrawalNetAmount(item.amount,item.fee??"0"),destination=item.address||"—";
-      const masked=destination.length>24?destination.slice(0,10)+"…"+destination.slice(-8):destination;
       return <article key={item.id} className="min-w-0 rounded-lg border border-brand-border bg-brand-surface-2/35 p-3 sm:p-4">
-       <div className="flex min-w-0 flex-wrap items-start justify-between gap-3"><div className="min-w-0"><p className="font-semibold text-brand-text">{item.coin} <span className="text-brand-text-muted">· {item.network||"—"}</span></p><p className="mt-1 text-xs text-brand-text-muted">{t("Submitted")}: {item.time||"—"}</p></div><Badge variant={withdrawalStatusBadgeVariant(normalized)}>{withdrawalStatusLabel(normalized,t)}</Badge></div>
-       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <div className="min-w-0 rounded-md bg-brand-surface-2 p-2"><p className="text-[11px] text-brand-text-muted">{t("Amount")}</p><p className="mt-1 break-all text-sm font-semibold tabular-nums">{item.amount} {item.coin}</p></div>
-        <div className="min-w-0 rounded-md bg-brand-surface-2 p-2"><p className="text-[11px] text-brand-text-muted">{t("Withdrawal fee")}</p><p className="mt-1 break-all text-sm tabular-nums">{item.fee??"—"} {item.coin}</p></div>
-        <div className="min-w-0 rounded-md bg-brand-surface-2 p-2"><p className="text-[11px] text-brand-text-muted">{t("Net amount")}</p><p className="mt-1 break-all text-sm font-semibold tabular-nums">{net===null?"—":net+" "+item.coin}</p></div>
-         {item.settlement_asset&&item.settlement_asset!==item.coin?<div className="min-w-0 rounded-md bg-brand-surface-2 p-2"><p className="text-[11px] text-brand-text-muted">{t("Balance debit")}</p><p className="mt-1 break-all text-sm font-semibold tabular-nums">{item.settlement_amount} {item.settlement_asset}</p><p className="mt-1 text-[11px] text-brand-text-muted">Rate {item.conversion_rate}</p></div>:null}
-        <div className="min-w-0 rounded-md bg-brand-surface-2 p-2"><p className="text-[11px] text-brand-text-muted">{t("Status")}</p><p className="mt-1 text-sm">{withdrawalStatusLabel(normalized,t)}</p></div>
+       <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0"><p className="font-semibold text-brand-text">{item.coin} <span className="text-brand-text-muted">· {item.network||"—"}</span></p><p className="mt-1 text-xs text-brand-text-muted">{t("Submitted")}: {item.time||"—"}</p></div>
+        <div className="flex shrink-0 flex-col items-end gap-1"><p className="font-semibold tabular-nums text-brand-text">{item.amount} {item.coin}</p><Badge variant={withdrawalStatusBadgeVariant(normalized)}>{withdrawalStatusLabel(normalized,t)}</Badge></div>
        </div>
-       <div className="mt-3 flex min-w-0 items-center justify-between gap-2"><p className="min-w-0 truncate font-mono text-xs text-brand-text-muted">{masked}</p>
-        <details className="shrink-0"><summary className="min-h-9 cursor-pointer rounded-md border border-brand-border px-3 py-2 text-xs font-medium text-brand-text">{t("Details")}</summary>
-         <div className="mt-2 w-[min(78vw,34rem)] max-w-full space-y-2 rounded-lg border border-brand-border bg-brand-surface p-3 text-xs sm:w-[min(60vw,34rem)]">
-          <div className="flex min-w-0 items-start justify-between gap-2"><div className="min-w-0"><p className="text-brand-text-muted">{t("Application ID")}</p><p className="mt-1 break-all font-mono text-brand-text">{item.id}</p></div><button type="button" className="min-h-8 shrink-0 text-brand-accent" onClick={()=>void navigator.clipboard?.writeText(item.id)}>{t("Copy")}</button></div>
-          <div><p className="text-brand-text-muted">{t("Address")}</p><p className="mt-1 break-all font-mono text-brand-text">{destination}</p><button type="button" className="mt-1 min-h-8 text-brand-accent" onClick={()=>{if(destination!=="—")void navigator.clipboard?.writeText(destination);}}>{t("Copy")}</button></div>
-          {item.reviewed_at?<div><p className="text-brand-text-muted">{t("Reviewed")}</p><p className="mt-1 break-all text-brand-text">{item.reviewed_at}</p></div>:null}
-          {item.rejection_reason?<div><p className="text-brand-text-muted">{t("Rejection reason")}</p><p className="mt-1 break-words text-brand-text">{item.rejection_reason}</p></div>:null}
-
+       <details className="mt-3 border-t border-brand-border pt-2">
+        <summary className="min-h-9 cursor-pointer text-xs font-medium text-brand-accent">{t("Details")}</summary>
+        <div className="mt-2 space-y-3 rounded-lg bg-brand-surface p-3 text-xs">
+         <div className="grid grid-cols-2 gap-3">
+          <div><p className="text-brand-text-muted">{t("Withdrawal fee")}</p><p className="mt-1 break-all tabular-nums text-brand-text">{item.fee??"—"} {item.coin}</p></div>
+          <div><p className="text-brand-text-muted">{t("Net amount")}</p><p className="mt-1 break-all font-semibold tabular-nums text-brand-text">{net===null?"—":net+" "+item.coin}</p></div>
+          {item.settlement_asset&&item.settlement_asset!==item.coin?<div><p className="text-brand-text-muted">{t("Balance debit")}</p><p className="mt-1 break-all font-semibold tabular-nums text-brand-text">{item.settlement_amount} {item.settlement_asset}</p><p className="mt-1 text-brand-text-muted">Rate {item.conversion_rate}</p></div>:null}
          </div>
-        </details>
-       </div>
+         <div className="flex min-w-0 items-start justify-between gap-2"><div className="min-w-0"><p className="text-brand-text-muted">{t("Application ID")}</p><p className="mt-1 break-all font-mono text-brand-text">{item.id}</p></div><button type="button" className="min-h-8 shrink-0 text-brand-accent" onClick={()=>void navigator.clipboard?.writeText(item.id)}>{t("Copy")}</button></div>
+         <div><p className="text-brand-text-muted">{t("Address")}</p><p className="mt-1 break-all font-mono text-brand-text">{destination}</p><button type="button" className="mt-1 min-h-8 text-brand-accent" onClick={()=>{if(destination!=="—")void navigator.clipboard?.writeText(destination);}}>{t("Copy")}</button></div>
+         {item.reviewed_at?<div><p className="text-brand-text-muted">{t("Reviewed")}</p><p className="mt-1 break-all text-brand-text">{item.reviewed_at}</p></div>:null}
+         {item.rejection_reason?<div><p className="text-brand-text-muted">{t("Rejection reason")}</p><p className="mt-1 break-words text-brand-text">{item.rejection_reason}</p></div>:null}
+        </div>
+       </details>
       </article>;
      }) : <p className="rounded-xl border border-dashed border-brand-border p-5 text-sm text-brand-text-muted">{t("No withdrawal history yet.")}</p>}
      {historyRecords.length>0 && !historyRecords.some(item=>historyFilter==="all"||normalizeWithdrawalStatus(item.status)===historyFilter)?<p className="rounded-lg border border-dashed border-brand-border p-5 text-center text-sm text-brand-text-muted">{t("No withdrawal history yet.")}</p>:null}
