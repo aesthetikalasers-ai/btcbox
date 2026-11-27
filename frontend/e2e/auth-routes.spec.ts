@@ -117,6 +117,32 @@ test("email and password login remains available through Supabase Auth", async (
   await expect(page).toHaveURL(/\/home$/);
 });
 
+test("email authentication errors show safe translated copy without exposing raw Supabase details", async ({ page }) => {
+  let provisioningCalls = 0;
+  await page.route("**/auth/v1/token**", route => route.fulfill({
+    status: 400,
+    contentType: "application/json",
+    body: JSON.stringify({
+      code: "unexpected_failure",
+      message: "Database connection to private-host.internal failed; internal credentials were rejected.",
+    }),
+  }));
+  await page.route("**/api/supabase-login", async route => {
+    provisioningCalls += 1;
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) });
+  });
+
+  await page.goto("/login");
+  await page.getByLabel("Username or email").fill("error-user@example.invalid");
+  await page.getByLabel("Password", { exact: true }).fill("StrongPassphrase123");
+  await page.locator("form").getByRole("button", { name: "Sign in", exact: true }).click();
+
+  await expect(page.getByRole("alert")).toContainText("Authentication callback failed.");
+  await expect(page.getByRole("alert")).not.toContainText("private-host.internal");
+  await expect(page.getByRole("alert")).not.toContainText("internal credentials");
+  expect(provisioningCalls).toBe(0);
+});
+
 test("Google sign-in button is shown when the public auth config enables Google", async ({ page }) => {
   await page.route("**/api/auth-client-config", async (route) => {
     await route.fulfill({
