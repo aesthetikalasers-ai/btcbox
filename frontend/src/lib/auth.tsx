@@ -153,45 +153,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.location.replace("/auth/react-callback" + window.location.search + window.location.hash);
       return;
     }
+    const callbackParams = initSearch;
+    const callbackHashParams = initHash;
+    const isCallback = window.location.pathname === "/auth/react-callback" &&
+      (callbackParams.has("code") || callbackParams.get("flow") === "recovery" ||
+        callbackParams.has("error") || callbackParams.has("error_description") ||
+        callbackParams.has("error_code") || callbackParams.has("error_reason") ||
+        callbackHashParams.has("access_token") || callbackHashParams.has("error") ||
+        callbackHashParams.has("error_description") || callbackHashParams.has("error_code") ||
+        callbackHashParams.has("error_reason"));
     let active = true;
+    let serverSessionRestored = false;
     const controller = new AbortController();
     // A slow/configuration-failed restoration is not proof of a signed-out account.
     // Keep credentials/session storage intact and expose an explicit recovery action.
     setInitializationIssue(false);
-    const slowTimer = window.setTimeout(() => { if (active) setInitializationIssue(true); }, 12000);
-    // Hard watchdog: initialization must resolve. A timeout is not proof that
-    // credentials are invalid, so preserve the persisted Supabase session.
+    const slowTimer = window.setTimeout(() => {
+      if (active && !serverSessionRestored) setInitializationIssue(true);
+    }, 12000);
+    // Hard watchdog: a valid server cookie remains authoritative even if Supabase
+    // Auth configuration is temporarily unavailable.
     const watchdogTimer = window.setTimeout(() => {
-      if (!active) return;
+      if (!active || serverSessionRestored) return;
       setError("Account verification is taking longer than expected. Your session has not been cleared.");
       setInitializationIssue(true);
       setTempToken("");
       setStatus("anonymous");
     }, 25000);
     (async () => {
+      // Start the config request in parallel, but do not make it a prerequisite
+      // for restoring an already-issued BTCBOX HttpOnly session cookie.
+      const configPromise = getAuthClientConfig(controller.signal).then(
+        config => ({ ok: true as const, config }),
+        error => ({ ok: false as const, error }),
+      );
       try {
-        const config = await getAuthClientConfig(controller.signal);
+        if (!isCallback) {
+          try {
+            await setSignedIn();
+            serverSessionRestored = true;
+            setError("");
+            setInitializationIssue(false);
+          } catch {
+            // No valid BTCBOX cookie; continue with the persisted Supabase session.
+          }
+        }
+        if (!active) return;
+        const configResult = await configPromise;
+        if (!configResult.ok) throw configResult.error;
+        const config = configResult.config;
         if (!active) return;
         setGoogleEnabled(config.google_enabled === true);
         setWalletEnabled(config.wallet_enabled !== false);
         // Load the authentication SDK only after server configuration is available.
-        // Session restoration remains in this same initialization sequence.
         const { createClient } = await import("@supabase/supabase-js");
         if (!active) return;
         const client = createClient(config.supabase_url, config.publishable_key, {
           auth: { flowType: "pkce", persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
         });
         clientRef.current = client;
-        const callbackParams = new URLSearchParams(window.location.search);
-        const callbackHashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-        const isCallback = window.location.pathname === "/auth/react-callback" &&
-          (callbackParams.has("code") || callbackParams.get("flow") === "recovery" ||
-            callbackParams.has("error") || callbackParams.has("error_description") ||
-            callbackParams.has("error_code") || callbackParams.has("error_reason") ||
-            callbackHashParams.has("error") || callbackHashParams.has("error_description") ||
-            callbackHashParams.has("error_code") || callbackHashParams.has("error_reason"));
         if (isCallback) { setStatus("anonymous"); return; }
-        try { await setSignedIn(); return; } catch { /* Recover Supabase session below. */ }
+        if (serverSessionRestored) return;
         const { data, error: sessionError } = await client.auth.getSession();
         if (sessionError) throw sessionError;
         if (data.session?.access_token) {
@@ -201,12 +223,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (active) setStatus("anonymous");
       } catch (cause) {
         if (active) {
-          setError(friendlyAuthErrorMessage(cause));
-          setInitializationIssue(true);
-          // Resolve the UI without destroying a potentially valid persisted
-          // Supabase session. A later retry/reload can restore it after recovery.
-          setTempToken("");
-          setStatus("anonymous");
+          if (serverSessionRestored) {
+            // A failed public auth-config lookup must not invalidate a server-
+            // verified BTCBOX session. Disable new identity actions until retry.
+            setGoogleEnabled(false);
+            setWalletEnabled(false);
+            setError("");
+            setInitializationIssue(false);
+            setStatus("authenticated");
+          } else {
+            setError(friendlyAuthErrorMessage(cause));
+            setInitializationIssue(true);
+            // Resolve the UI without destroying a potentially valid persisted
+            // Supabase session. A later retry/reload can restore it after recovery.
+            setTempToken("");
+            setStatus("anonymous");
+          }
         }
       } finally { window.clearTimeout(slowTimer); window.clearTimeout(watchdogTimer); }
     })();
