@@ -850,6 +850,8 @@ test("perpetual desktop depth renders eight levels and hands prices to the order
   const terminal = page.getByTestId("perp-desktop-terminal");
   await expect(terminal).toBeVisible();
   const book = terminal.locator('section[aria-label="Order book"]');
+  await expect(book.getByText("Spot reference")).toBeVisible();
+  await expect(book.getByText(/^(Mark price|Index price)$/)).toBeVisible();
   const asks = book.locator('button[aria-label^="Sell "]');
   const bids = book.locator('button[aria-label^="Buy "]');
   await expect(asks).toHaveCount(8);
