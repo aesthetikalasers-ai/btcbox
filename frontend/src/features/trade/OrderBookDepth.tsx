@@ -93,7 +93,7 @@ export function OrderBookDepth({ mid, book, streamState, baseAsset = "BTC", leve
   );
 
   return (
-    <Card className="border-brand-border bg-brand-surface">
+    <Card className="flex h-full flex-col border-brand-border bg-brand-surface">
       <CardHeader className={cn("flex flex-row items-center justify-between gap-2 pb-2", compact ? "px-3 pt-3" : "")}>
         <div className="flex min-w-0 items-center gap-2">
           <CardTitle className="text-sm font-semibold tracking-normal">{t("Order book")}</CardTitle>
@@ -136,7 +136,7 @@ export function OrderBookDepth({ mid, book, streamState, baseAsset = "BTC", leve
           </div>
         </div>
       </CardHeader>
-      <CardContent className={cn(compact ? "space-y-1 px-3 pb-3 pt-0.5" : "space-y-1.5")}>
+      <CardContent className={cn(compact ? "flex-1 space-y-1 px-3 pb-3 pt-0.5" : "space-y-1.5")}>
         {!book ? (
           <div className="py-10 text-center">
             <p className="text-[11.5px] text-brand-text-muted">
