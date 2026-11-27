@@ -1312,13 +1312,13 @@ export function ContractPage() {
 
             <div data-testid="perp-desktop-terminal" className="hidden min-w-0 gap-3 xl:grid xl:grid-cols-[minmax(0,1.65fr)_minmax(300px,320px)_minmax(340px,370px)] xl:items-stretch">
               <section aria-label={t("Chart")} className="min-w-0 overflow-hidden rounded-xl border border-brand-border bg-brand-surface xl:min-h-[500px]">
-                <KlinePanel symbol={selectedMarket?.symbol ?? symbol ?? "BTCUSDT"} height={500} />
+                <KlinePanel symbol={selectedMarket?.symbol ?? symbol ?? "BTCUSDT"} height={468} />
               </section>
               <section aria-label={t("Order book")} className="min-w-[300px] overflow-hidden rounded-xl">
                 <div className="h-full min-h-[500px]"><OrderBookDepth mid={depthMid} book={displayBook} streamState={liveDepth.state} baseAsset={baseAsset} levels={8} compact midLabel={displayPriceLabel} sourceLabel={t("Spot reference")} onPriceSelect={(selectedPrice, selectedSide) => { setOrderType("limit"); if (selectedSide) setSide(selectedSide); setPrice(String(selectedPrice)); }} /></div>
               </section>
               <section aria-label={t("Place order")} className="min-w-[350px] overflow-hidden rounded-xl border border-brand-border bg-brand-surface">
-                <div className="max-h-[560px] overflow-y-auto overscroll-contain">{orderEntryCard}</div>
+                <div className="max-h-[500px] overflow-y-auto overscroll-contain">{orderEntryCard}</div>
               </section>
               <div className="col-span-full min-w-0">{historyCard}</div>
               {!signedOut ? <div className="col-span-full min-w-0">{positionRiskCard}</div> : null}
