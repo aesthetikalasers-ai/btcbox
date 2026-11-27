@@ -1306,7 +1306,7 @@ export function ContractPage() {
               </div>
             </div>
 
-            <div data-testid="perp-desktop-terminal" className="hidden min-w-0 gap-3 xl:grid xl:grid-cols-[minmax(0,1.65fr)_minmax(300px,320px)_minmax(340px,370px)] xl:items-stretch">
+            <div data-testid="perp-desktop-terminal" className="hidden min-w-0 gap-3 xl:grid xl:grid-cols-[minmax(0,1.65fr)_minmax(300px,320px)_minmax(350px,370px)] xl:items-stretch">
               <section aria-label={t("Chart")} className="min-w-0 overflow-hidden rounded-xl border border-brand-border bg-brand-surface xl:min-h-[500px]">
                 <KlinePanel symbol={selectedMarket?.symbol ?? symbol ?? "BTCUSDT"} height={468} />
               </section>
