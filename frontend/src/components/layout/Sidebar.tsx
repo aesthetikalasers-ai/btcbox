@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { LanguageMenu } from "./LanguageMenu";
-import { ArrowLeftRight, ChartNoAxesCombined, ClipboardList, Headset, House, Settings, Sprout, TrendingUp, Timer, UserRound, Wallet, X } from "lucide-react";
+import { ArrowLeftRight, ChartNoAxesCombined, ClipboardList, Headset, House, Settings, ShieldCheck, Sprout, TrendingUp, Timer, UserRound, Wallet, X } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { useI18n } from "../../lib/i18n";
 import { BrandLogo } from "../BrandLogo";
@@ -81,6 +81,16 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
               </NavLink>
             ))}
           </div>
+        </div>
+        <div className="border-t border-brand-border pt-4">
+          <NavLink to="/trust" onClick={onClose} className={({ isActive }) => cn(
+            "group flex min-h-11 min-w-0 items-center gap-3 rounded-lg border px-3 py-2 text-sm font-semibold transition-all duration-200",
+            focusRing,
+            isActive ? "border-brand-border bg-brand-surface-hover text-brand-text" : "border-transparent text-brand-text-secondary hover:bg-brand-surface-hover hover:text-brand-text",
+          )}>
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-brand-text-muted"><ShieldCheck className="h-[17px] w-[17px]" /></span>
+            <span className="min-w-0 break-words">{t("Trust centre")}</span>
+          </NavLink>
         </div>
       </nav>
       <div className="px-3 pb-4">
