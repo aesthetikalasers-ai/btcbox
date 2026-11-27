@@ -717,10 +717,10 @@ export function ContractPage() {
   const orderEntryCard = (
     <Card className="border-0 bg-transparent shadow-none">
       <CardHeader className="border-b border-brand-border/60 px-3 pb-2 pt-3">
-        <CardTitle className="text-sm font-bold">{t("Place order")}</CardTitle>
+        <CardTitle className="text-xs font-bold">{t("Place order")}</CardTitle>
       </CardHeader>
       <CardContent className="px-3 pb-3 pt-2.5">
-        <form onSubmit={(e) => void submitOrder(e)} className="space-y-2.5">
+        <form onSubmit={(e) => void submitOrder(e)} className="space-y-2">
           <div className="grid grid-cols-2 gap-1 rounded-md bg-brand-surface-2/70 p-1" role="group" aria-label={t("Order type")}>
             {(["limit", "market"] as const).map((kind) => (
               <button
@@ -729,7 +729,7 @@ export function ContractPage() {
                 aria-pressed={orderType === kind}
                 onClick={() => setOrderType(kind)}
                 className={cn(
-                  "min-h-8 rounded text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/50",
+                  "min-h-7 rounded text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/50",
                   orderType === kind ? "bg-brand-surface text-brand-text shadow-sm" : "text-brand-text-muted hover:text-brand-text",
                 )}
               >
@@ -744,7 +744,7 @@ export function ContractPage() {
               aria-pressed={side === "buy"}
               onClick={() => setSide("buy")}
               className={cn(
-                "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-md text-xs font-bold transition-colors",
+                "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md text-[11px] font-bold transition-colors",
                 side === "buy" ? "bg-brand-accent text-[#05201A]" : "border border-brand-border bg-brand-surface-2 text-brand-text-secondary hover:border-brand-border-strong",
               )}
             >
@@ -770,7 +770,7 @@ export function ContractPage() {
             <div className="grid grid-cols-4 gap-1" role="group" aria-label={t("Leverage")}>
               {([10, 20, 50, 100] as const).map((n) => (
                 <button key={n} type="button" aria-pressed={leveragePills === n} onClick={() => setLeveragePills(n)}
-                  className={cn("min-h-7 rounded text-[11px] font-semibold tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/50",
+                  className={cn("min-h-6 rounded text-[10px] font-semibold tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/50",
                     leveragePills === n ? "bg-brand-accent/15 text-brand-accent" : "text-brand-text-muted hover:bg-brand-surface-2 hover:text-brand-text")}>{n}×</button>
               ))}
             </div>
@@ -780,14 +780,14 @@ export function ContractPage() {
             <div>
               <label className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-brand-text-muted">{t("Price")} <span>(USDT)</span></label>
               <div className="flex items-center gap-1">
-                <button type="button" aria-label={t("Decrease price")} onClick={() => stepPrice(-1)} className="flex h-9 w-8 shrink-0 items-center justify-center rounded border border-brand-border bg-brand-surface-2 text-brand-text-muted hover:border-brand-accent hover:text-brand-text"><Minus className="h-3.5 w-3.5" /></button>
+                <button type="button" aria-label={t("Decrease price")} onClick={() => stepPrice(-1)} className="flex h-8.5 w-8 shrink-0 items-center justify-center rounded border border-brand-border bg-brand-surface-2 text-brand-text-muted hover:border-brand-accent hover:text-brand-text"><Minus className="h-3.5 w-3.5" /></button>
                 <input
                   inputMode="decimal"
                   value={price}
                   onChange={(e) => setPrice(sanitizeDecimal(e.target.value, priceDecimals))}
                   placeholder={markPrice === null ? "0.00" : money(markPrice, "en-US", 2)}
                   aria-label={t("Price")}
-                  className="bf-tabular h-9 min-w-0 flex-1 rounded border border-brand-border bg-brand-surface-2 px-2 font-mono text-sm text-brand-text outline-none transition-colors focus:border-brand-accent"
+                  className="bf-tabular h-8.5 min-w-0 flex-1 rounded border border-brand-border bg-brand-surface-2 px-2 font-mono text-sm text-brand-text outline-none transition-colors focus:border-brand-accent"
                 />
                 <button type="button" aria-label={t("Increase price")} onClick={() => stepPrice(1)} className="flex h-9 w-8 shrink-0 items-center justify-center rounded border border-brand-border bg-brand-surface-2 text-brand-text-muted hover:border-brand-accent hover:text-brand-text"><Plus className="h-3.5 w-3.5" /></button>
               </div>
@@ -804,7 +804,7 @@ export function ContractPage() {
               onChange={(e) => setQuantity(sanitizeDecimal(e.target.value, quantityDecimals))}
               placeholder={selectedMarket ? String(selectedMinQuantity ?? "0.0000") : "0.0000"}
               aria-label={t("Quantity")}
-              className="bf-tabular h-9 w-full rounded border border-brand-border bg-brand-surface-2 px-2 font-mono text-sm text-brand-text outline-none transition-colors focus:border-brand-accent"
+              className="bf-tabular h-8.5 w-full rounded border border-brand-border bg-brand-surface-2 px-2 font-mono text-sm text-brand-text outline-none transition-colors focus:border-brand-accent"
             />
           </div>
 
@@ -827,7 +827,7 @@ export function ContractPage() {
             type="submit"
             disabled={busy || marketsFallback || !selectedMarket || (orderType === "limit" && !price) || !quantity}
             loading={busy}
-            className={cn("min-h-10 w-full text-xs font-bold", side === "buy" ? "bg-brand-accent text-[#05201A] hover:bg-brand-accent/90" : "bg-brand-danger text-white hover:bg-brand-danger/90")}
+            className={cn("min-h-9 w-full text-[11px] font-bold", side === "buy" ? "bg-brand-accent text-[#05201A] hover:bg-brand-accent/90" : "bg-brand-danger text-white hover:bg-brand-danger/90")}
           >
             {side === "buy" ? t("Long") : t("Short")}
           </Button>
