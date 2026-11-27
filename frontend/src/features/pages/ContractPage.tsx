@@ -780,7 +780,7 @@ export function ContractPage() {
             <div>
               <label className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-brand-text-muted">{t("Price")} <span>(USDT)</span></label>
               <div className="flex items-center gap-1">
-                <button type="button" aria-label={t("Decrease price")} onClick={() => stepPrice(-1)} className="flex h-8.5 w-8 shrink-0 items-center justify-center rounded border border-brand-border bg-brand-surface-2 text-brand-text-muted hover:border-brand-accent hover:text-brand-text"><Minus className="h-3.5 w-3.5" /></button>
+                <button type="button" aria-label={t("Decrease price")} onClick={() => stepPrice(-1)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-brand-border bg-brand-surface-2 text-brand-text-muted hover:border-brand-accent hover:text-brand-text"><Minus className="h-3.5 w-3.5" /></button>
                 <input
                   inputMode="decimal"
                   value={price}
