@@ -76,7 +76,7 @@ export function OrderBookDepth({ mid, book, streamState, baseAsset = "BTC", leve
 
   const renderRow = (level: Level, side: "ask" | "bid", keyId: string) => (
     /* Keep the original touch-friendly row rhythm on mobile; desktop opts into compact rows. */
-    <button key={keyId} type="button" disabled={!onPriceSelect} onClick={() => onPriceSelect?.(level.price, side === "ask" ? "sell" : "buy")} aria-label={`${side === "ask" ? t("Sell") : t("Buy")} ${fmt(level.price)}`} className={cn("relative grid w-full grid-cols-3 text-right font-mono tabular-nums disabled:cursor-default", compact ? "gap-1 py-[2px] text-[11px] leading-[18px] sm:text-xs" : "gap-2 py-[3px] text-[11px] leading-[18px] sm:text-xs", onPriceSelect ? "cursor-pointer hover:bg-brand-surface-2/70 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-accent/60" : "")}>
+    <button key={keyId} data-depth-side={side} type="button" disabled={!onPriceSelect} onClick={() => onPriceSelect?.(level.price, side === "ask" ? "sell" : "buy")} aria-label={`${side === "ask" ? t("Sell") : t("Buy")} ${fmt(level.price)}`} className={cn("relative grid w-full grid-cols-3 text-right font-mono tabular-nums disabled:cursor-default", compact ? "gap-1 py-[2px] text-[11px] leading-[18px] sm:text-xs" : "gap-2 py-[3px] text-[11px] leading-[18px] sm:text-xs", onPriceSelect ? "cursor-pointer hover:bg-brand-surface-2/70 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-accent/60" : "")}>
       <span
         aria-hidden="true"
         className={
