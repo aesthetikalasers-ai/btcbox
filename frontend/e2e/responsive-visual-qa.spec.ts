@@ -864,7 +864,7 @@ test("perpetual desktop depth renders eight levels and hands prices to the order
   const askPrice = askLabel?.replace(/^Sell /, "") ?? "";
   expect(askPrice).toMatch(/^65,00[1-8]\.00$/);
   await asks.first().click();
-  await expect(price).toHaveValue(askPrice.replaceAll(",", ""));
+  await expect(price).toHaveValue(String(Number(askPrice.replaceAll(",", ""))));
   await expect(short).toHaveAttribute("aria-pressed", "true");
   await expect(long).toHaveAttribute("aria-pressed", "false");
   await expect(entry.getByRole("button", { name: "Limit", exact: true })).toHaveAttribute("aria-pressed", "true");
@@ -873,14 +873,14 @@ test("perpetual desktop depth renders eight levels and hands prices to the order
   const bidPrice = bidLabel?.replace(/^Buy /, "") ?? "";
   expect(bidPrice).toMatch(/^64,99[2-9]\.00$/);
   await bids.first().click();
-  await expect(price).toHaveValue(bidPrice.replaceAll(",", ""));
+  await expect(price).toHaveValue(String(Number(bidPrice.replaceAll(",", ""))));
   await expect(long).toHaveAttribute("aria-pressed", "true");
   await expect(short).toHaveAttribute("aria-pressed", "false");
 
   const midButton = book.getByRole("button", { name: /65,000\.00 USDT/ });
   await expect(midButton).toBeVisible();
   await midButton.click();
-  await expect(price).toHaveValue("65000.00");
+  await expect(price).toHaveValue("65000");
   await expect(long).toHaveAttribute("aria-pressed", "true");
   // This test intentionally never submits an order.
 });
