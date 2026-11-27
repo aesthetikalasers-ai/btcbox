@@ -1314,7 +1314,7 @@ export function ContractPage() {
               <section aria-label={t("Chart")} className="min-w-0 overflow-hidden rounded-xl border border-brand-border bg-brand-surface xl:min-h-[500px]">
                 <KlinePanel symbol={selectedMarket?.symbol ?? symbol ?? "BTCUSDT"} height={500} />
               </section>
-              <section aria-label={t("Order book")} className="min-w-[300px] overflow-hidden rounded-xl border border-brand-border bg-brand-surface">
+              <section aria-label={t("Order book")} className="min-w-[300px] overflow-hidden rounded-xl">
                 <div className="h-full min-h-[500px]"><OrderBookDepth mid={depthMid} book={displayBook} streamState={liveDepth.state} baseAsset={baseAsset} levels={8} compact midLabel={displayPriceLabel} sourceLabel={t("Spot reference")} onPriceSelect={(selectedPrice, selectedSide) => { setOrderType("limit"); if (selectedSide) setSide(selectedSide); setPrice(String(selectedPrice)); }} /></div>
               </section>
               <section aria-label={t("Place order")} className="min-w-[350px] overflow-hidden rounded-xl border border-brand-border bg-brand-surface">
