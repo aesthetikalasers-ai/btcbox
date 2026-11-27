@@ -1908,5 +1908,6 @@
   "The order was rejected. Check the price, quantity, margin and position mode, then submit again.": "A ordem foi rejeitada. Verifique o preço, a quantidade, a margem e o modo de posição antes de enviar novamente.",
   "We couldn't confirm whether this order was accepted. Check Open orders and Positions before placing another order.": "Não foi possível confirmar se a ordem foi aceite. Verifique «Ordens abertas» e «Posições» antes de enviar outra.",
   "Technical details": "Detalhes técnicos",
-  "Request reference": "Referência do pedido"
+  "Request reference": "Referência do pedido",
+  "Reference depth": "Profundidade de referência"
 }
