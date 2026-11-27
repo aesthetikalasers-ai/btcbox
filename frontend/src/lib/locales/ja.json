@@ -1908,5 +1908,6 @@
   "The order was rejected. Check the price, quantity, margin and position mode, then submit again.": "注文は受け付けられませんでした。価格・数量・証拠金・ポジションモードを確認してから再度送信してください。",
   "We couldn't confirm whether this order was accepted. Check Open orders and Positions before placing another order.": "注文が受け付けられたか確認できませんでした。新しく注文する前に「未約定注文」と「ポジション」を確認してください。",
   "Technical details": "技術情報",
-  "Request reference": "リクエスト参照番号"
+  "Request reference": "リクエスト参照番号",
+  "Reference depth": "参照板情報"
 }
