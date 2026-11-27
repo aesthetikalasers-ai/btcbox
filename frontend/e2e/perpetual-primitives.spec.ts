@@ -50,7 +50,11 @@ async function mockEmptyPerpetualWorkspace(page: Page) {
     if (pathname === "/api/perpetual/orders") return json({ ok: true, orders: [], has_more: false, next_cursor: null });
     if (pathname === "/api/perpetual/funding") return json({ ok: true, funding: [] });
     if (pathname === "/api/depth") {
-      return json({ ok: true, source: "primitives", snapshotTs: Math.floor(Date.now() / 1000), bids: [["64999.00", "0.4"]], asks: [["65001.00", "0.3"]] });
+      return json({
+        ok: true, source: "primitives", snapshotTs: Math.floor(Date.now() / 1000),
+        bids: Array.from({ length: 8 }, (_, i) => [(64999 - i).toFixed(2), "0.4"]),
+        asks: Array.from({ length: 8 }, (_, i) => [(65001 + i).toFixed(2), "0.3"]),
+      });
     }
     if (pathname === "/api/market") return json({ ok: true, markets: [], data: {} });
     return json({ ok: false, code: "PRIMITIVES_ISOLATED", msg: "Not part of this fixture." }, 503);
@@ -66,6 +70,15 @@ test("perpetual form controls and empty states keep their primitive styles", asy
   await page.goto("/contract", { waitUntil: "domcontentloaded" });
   const select = page.getByTestId("perp-mobile-workspace").getByLabel("Order type");
   await expect(select).toBeVisible();
+
+  // Mobile stays on its own compact workspace: six visible levels per side,
+  // and the desktop terminal must remain absent at phone widths.
+  const mobileWorkspace = page.getByTestId("perp-mobile-workspace");
+  await expect(mobileWorkspace).toBeVisible();
+  await expect(page.getByTestId("perp-desktop-terminal")).toBeHidden();
+  await expect(mobileWorkspace.locator('[data-side="ask"]')).toHaveCount(6);
+  await expect(mobileWorkspace.locator('[data-side="bid"]')).toHaveCount(6);
+
   const control = await select.evaluate((el) => {
     const s = getComputedStyle(el);
     return {
@@ -89,7 +102,13 @@ test("perpetual form controls and empty states keep their primitive styles", asy
   // Mobile panels use BottomPanelEmpty, so the shared primitive is asserted on the
   // desktop terminal that actually renders <EmptyState>.
   await page.setViewportSize({ width: 1440, height: 1000 });
-  const empty = page.getByTestId("perp-desktop-terminal").locator(".empty-state").first();
+  const desktopTerminal = page.getByTestId("perp-desktop-terminal");
+  await expect(desktopTerminal).toBeVisible();
+  await expect(page.getByTestId("perp-mobile-workspace")).toBeHidden();
+  // Eight levels per side are reserved for the desktop book.
+  await expect(desktopTerminal.locator(".spot-book-row")).toHaveCount(16);
+
+  const empty = desktopTerminal.locator(".empty-state").first();
   await expect(empty).toBeVisible();
   const block = await empty.evaluate((el) => {
     const s = getComputedStyle(el);
