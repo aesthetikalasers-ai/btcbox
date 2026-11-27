@@ -105,9 +105,6 @@ export function MyPage(){
  const handleSignOut=async()=>{try{await signOut();}catch{}navigate("/home");};
  useEffect(()=>{
   if(status==="loading"){setLoading(true);return;}
-  // Local development: render the account profile layout without a session so
-  // the page can be edited. The placeholder carries only empty fields, and the
-  // API still refuses every account read, so nothing is invented or unlocked.
   if(status!=="authenticated"){setAccount(null);setLoading(false);setError("");return;}
   const controller=new AbortController();
   setLoading(true);setAccount(null);setError("");
@@ -137,7 +134,7 @@ export function MyPage(){
  ];
  return <PageFrame title="My account" tone="account">
   {status==="loading"?<AuthRestoreState label="Loading account profile…"/>
-  :status!=="authenticated"&&!DEV_OPEN_ACCOUNT_PAGES?<div className="space-y-4">
+  :status!=="authenticated"?<div className="space-y-4">
    <Card className="border-brand-border bg-brand-surface overflow-hidden"><CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5">
     <div className="flex items-center gap-3.5"><div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-brand-accent/25 bg-brand-accent/10 text-brand-accent"><LockKeyhole className="h-5 w-5"/></div><div><p className="font-bold text-base text-brand-text">{t("Sign in to your account")}</p><p className="text-xs text-brand-text-muted mt-0.5">{t("Sign in to view balances, orders, and security settings.")}</p></div></div>
     <div className="flex items-center gap-2 shrink-0"><Button type="button" size="sm" className="min-w-[88px]" onClick={()=>openAuthDialog("login")}>{t("Sign in")}</Button><Button type="button" size="sm" variant="outline" className="min-w-[88px]" onClick={()=>openAuthDialog("register")}>{t("Create account")}</Button></div>
