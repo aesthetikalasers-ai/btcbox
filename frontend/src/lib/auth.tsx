@@ -200,7 +200,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         if (!active) return;
         const configResult = await configPromise;
-        if (!configResult.ok) throw configResult.error;
+        if ("error" in configResult) throw configResult.error;
         const config = configResult.config;
         if (!active) return;
         setGoogleEnabled(config.google_enabled === true);
