@@ -1908,5 +1908,6 @@
   "The order was rejected. Check the price, quantity, margin and position mode, then submit again.": "订单被拒绝。请检查价格、数量、保证金与持仓模式后重新提交。",
   "We couldn't confirm whether this order was accepted. Check Open orders and Positions before placing another order.": "无法确认该订单是否已被接受。再次下单前，请先查看「未成交委托」和「持仓」。",
   "Technical details": "技术信息",
-  "Request reference": "请求编号"
+  "Request reference": "请求编号",
+  "Reference depth": "参考深度"
 }
