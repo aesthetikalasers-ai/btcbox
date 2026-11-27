@@ -764,12 +764,8 @@ export function ContractPage() {
           </div>
 
           <div className="rounded-md border border-brand-border/60 bg-brand-surface-2/30 px-2.5 py-2">
-            <div className="mb-1.5 flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-brand-text-muted">{t("Leverage")}</span>
-              <span className="flex items-center gap-2">
-                <span className="rounded bg-brand-surface px-1.5 py-0.5 text-[10px] font-medium text-brand-text-muted">{t("Cross")}</span>
-                <span className="font-mono text-sm font-bold tabular-nums text-brand-accent">{effectiveLeverage}×</span>
-              </span>
+            <div className="mb-1.5 flex items-center justify-end">
+              <span className="rounded bg-brand-surface px-1.5 py-0.5 text-[10px] font-medium text-brand-text-muted">{t("Cross")}</span>
             </div>
             <div className="grid grid-cols-4 gap-1" role="group" aria-label={t("Leverage")}>
               {([10, 20, 50, 100] as const).map((n) => (
@@ -782,7 +778,7 @@ export function ContractPage() {
 
           {orderType === "limit" ? (
             <div>
-              <label className="mb-1 block text-[11px] font-medium text-brand-text-secondary">{t("Price")} <span className="text-brand-text-muted">(USDT)</span></label>
+              <label className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-brand-text-muted">{t("Price")} <span>(USDT)</span></label>
               <div className="flex items-center gap-1">
                 <button type="button" aria-label={t("Decrease price")} onClick={() => stepPrice(-1)} className="flex h-9 w-8 shrink-0 items-center justify-center rounded border border-brand-border bg-brand-surface-2 text-brand-text-muted hover:border-brand-accent hover:text-brand-text"><Minus className="h-3.5 w-3.5" /></button>
                 <input
@@ -799,21 +795,21 @@ export function ContractPage() {
           ) : null}
 
           <div>
-            <label className="mb-1 block text-[11px] font-medium text-brand-text-secondary">
-              {t("Quantity")} <span className="text-brand-text-muted">({selectedMarket?.base_asset ?? "BTC"})</span>
+            <label className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-brand-text-muted">
+              {t("Quantity")} <span>({selectedMarket?.base_asset ?? "BTC"})</span>
             </label>
             <input
               inputMode="decimal"
               value={quantity}
               onChange={(e) => setQuantity(sanitizeDecimal(e.target.value, quantityDecimals))}
-              placeholder={selectedMarket ? `${t("Min")} ${selectedMinQuantity}` : "0.0000"}
+              placeholder={selectedMarket ? String(selectedMinQuantity ?? "0.0000") : "0.0000"}
               aria-label={t("Quantity")}
               className="bf-tabular h-9 w-full rounded border border-brand-border bg-brand-surface-2 px-2 font-mono text-sm text-brand-text outline-none transition-colors focus:border-brand-accent"
             />
           </div>
 
           {orderType === "limit" ? (
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 py-0.5 text-[11px]">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 py-0.5 text-[10px]">
               <label className="flex cursor-pointer items-center gap-1.5 text-brand-text-secondary"><input type="checkbox" checked={reduceOnly} onChange={(e) => setReduceOnly(e.target.checked)} className="h-3.5 w-3.5 rounded border-brand-border accent-brand-accent" />{t("Reduce only")}</label>
               <label className="flex cursor-pointer items-center gap-1.5 text-brand-text-secondary"><input type="checkbox" checked={closePosition} onChange={(e) => setClosePosition(e.target.checked)} className="h-3.5 w-3.5 rounded border-brand-border accent-brand-accent" />{t("Close position")}</label>
             </div>
