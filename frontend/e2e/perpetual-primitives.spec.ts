@@ -106,7 +106,8 @@ test("perpetual form controls and empty states keep their primitive styles", asy
   await expect(desktopTerminal).toBeVisible();
   await expect(page.getByTestId("perp-mobile-workspace")).toBeHidden();
   // Eight levels per side are reserved for the desktop book.
-  await expect(desktopTerminal.locator(".spot-book-row")).toHaveCount(16);
+  await expect(desktopTerminal.locator('[data-depth-side="ask"]')).toHaveCount(8);
+  await expect(desktopTerminal.locator('[data-depth-side="bid"]')).toHaveCount(8);
 
   const empty = desktopTerminal.locator(".empty-state").first();
   await expect(empty).toBeVisible();
