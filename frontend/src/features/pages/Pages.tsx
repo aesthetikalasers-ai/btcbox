@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldAlert, ArrowLeft, ChevronRight, ChevronDown, ChevronsLeft, ChevronsRight, KeyRound, Copy, Check, Plus, Minus, History, WifiOff, Search } from "lucide-react";
 import { ApiError, getAccount, getOrders, getMarkets, getSpotMarketPairs, getKlines, getOrderBook, getUsdtUsdRate, getTradingStatus, submitSpotOrder, cancelSpotOrder, getDepositAddress, getSavedCryptoAddresses, getWithdrawalConfig, getWithdrawalHistoryPage, submitWithdrawal, getInternalConversionQuote, submitInternalConversion, getEarnCatalog, submitEarnAction, getSupportUnread, getPublicConfig, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type DepositRecord, type OrderRecord, type MarketTicker, type SpotMarketPair, type MarketCandle, type OrderBookSnapshot, type TradingStatus, type WithdrawalConfig, type WithdrawalRecord, submitKyc } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
-import { DEV_ACCOUNT_PLACEHOLDER, DEV_OPEN_ACCOUNT_PAGES } from "../../lib/devAccess";
+import { DEV_OPEN_ACCOUNT_PAGES } from "../../lib/devAccess";
 import { useAuthDialog } from "../../lib/auth-dialog";
 import { ChartDrawer } from "../trade/ChartDrawer";
 
@@ -108,7 +108,7 @@ export function MyPage(){
   // Local development: render the account profile layout without a session so
   // the page can be edited. The placeholder carries only empty fields, and the
   // API still refuses every account read, so nothing is invented or unlocked.
-  if(status!=="authenticated"){setAccount(DEV_OPEN_ACCOUNT_PAGES?({...DEV_ACCOUNT_PLACEHOLDER} as unknown as AccountSnapshot):null);setLoading(false);setError("");return;}
+  if(status!=="authenticated"){setAccount(null);setLoading(false);setError("");return;}
   const controller=new AbortController();
   setLoading(true);setAccount(null);setError("");
   getAccount(controller.signal).then(snapshot=>{
@@ -131,11 +131,9 @@ export function MyPage(){
   return ()=>controller.abort();
  },[status,reload]);
  const links=[
-  {title:"Orders",to:"/orders",icon:ChartNoAxesCombined,surface:"border-brand-info/25 bg-brand-surface",iconTone:"bg-brand-info/10 text-brand-info",hoverTone:"hover:border-brand-info/45"},
-  {title:"Referral & Rewards",to:"/rewards",icon:Gift,surface:"border-brand-accent/25 bg-brand-surface",iconTone:"bg-brand-accent/10 text-brand-accent",hoverTone:"hover:border-brand-accent/45"},
-  {title:"Support",to:"/support",icon:Headset,surface:"border-brand-violet/25 bg-brand-surface",iconTone:"bg-brand-violet/10 text-brand-violet",hoverTone:"hover:border-brand-violet/45"},
-  {title:"Settings",to:"/settings",icon:ShieldCheck,surface:"border-brand-teal/25 bg-brand-surface",iconTone:"bg-brand-teal/10 text-brand-teal",hoverTone:"hover:border-brand-teal/45"},
-  {title:"Trust centre",to:"/trust",icon:ShieldCheck,surface:"border-brand-border bg-brand-surface",iconTone:"bg-brand-surface-2 text-brand-text-muted",hoverTone:"hover:border-brand-border-strong"},
+  {title:"Orders",to:"/orders",icon:ChartNoAxesCombined},
+  {title:"Referral & Rewards",to:"/rewards",icon:Gift},
+  {title:"Support",to:"/support",icon:Headset},
  ];
  return <PageFrame title="My account" tone="account">
   {status==="loading"?<AuthRestoreState label="Loading account profile…"/>
@@ -144,12 +142,7 @@ export function MyPage(){
     <div className="flex items-center gap-3.5"><div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-brand-accent/25 bg-brand-accent/10 text-brand-accent"><LockKeyhole className="h-5 w-5"/></div><div><p className="font-bold text-base text-brand-text">{t("Sign in to your account")}</p><p className="text-xs text-brand-text-muted mt-0.5">{t("Sign in to view balances, orders, and security settings.")}</p></div></div>
     <div className="flex items-center gap-2 shrink-0"><Button type="button" size="sm" className="min-w-[88px]" onClick={()=>openAuthDialog("login")}>{t("Sign in")}</Button><Button type="button" size="sm" variant="outline" className="min-w-[88px]" onClick={()=>openAuthDialog("register")}>{t("Create account")}</Button></div>
    </CardContent></Card>
-   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-    <div className="flex flex-col rounded-xl border border-white/[0.08] bg-brand-surface p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] transition-all duration-200"><p className="text-xs text-brand-text-muted font-medium">{t("Estimated account value")}</p><p className="mt-2 text-xl font-bold font-mono tracking-tight tabular-nums text-brand-text">•••••• <span className="text-xs font-normal text-brand-text-muted">USDT</span></p><div className="mt-2.5 flex items-center gap-2"><Link to="/login" className="text-xs text-brand-accent font-semibold hover:underline">{t("Sign in to view")}</Link></div></div>
-    <div className="flex flex-col rounded-xl border border-white/[0.08] bg-brand-surface p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] transition-all duration-200"><p className="text-xs text-brand-text-muted font-medium">{t("Security tier")}</p><p className="mt-2 text-base font-bold text-brand-text">—</p><span className="mt-2.5 text-xs text-brand-text-muted font-medium flex items-center gap-1"><LockKeyhole className="h-3.5 w-3.5"/>{t("Sign in to view")}</span></div>
-    <div className="flex flex-col rounded-xl border border-white/[0.08] bg-brand-surface p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] transition-all duration-200"><p className="text-xs text-brand-text-muted font-medium">{t("Fee tier")}</p><p className="mt-2 text-base font-bold text-brand-text">—</p><span className="mt-2.5 text-xs text-brand-text-muted font-medium">{t("Sign in to view")}</span></div>
-    <div className="flex flex-col rounded-xl border border-white/[0.08] bg-brand-surface p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] transition-all duration-200"><p className="text-xs text-brand-text-muted font-medium">{t("Affiliate Program")}</p><p className="mt-2 text-base font-bold text-brand-text">—</p><Link to="/register" className="mt-2.5 text-xs text-brand-accent font-semibold hover:underline">{t("Join affiliate")}</Link></div>
-   </div>
+
   </div>
   :loading?<Card className="border-brand-border bg-brand-surface"><CardContent className="p-6 text-sm text-brand-text-muted" role="status">{t("Loading account profile…")}</CardContent></Card>
   :error?<Card className="border-brand-danger/30 bg-brand-surface"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-5"><p className="text-sm text-brand-danger" role="alert">{t(error)}</p><Button size="sm" variant="outline" onClick={()=>setReload((n)=>n+1)}>{t("Try again")}</Button></CardContent></Card>
@@ -170,8 +163,7 @@ export function MyPage(){
     <Link to="/address-book" className="flex min-h-[52px] items-center gap-3 px-4 transition-colors hover:bg-brand-surface-2"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-cyan/10 text-brand-cyan"><Wallet className="h-4 w-4"/></span><span className="min-w-0 flex-1 text-sm font-semibold text-brand-text">{t("Address book")}</span><ChevronRight className="h-4 w-4 shrink-0 text-brand-text-muted"/></Link>
     <Link to="/fund-password" className="flex min-h-[52px] items-center gap-3 px-4 transition-colors hover:bg-brand-surface-2"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-teal/10 text-brand-teal"><KeyRound className="h-4 w-4"/></span><span className="min-w-0 flex-1 text-sm font-semibold text-brand-text">{t("Fund password")}</span><span className="shrink-0 text-xs text-brand-text-muted">{t("Set or change")}</span><ChevronRight className="h-4 w-4 shrink-0 text-brand-text-muted"/></Link>
     <Link to="/kyc" className="flex min-h-[52px] items-center gap-3 px-4 transition-colors hover:bg-brand-surface-2"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-cyan/10 text-brand-cyan"><BadgeCheck className="h-4 w-4"/></span><span className="min-w-0 flex-1 text-sm font-semibold text-brand-text">{t("Verification")}</span><span className={`shrink-0 text-sm font-semibold ${normalizeKycStatus(account.kyc?.status)==="verified"?"text-brand-success":normalizeKycStatus(account.kyc?.status)==="rejected"?"text-brand-danger":"text-brand-text-muted"}`}>{kycStatusLabel(normalizeKycStatus(account.kyc?.status),t)}</span><ChevronRight className="h-4 w-4 shrink-0 text-brand-text-muted"/></Link>
-    <Link to="/settings" className="flex min-h-[52px] items-center gap-3 px-4 transition-colors hover:bg-brand-surface-2"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-teal/10 text-brand-teal"><ShieldCheck className="h-4 w-4"/></span><span className="min-w-0 flex-1 text-sm font-semibold text-brand-text">{t("Two-factor authentication")}</span><span className={`shrink-0 text-sm font-semibold ${account.twofa_enabled?"text-brand-success":"text-brand-text-muted"}`}>{account.twofa_enabled?t("Enabled"):t("Not enabled")}</span><ChevronRight className="h-4 w-4 shrink-0 text-brand-text-muted"/></Link>
-    <Link to="/settings" className="flex min-h-[52px] items-center gap-3 px-4 transition-colors hover:bg-brand-surface-2"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-violet/10 text-brand-violet"><KeyRound className="h-4 w-4"/></span><span className="min-w-0 flex-1 text-sm font-semibold text-brand-text">{t("Linked sign-in methods")}</span><span className="shrink-0 text-sm font-semibold text-brand-text-secondary">{(account.auth_providers||[]).length?(account.auth_providers||[]).length:t("Not linked")}</span><ChevronRight className="h-4 w-4 shrink-0 text-brand-text-muted"/></Link>
+    <Link to="/settings" className="flex min-h-[52px] items-center gap-3 px-4 transition-colors hover:bg-brand-surface-2"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-teal/10 text-brand-teal"><ShieldCheck className="h-4 w-4"/></span><span className="min-w-0 flex-1 text-sm font-semibold text-brand-text">{t("Account security")}</span><ChevronRight className="h-4 w-4 shrink-0 text-brand-text-muted"/></Link>
    </div>
   </div>:null}
   <div className="account-actions">{links.map(({title,to,icon:Icon})=>{
