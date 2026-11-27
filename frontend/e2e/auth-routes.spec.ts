@@ -728,6 +728,32 @@ const authenticatedAccountFixture = {
   twofa_enabled: false,
 };
 
+test("valid BTCBOX session cookie restores the account when Supabase Auth config is unavailable", async ({ page }) => {
+  await page.context().addCookies([{
+    name: "session_token",
+    value: "e2e-server-session-cookie",
+    url: "http://127.0.0.1:4173",
+    httpOnly: true,
+    sameSite: "Lax",
+  }]);
+  let accountCookie = "";
+  await page.route("**/api/auth-client-config", route => route.fulfill({
+    status: 503,
+    contentType: "application/json",
+    body: JSON.stringify({ ok: false, msg: "Auth config is temporarily unavailable." }),
+  }));
+  await page.route("**/api/account", async route => {
+    accountCookie = route.request().headers()["cookie"] || "";
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(authenticatedAccountFixture) });
+  });
+
+  await page.goto("/me");
+
+  await expect(page.getByRole("heading", { name: "My account", exact: true })).toBeVisible();
+  await expect(page.getByText("qa_user", { exact: true })).toBeVisible();
+  expect(accountCookie).toContain("session_token=e2e-server-session-cookie");
+});
+
 test("account page waits for session restoration before showing sign-in", async ({ page }) => {
   let releaseConfig!: () => void;
   const configReady = new Promise<void>(resolve => { releaseConfig = resolve; });
