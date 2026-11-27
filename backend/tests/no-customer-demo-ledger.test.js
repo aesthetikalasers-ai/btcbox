@@ -246,7 +246,7 @@ test("perpetual page labels spot data and funding caps honestly", () => {
   assert.ok(page.includes("estimatedMargin === null ? EM_DASH"));
   const depth = fs.readFileSync(path.join(root, "features/trade/OrderBookDepth.tsx"), "utf8");
   assert.ok(depth.includes('t("Market depth")'));
-  assert.ok(depth.includes('({ mid, book, streamState, baseAsset = "BTC" }'));
+  assert.ok(depth.includes('baseAsset = "BTC", levels = 6, compact = false, onPriceSelect'));
   assert.ok(depth.includes('t("Size")} ({baseAsset})'));
   assert.ok(!depth.includes('t("Spot reference only — not the perpetual execution book.")'));
   // Provider levels are bucketed before rendering: the raw ladder printed the same
