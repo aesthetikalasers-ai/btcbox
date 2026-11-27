@@ -7,20 +7,18 @@ type AuthStatus = "loading" | "anonymous" | "authenticated" | "two-factor" | "pa
 // Map server auth error codes to actionable, user-safe messages. Never expose
 // Supabase UUIDs, database details, or "contact support" with no next step.
 function friendlyAuthErrorMessage(cause: unknown): string {
+  // AuthPages renders this value through t(error). Return only keys already
+  // present in every supported locale, and never expose raw provider/server text.
   const code = (cause as { code?: string })?.code;
-  if (code === "SUPABASE_IDENTITY_MISMATCH") return "This email is already registered on BTCBOX. Please sign in instead, or contact support to link this Google account.";
-  if (code === "IDENTITY_IN_USE") return "This wallet is already linked to another BTCBOX account. Please sign in with that account.";
-  if (code === "ACCOUNT_FROZEN") return "This BTCBOX account is frozen. Please contact support.";
-  if (code === "AUTH_PROVIDER_NOT_ALLOWED") return "This sign-in method is not available. Please use another method.";
-  if (code === "GOOGLE_ONLY_AUTH") return "Email registration must be completed through the secure Supabase confirmation flow.";
-  if (code === "GOOGLE_PROVIDER_UNAVAILABLE") return "Google sign-in is temporarily unavailable. Please try again later.";
-  if (code === "INVALID_SUPABASE_IDENTITY") return "The sign-in identity could not be verified. Please try again.";
+  if (code === "SUPABASE_IDENTITY_MISMATCH") return "If this email is already linked to a BTCBOX account, choose Sign in and use your original sign-in method. If this is a new registration, check your inbox for the confirmation email; also check your spam folder.";
+  if (code === "IDENTITY_IN_USE") return "Wallet identity could not be linked.";
+  if (code === "ACCOUNT_FROZEN" || code === "AUTH_PROVIDER_NOT_ALLOWED") return "Authentication is unavailable.";
+  if (code === "GOOGLE_ONLY_AUTH") return "Email registration failed.";
+  if (code === "GOOGLE_PROVIDER_UNAVAILABLE") return "Google sign-in is currently unavailable.";
+  if (code === "INVALID_SUPABASE_IDENTITY") return "Authentication callback failed.";
   const rawMessage = cause instanceof Error ? cause.message : "";
   if (code === "over_email_send_rate_limit" || /email rate limit exceeded|only request this after/i.test(rawMessage)) return "Please wait before requesting another email. Check your inbox for an earlier link.";
-  if (/already associated|already linked|already exists|identity.*already|account.*already|user already/i.test(rawMessage)) {
-    return "This sign-in identity is already linked to another BTCBOX account. Please sign in with that account, or contact support to merge your sign-in methods.";
-  }
-  return cause instanceof Error ? cause.message : "Authentication callback failed.";
+  return "Authentication callback failed.";
 }
 
 type EthereumWalletChoice = {
