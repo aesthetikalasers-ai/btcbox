@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { Navigate, useNavigate } from "react-router-dom";
-import { ArrowLeft, Check, ChevronRight, Copy, Lock, ShieldCheck, Smartphone, Wallet, X } from "lucide-react";
+import { ArrowLeft, Check, ChevronRight, Copy, Lock, ShieldCheck, Wallet, X } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { TwoFactorCard } from "./TwoFactorCard";
@@ -11,6 +11,7 @@ import { useAuth } from "../../lib/auth";
 import { useAuthDialog } from "../../lib/auth-dialog";
 import { DEV_OPEN_ACCOUNT_PAGES } from "../../lib/devAccess";
 import { useI18n } from "../../lib/i18n";
+import { normalizeKycStatus, kycStatusLabel } from "../../lib/status-mapping";
 
 /**
  * Authentication initialization failures are reported by the local market
@@ -69,6 +70,7 @@ export function AccountSecurityPage() {
   const primaryAddress = account?.wallet_address || "";
   // A signed-out visitor must not be presented as a verified identity.
   const signedIn = status === "authenticated";
+  const kycStatus = account ? normalizeKycStatus(account.kyc?.status) : "unknown";
   const primaryName = signedIn ? account?.username || email || "—" : t("Not signed in");
   const uid = account?.uid || "";
 
@@ -122,8 +124,8 @@ export function AccountSecurityPage() {
             </div>
           </div>
           {signedIn ? (
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-brand-accent/30 bg-brand-accent/10 px-2.5 py-1 text-xs font-semibold text-brand-accent">
-              {t("Verified")}
+            <span className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${kycStatus === "verified" ? "border-brand-success/30 bg-brand-success/10 text-brand-success" : kycStatus === "rejected" ? "border-brand-danger/30 bg-brand-danger/10 text-brand-danger" : "border-brand-border bg-brand-surface-2 text-brand-text-muted"}`}>
+              {kycStatusLabel(kycStatus, t)}
             </span>
           ) : (
             <Button type="button" size="sm" className="h-8 shrink-0 px-3 text-xs" onClick={() => openAuthDialog("login")}>
@@ -190,16 +192,7 @@ export function AccountSecurityPage() {
               <ChevronRight className="h-4 w-4 text-brand-text-muted" />
             </span>
           </button>
-          <button type="button" className="flex h-14 w-full items-center justify-between px-4 text-left transition-colors hover:bg-white/[0.02]">
-            <span className="flex items-center gap-3">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-violet/10 text-brand-violet"><Smartphone className="h-4 w-4" /></span>
-              <span className="text-sm font-medium text-brand-text">{t("Device management")}</span>
-            </span>
-            <span className="flex items-center gap-1.5 text-xs">
-              <span className="text-brand-text-muted">{t("Current device")}</span>
-              <ChevronRight className="h-4 w-4 text-brand-text-muted" />
-            </span>
-          </button>
+
         </div>
       </div>
 
