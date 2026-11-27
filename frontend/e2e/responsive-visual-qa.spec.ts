@@ -816,6 +816,100 @@ for (const route of routes) {
   });
 }
 
+
+async function installPerpetualDepthFixture(page: Page) {
+  const asks = Array.from({ length: 8 }, (_, i) => [
+    (65001 + i).toFixed(2),
+    (0.2 + i * 0.05).toFixed(2),
+  ]);
+  const bids = Array.from({ length: 8 }, (_, i) => [
+    (64999 - i).toFixed(2),
+    (0.25 + i * 0.05).toFixed(2),
+  ]);
+  await page.route("**/api/depth**", route => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      ok: true,
+      source: "perpetual-depth-e2e",
+      snapshotTs: Math.floor(Date.now() / 1000),
+      providerTs: Math.floor(Date.now() / 1000),
+      asks,
+      bids,
+    }),
+  }));
+}
+
+test("perpetual desktop depth renders eight levels and hands prices to the order form", async ({ page }) => {
+  test.skip(test.info().project.name !== "desktop-chromium", "Desktop perpetual interaction QA.");
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await installVisualApiMocks(page);
+  await installPerpetualDepthFixture(page);
+  await page.goto("/contract", { waitUntil: "domcontentloaded" });
+
+  const terminal = page.getByTestId("perp-desktop-terminal");
+  await expect(terminal).toBeVisible();
+  const book = terminal.locator('section[aria-label="Order book"]');
+  const asks = book.locator('button[aria-label^="Sell "]');
+  const bids = book.locator('button[aria-label^="Buy "]');
+  await expect(asks).toHaveCount(8);
+  await expect(bids).toHaveCount(8);
+
+  const entry = terminal.locator('section[aria-label="Place order"]');
+  const price = entry.getByRole("textbox", { name: "Price" });
+  const long = entry.locator('button[aria-pressed]').filter({ hasText: "Long" });
+  const short = entry.locator('button[aria-pressed]').filter({ hasText: "Short" });
+
+  const askLabel = await asks.first().getAttribute("aria-label");
+  const askPrice = askLabel?.replace(/^Sell /, "") ?? "";
+  expect(askPrice).toMatch(/^65,00[1-8]\.00$/);
+  await asks.first().click();
+  await expect(price).toHaveValue(askPrice.replaceAll(",", ""));
+  await expect(short).toHaveAttribute("aria-pressed", "true");
+  await expect(long).toHaveAttribute("aria-pressed", "false");
+  await expect(entry.getByRole("button", { name: "Limit", exact: true })).toHaveAttribute("aria-pressed", "true");
+
+  const bidLabel = await bids.first().getAttribute("aria-label");
+  const bidPrice = bidLabel?.replace(/^Buy /, "") ?? "";
+  expect(bidPrice).toMatch(/^64,99[2-9]\.00$/);
+  await bids.first().click();
+  await expect(price).toHaveValue(bidPrice.replaceAll(",", ""));
+  await expect(long).toHaveAttribute("aria-pressed", "true");
+  await expect(short).toHaveAttribute("aria-pressed", "false");
+
+  const midButton = book.getByRole("button", { name: /^65000\.00 USDT$/ });
+  await expect(midButton).toBeVisible();
+  await midButton.click();
+  await expect(price).toHaveValue("65000.00");
+  await expect(long).toHaveAttribute("aria-pressed", "true");
+  // This test intentionally never submits an order.
+});
+
+test("perpetual mobile depth remains six levels without changing the compact workspace", async ({ page }) => {
+  test.skip(test.info().project.name !== "mobile-chromium", "Mobile perpetual layout regression guard.");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installVisualApiMocks(page);
+  await installPerpetualDepthFixture(page);
+  await page.goto("/contract", { waitUntil: "domcontentloaded" });
+
+  const workspace = page.getByTestId("perp-mobile-workspace");
+  await expect(workspace).toBeVisible();
+  const asks = workspace.locator('[data-side="ask"]');
+  const bids = workspace.locator('[data-side="bid"]');
+  await expect(asks).toHaveCount(6);
+  await expect(bids).toHaveCount(6);
+  await expect(workspace.locator('[data-testid="perp-leverage-pills"]')).toBeVisible();
+  const [entryBox, bookBox] = await Promise.all([
+    workspace.locator(":scope > div").first().boundingBox(),
+    workspace.locator(":scope > div").nth(1).boundingBox(),
+  ]);
+  expect(entryBox).not.toBeNull();
+  expect(bookBox).not.toBeNull();
+  expect(Math.abs(entryBox!.y - bookBox!.y)).toBeLessThanOrEqual(8);
+  expect(Math.abs((entryBox!.y + entryBox!.height) - (bookBox!.y + bookBox!.height))).toBeLessThanOrEqual(2);
+  // No submit action is invoked; mobile order-entry markup and geometry stay untouched.
+});
+
 test("order history cursor pagination works on mobile and desktop", async ({ page }) => {
   await installVisualApiMocks(page);
   const orders = Array.from({ length: 75 }, (_, index) => ({
