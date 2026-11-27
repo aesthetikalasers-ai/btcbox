@@ -10,14 +10,17 @@ function friendlyAuthErrorMessage(cause: unknown): string {
   // AuthPages renders this value through t(error). Return only keys already
   // present in every supported locale, and never expose raw provider/server text.
   const code = (cause as { code?: string })?.code;
-  if (code === "SUPABASE_IDENTITY_MISMATCH") return "If this email is already linked to a BTCBOX account, choose Sign in and use your original sign-in method. If this is a new registration, check your inbox for the confirmation email; also check your spam folder.";
+  const emailAccountGuidance = "If this email is already linked to a BTCBOX account, choose Sign in and use your original sign-in method. If this is a new registration, check your inbox for the confirmation email; also check your spam folder.";
+  if (code === "SUPABASE_IDENTITY_MISMATCH" || code === "BTCBOX_EMAIL_ACCOUNT_AMBIGUOUS") return emailAccountGuidance;
   if (code === "IDENTITY_IN_USE") return "Wallet identity could not be linked.";
-  if (code === "ACCOUNT_FROZEN" || code === "AUTH_PROVIDER_NOT_ALLOWED") return "Authentication is unavailable.";
+  if (code === "ACCOUNT_FROZEN" || code === "AUTH_PROVIDER_NOT_ALLOWED" ||
+      code === "PERSISTENCE_UNAVAILABLE" || code === "SECURITY_STATE_UNAVAILABLE") return "Authentication is unavailable.";
   if (code === "GOOGLE_ONLY_AUTH") return "Email registration failed.";
   if (code === "GOOGLE_PROVIDER_UNAVAILABLE") return "Google sign-in is currently unavailable.";
   if (code === "INVALID_SUPABASE_IDENTITY") return "Authentication callback failed.";
   const rawMessage = cause instanceof Error ? cause.message : "";
   if (code === "over_email_send_rate_limit" || /email rate limit exceeded|only request this after/i.test(rawMessage)) return "Please wait before requesting another email. Check your inbox for an earlier link.";
+  if (code === "access_denied" || /google sign-in was cancelled|google sign-in was canceled/i.test(rawMessage)) return "Google authorization did not return a session.";
   return "Authentication callback failed.";
 }
 
@@ -134,7 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // A BTCBOX API/network failure is not proof that the Supabase session is invalid.
       // Preserve the persisted Supabase credentials so the user can recover without
       // being silently signed out. Supabase clears genuinely invalid sessions itself.
-      setError(cause instanceof Error ? cause.message : "Your session could not be restored. Please try again.");
+      setError(friendlyAuthErrorMessage(cause));
       setInitializationIssue(true);
       setTempToken("");
       setStatus("anonymous");
@@ -160,7 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // credentials are invalid, so preserve the persisted Supabase session.
     const watchdogTimer = window.setTimeout(() => {
       if (!active) return;
-      setError("Authentication restoration timed out. Please sign in again.");
+      setError("Account verification is taking longer than expected. Your session has not been cleared.");
       setInitializationIssue(true);
       setTempToken("");
       setStatus("anonymous");
@@ -198,7 +201,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (active) setStatus("anonymous");
       } catch (cause) {
         if (active) {
-          setError(cause instanceof Error ? cause.message : "Authentication is unavailable.");
+          setError(friendlyAuthErrorMessage(cause));
           setInitializationIssue(true);
           // Resolve the UI without destroying a potentially valid persisted
           // Supabase session. A later retry/reload can restore it after recovery.
