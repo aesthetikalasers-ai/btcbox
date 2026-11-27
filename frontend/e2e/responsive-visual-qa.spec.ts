@@ -877,7 +877,7 @@ test("perpetual desktop depth renders eight levels and hands prices to the order
   await expect(long).toHaveAttribute("aria-pressed", "true");
   await expect(short).toHaveAttribute("aria-pressed", "false");
 
-  const midButton = book.getByRole("button", { name: /^65000\.00 USDT$/ });
+  const midButton = book.getByRole("button", { name: /65,000\.00 USDT/ });
   await expect(midButton).toBeVisible();
   await midButton.click();
   await expect(price).toHaveValue("65000.00");
