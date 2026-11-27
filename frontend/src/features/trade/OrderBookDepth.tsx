@@ -87,8 +87,8 @@ export function OrderBookDepth({ mid, book, streamState, baseAsset = "BTC", leve
         style={{ width: `${level.depthPct}%` }}
       />
       <span className={side === "ask" ? "relative text-brand-danger" : "relative text-brand-success"}>{fmt(level.price)}</span>
-      <span className="relative text-brand-text-secondary">{fmt(level.size, 3)}</span>
-      <span className="relative text-brand-text-muted">{fmt(level.total, 3)}</span>
+      <span className="relative text-brand-text-secondary">{fmt(level.size, compact ? 2 : 3)}</span>
+      <span className="relative text-brand-text-muted">{fmt(level.total, compact ? 2 : 3)}</span>
     </button>
   );
 
@@ -97,7 +97,7 @@ export function OrderBookDepth({ mid, book, streamState, baseAsset = "BTC", leve
       <CardHeader className={cn("flex flex-row items-center justify-between gap-2 pb-2", compact ? "px-3 pt-3" : "")}>
         <div className="flex min-w-0 items-center gap-2">
           <CardTitle className="text-sm font-semibold tracking-normal">{t("Order book")}</CardTitle>
-          {sourceLabel ? <span className="shrink-0 rounded border border-brand-border/70 px-1.5 py-0.5 text-[9px] font-medium leading-none text-brand-text-muted">{sourceLabel}</span> : null}
+          {sourceLabel ? <span className="shrink-0 rounded border border-brand-border/70 px-1 py-0.5 text-[8px] font-medium leading-none text-brand-text-muted">{sourceLabel}</span> : null}
         </div>
         <div className="flex items-center gap-1">
           {/* Precision selector — compact segmented control, touch-friendly. */}
@@ -158,7 +158,7 @@ export function OrderBookDepth({ mid, book, streamState, baseAsset = "BTC", leve
         {view === "both" ? (
           <div className="flex items-center justify-between border-y border-brand-border-subtle py-2">
             <span className="text-[11px] font-medium text-brand-text-muted">{midLabel ?? t("Mid price")}</span>
-            <button type="button" disabled={!onPriceSelect || !Number.isFinite(mid) || Number(mid) <= 0} onClick={() => { if (mid && mid > 0) onPriceSelect?.(mid); }} className="font-mono text-lg font-semibold tabular-nums text-brand-success disabled:cursor-default hover:brightness-110 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-accent/60">{midText} <span className="text-xs font-medium">USDT</span></button>
+            <button type="button" disabled={!onPriceSelect || !Number.isFinite(mid) || Number(mid) <= 0} onClick={() => { if (mid && mid > 0) onPriceSelect?.(mid); }} className="font-mono text-lg font-semibold tabular-nums text-brand-success disabled:cursor-default hover:brightness-110 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-accent/60">{midText} {compact ? null : <span className="text-xs font-medium">USDT</span>}</button>
           </div>
         ) : null}
         {view !== "asks" ? (
