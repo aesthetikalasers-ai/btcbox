@@ -143,6 +143,52 @@ test("email authentication errors show safe translated copy without exposing raw
   expect(provisioningCalls).toBe(0);
 });
 
+test("BTCBOX session provisioning errors show translated safe copy without exposing backend details", async ({ page }) => {
+  let provisioningCalls = 0;
+  await page.route("**/auth/v1/token**", route => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      access_token: "e2e-email-provisioning-access-token",
+      token_type: "bearer",
+      expires_in: 3600,
+      refresh_token: "e2e-email-provisioning-refresh-token",
+      user: {
+        id: "44444444-4444-4444-8444-444444444444",
+        aud: "authenticated",
+        role: "authenticated",
+        email: "ambiguous-user@example.invalid",
+        email_confirmed_at: "2026-11-23T00:00:00.000Z",
+        app_metadata: { provider: "email", providers: ["email"] },
+        user_metadata: {},
+        identities: [{ provider: "email" }],
+      },
+    }),
+  }));
+  await page.route("**/api/supabase-login", async route => {
+    provisioningCalls += 1;
+    await route.fulfill({
+      status: 409,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: false,
+        code: "BTCBOX_EMAIL_ACCOUNT_AMBIGUOUS",
+        msg: "Multiple BTCBOX accounts match this email. Please contact support to verify the correct account.",
+      }),
+    });
+  });
+  await page.route("**/api/account", route => route.fulfill({ status: 401, json: { ok: false, need_login: true } }));
+
+  await page.goto("/login");
+  await page.getByLabel("Username or email").fill("ambiguous-user@example.invalid");
+  await page.getByLabel("Password", { exact: true }).fill("StrongPassphrase123");
+  await page.locator("form").getByRole("button", { name: "Sign in", exact: true }).click();
+
+  await expect(page.getByRole("alert")).toContainText("If this email is already linked to a BTCBOX account");
+  await expect(page.getByRole("alert")).not.toContainText("Multiple BTCBOX accounts match this email");
+  expect(provisioningCalls).toBe(1);
+});
+
 test("Google sign-in button is shown when the public auth config enables Google", async ({ page }) => {
   await page.route("**/api/auth-client-config", async (route) => {
     await route.fulfill({
