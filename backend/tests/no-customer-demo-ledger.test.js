@@ -233,7 +233,8 @@ test("public market provenance keeps server and provider timestamps separate", (
 
 test("perpetual page labels spot data and funding caps honestly", () => {
   const page = fs.readFileSync(path.join(root, "features/pages/ContractPage.tsx"), "utf8");
-  assert.ok(!page.includes('t("Spot reference")'));
+  assert.ok(page.includes('sourceLabel={t("Spot reference")}'));
+  assert.ok(page.includes("midLabel={displayPriceLabel}"));
   assert.ok(page.includes('t("Mark price")'));
   assert.ok(page.includes('t("Index price")'));
   assert.ok(page.includes("displayPrice = contractMarkPrice ?? validIndexPrice"));
