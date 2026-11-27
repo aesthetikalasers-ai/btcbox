@@ -94,9 +94,9 @@ export function OrderBookDepth({ mid, book, streamState, baseAsset = "BTC", leve
 
   return (
     <Card className="border-brand-border bg-brand-surface">
-      <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+      <CardHeader className={cn("flex flex-row items-center justify-between gap-2 pb-2", compact ? "px-3 pt-3" : "")}>
         <div className="flex min-w-0 items-center gap-2">
-          <CardTitle className="text-sm font-semibold tracking-normal">{t("Market depth")}</CardTitle>
+          <CardTitle className="text-sm font-semibold tracking-normal">{t("Order book")}</CardTitle>
           {sourceLabel ? <span className="shrink-0 rounded border border-brand-border/70 px-1.5 py-0.5 text-[9px] font-medium leading-none text-brand-text-muted">{sourceLabel}</span> : null}
         </div>
         <div className="flex items-center gap-1">
@@ -136,7 +136,7 @@ export function OrderBookDepth({ mid, book, streamState, baseAsset = "BTC", leve
           </div>
         </div>
       </CardHeader>
-      <CardContent className={cn(compact ? "space-y-1 px-3 pb-3 pt-1" : "space-y-1.5")}>
+      <CardContent className={cn(compact ? "space-y-1 px-3 pb-3 pt-0.5" : "space-y-1.5")}>
         {!book ? (
           <div className="py-10 text-center">
             <p className="text-[11.5px] text-brand-text-muted">
