@@ -716,14 +716,12 @@ export function ContractPage() {
 
   const orderEntryCard = (
     <Card className="border-0 bg-transparent shadow-none">
-      <CardHeader className="border-b border-brand-border/60 px-4 pb-2.5 pt-3">
-        <div className="flex items-center justify-between gap-2">
-          <CardTitle className="text-sm font-bold">{t("Place order")}</CardTitle>
-        </div>
+      <CardHeader className="border-b border-brand-border/60 px-3 pb-2 pt-3">
+        <CardTitle className="text-sm font-bold">{t("Place order")}</CardTitle>
       </CardHeader>
-      <CardContent className="px-4 pb-4 pt-3">
-        <form onSubmit={(e) => void submitOrder(e)} className="space-y-3">
-          <div className="grid grid-cols-2 gap-1 rounded-md border border-brand-border/60 bg-brand-surface-2/60 p-1" role="group" aria-label={t("Order type")}>
+      <CardContent className="px-3 pb-3 pt-2.5">
+        <form onSubmit={(e) => void submitOrder(e)} className="space-y-2.5">
+          <div className="grid grid-cols-2 gap-1 rounded-md bg-brand-surface-2/70 p-1" role="group" aria-label={t("Order type")}>
             {(["limit", "market"] as const).map((kind) => (
               <button
                 key={kind}
@@ -731,7 +729,7 @@ export function ContractPage() {
                 aria-pressed={orderType === kind}
                 onClick={() => setOrderType(kind)}
                 className={cn(
-                  "min-h-9 rounded text-xs font-medium transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/50",
+                  "min-h-8 rounded text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/50",
                   orderType === kind ? "bg-brand-surface text-brand-text shadow-sm" : "text-brand-text-muted hover:text-brand-text",
                 )}
               >
@@ -746,63 +744,63 @@ export function ContractPage() {
               aria-pressed={side === "buy"}
               onClick={() => setSide("buy")}
               className={cn(
-                "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-md text-xs font-semibold transition-all active:scale-[0.99]",
-                side === "buy" ? "bg-brand-accent text-[#05201A] shadow-sm" : "border border-brand-border bg-brand-surface-2 text-brand-text-secondary hover:border-brand-border-strong",
+                "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-md text-xs font-bold transition-colors",
+                side === "buy" ? "bg-brand-accent text-[#05201A]" : "border border-brand-border bg-brand-surface-2 text-brand-text-secondary hover:border-brand-border-strong",
               )}
             >
-              <TrendingUp className="h-4 w-4" aria-hidden="true" />{t("Long")}
+              <TrendingUp className="h-3.5 w-3.5" aria-hidden="true" />{t("Long")}
             </button>
             <button
               type="button"
               aria-pressed={side === "sell"}
               onClick={() => setSide("sell")}
               className={cn(
-                "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-md text-xs font-semibold transition-all active:scale-[0.99]",
-                side === "sell" ? "bg-brand-danger text-white shadow-sm" : "border border-brand-border bg-brand-surface-2 text-brand-text-secondary hover:border-brand-border-strong",
+                "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-md text-xs font-bold transition-colors",
+                side === "sell" ? "bg-brand-danger text-white" : "border border-brand-border bg-brand-surface-2 text-brand-text-secondary hover:border-brand-border-strong",
               )}
             >
-              <TrendingDown className="h-4 w-4" aria-hidden="true" />{t("Short")}
+              <TrendingDown className="h-3.5 w-3.5" aria-hidden="true" />{t("Short")}
             </button>
           </div>
 
-          <div className="rounded-md border border-brand-border/60 bg-brand-surface-2/30 px-3 py-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-medium text-brand-text-muted">{t("Leverage")}</span>
-              <span className="font-mono text-sm font-bold text-brand-accent">{effectiveLeverage}×</span>
+          <div className="rounded-md border border-brand-border/60 bg-brand-surface-2/30 px-2.5 py-2">
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-brand-text-muted">{t("Leverage")}</span>
+              <span className="flex items-center gap-2">
+                <span className="rounded bg-brand-surface px-1.5 py-0.5 text-[10px] font-medium text-brand-text-muted">{t("Cross")}</span>
+                <span className="font-mono text-sm font-bold tabular-nums text-brand-accent">{effectiveLeverage}×</span>
+              </span>
             </div>
-            <div className="mt-2 grid grid-cols-4 gap-1 rounded-md border border-brand-border bg-brand-surface-2/50 p-1" role="group" aria-label={t("Leverage")}>
+            <div className="grid grid-cols-4 gap-1" role="group" aria-label={t("Leverage")}>
               {([10, 20, 50, 100] as const).map((n) => (
-                <button key={n} type="button" aria-pressed={leveragePills === n} onClick={() => setLeveragePills(n)} className={`min-h-8 rounded px-1.5 text-xs font-semibold transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/50 ${leveragePills === n ? "bg-brand-accent/15 text-brand-accent" : "text-brand-text-muted hover:text-brand-text"}`}>{n}×</button>
+                <button key={n} type="button" aria-pressed={leveragePills === n} onClick={() => setLeveragePills(n)}
+                  className={cn("min-h-7 rounded text-[11px] font-semibold tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/50",
+                    leveragePills === n ? "bg-brand-accent/15 text-brand-accent" : "text-brand-text-muted hover:bg-brand-surface-2 hover:text-brand-text")}>{n}×</button>
               ))}
-            </div>
-            <div className="mt-2 flex items-center justify-between gap-2 border-t border-brand-border/70 px-1 pt-2">
-              <span className="text-xs text-brand-text-muted">{t("Margin mode")}</span>
-              <span className="text-xs font-semibold text-brand-text">{t("Cross")}</span>
             </div>
           </div>
 
-
           {orderType === "limit" ? (
             <div>
-              <label className="mb-1 block text-xs font-medium text-brand-text-secondary">{t("Price")} (USDT)</label>
-              <div className="flex items-center gap-1.5">
-                <button type="button" aria-label={t("Decrease price")} onClick={() => stepPrice(-1)} className="flex h-10 w-9 shrink-0 items-center justify-center rounded-md border border-brand-border bg-brand-surface-2 text-brand-text-muted transition-all duration-150 hover:border-brand-accent hover:text-brand-text active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/50"><Minus className="h-3.5 w-3.5" /></button>
+              <label className="mb-1 block text-[11px] font-medium text-brand-text-secondary">{t("Price")} <span className="text-brand-text-muted">(USDT)</span></label>
+              <div className="flex items-center gap-1">
+                <button type="button" aria-label={t("Decrease price")} onClick={() => stepPrice(-1)} className="flex h-9 w-8 shrink-0 items-center justify-center rounded border border-brand-border bg-brand-surface-2 text-brand-text-muted hover:border-brand-accent hover:text-brand-text"><Minus className="h-3.5 w-3.5" /></button>
                 <input
                   inputMode="decimal"
                   value={price}
                   onChange={(e) => setPrice(sanitizeDecimal(e.target.value, priceDecimals))}
                   placeholder={markPrice === null ? "0.00" : money(markPrice, "en-US", 2)}
                   aria-label={t("Price")}
-                  className="bf-tabular h-10 min-w-0 flex-1 rounded-md border border-brand-border bg-brand-surface-2 px-2.5 font-mono text-sm text-brand-text outline-none transition-colors focus:border-brand-accent"
+                  className="bf-tabular h-9 min-w-0 flex-1 rounded border border-brand-border bg-brand-surface-2 px-2 font-mono text-sm text-brand-text outline-none transition-colors focus:border-brand-accent"
                 />
-                <button type="button" aria-label={t("Increase price")} onClick={() => stepPrice(1)} className="flex h-10 w-9 shrink-0 items-center justify-center rounded-md border border-brand-border bg-brand-surface-2 text-brand-text-muted transition-all duration-150 hover:border-brand-accent hover:text-brand-text active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/50"><Plus className="h-3.5 w-3.5" /></button>
+                <button type="button" aria-label={t("Increase price")} onClick={() => stepPrice(1)} className="flex h-9 w-8 shrink-0 items-center justify-center rounded border border-brand-border bg-brand-surface-2 text-brand-text-muted hover:border-brand-accent hover:text-brand-text"><Plus className="h-3.5 w-3.5" /></button>
               </div>
             </div>
           ) : null}
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-brand-text-secondary">
-              {t("Quantity")} ({selectedMarket?.base_asset ?? "BTC"})
+            <label className="mb-1 block text-[11px] font-medium text-brand-text-secondary">
+              {t("Quantity")} <span className="text-brand-text-muted">({selectedMarket?.base_asset ?? "BTC"})</span>
             </label>
             <input
               inputMode="decimal"
@@ -810,30 +808,30 @@ export function ContractPage() {
               onChange={(e) => setQuantity(sanitizeDecimal(e.target.value, quantityDecimals))}
               placeholder={selectedMarket ? `${t("Min")} ${selectedMinQuantity}` : "0.0000"}
               aria-label={t("Quantity")}
-              className="bf-tabular h-10 w-full rounded-md border border-brand-border bg-brand-surface-2 px-2.5 font-mono text-sm text-brand-text outline-none transition-colors focus:border-brand-accent"
+              className="bf-tabular h-9 w-full rounded border border-brand-border bg-brand-surface-2 px-2 font-mono text-sm text-brand-text outline-none transition-colors focus:border-brand-accent"
             />
           </div>
 
           {orderType === "limit" ? (
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-0.5 text-xs">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 py-0.5 text-[11px]">
               <label className="flex cursor-pointer items-center gap-1.5 text-brand-text-secondary"><input type="checkbox" checked={reduceOnly} onChange={(e) => setReduceOnly(e.target.checked)} className="h-3.5 w-3.5 rounded border-brand-border accent-brand-accent" />{t("Reduce only")}</label>
               <label className="flex cursor-pointer items-center gap-1.5 text-brand-text-secondary"><input type="checkbox" checked={closePosition} onChange={(e) => setClosePosition(e.target.checked)} className="h-3.5 w-3.5 rounded border-brand-border accent-brand-accent" />{t("Close position")}</label>
             </div>
           ) : null}
 
-          <div className="flex items-center justify-between rounded-md border border-brand-border/60 bg-brand-surface-2/30 px-3 py-2 text-xs">
+          <div className="flex items-center justify-between border-t border-brand-border/60 pt-2 text-xs">
             <span className="text-brand-text-muted">{t("Estimated margin")}</span>
             <span className="bf-tabular font-mono font-semibold text-brand-text">{estimatedMargin === null ? EM_DASH : `${money(estimatedMargin, locale, 2)} USDT`}</span>
           </div>
 
-          {submitError ? <div role="alert" className="flex items-start gap-2 rounded-lg border border-brand-danger/30 bg-brand-danger/10 p-2.5 text-xs text-brand-danger"><AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" /><div className="min-w-0 space-y-1"><p>{submitError}</p>{submitFailure ? <details className="text-[11px] leading-5 text-brand-text-muted"><summary className="cursor-pointer select-none font-semibold text-brand-text-secondary">{t("Technical details")}</summary><p className="mt-1 break-all font-mono">{t("Request reference")}: {submitFailure.reference}</p></details> : null}</div></div> : null}
-          {submitOk ? <p role="status" className="flex items-start gap-2 rounded-lg border border-brand-success/30 bg-brand-success/10 p-2.5 text-xs text-brand-success"><CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />{submitOk}</p> : null}
+          {submitError ? <div role="alert" className="flex items-start gap-2 rounded-md border border-brand-danger/30 bg-brand-danger/10 p-2 text-[11px] leading-relaxed text-brand-danger"><AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" /><div className="min-w-0 space-y-1"><p>{submitError}</p>{submitFailure ? <details className="text-[11px] leading-5 text-brand-text-muted"><summary className="cursor-pointer select-none font-semibold text-brand-text-secondary">{t("Technical details")}</summary><p className="mt-1 break-all font-mono">{t("Request reference")}: {submitFailure.reference}</p></details> : null}</div></div> : null}
+          {submitOk ? <p role="status" className="flex items-start gap-2 rounded-md border border-brand-success/30 bg-brand-success/10 p-2 text-[11px] text-brand-success"><CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />{submitOk}</p> : null}
 
           <Button
             type="submit"
             disabled={busy || marketsFallback || !selectedMarket || (orderType === "limit" && !price) || !quantity}
             loading={busy}
-            className={cn("min-h-11 w-full text-xs font-bold", side === "buy" ? "bg-brand-accent text-[#05201A] hover:bg-brand-accent/90" : "bg-brand-danger text-white hover:bg-brand-danger/90")}
+            className={cn("min-h-10 w-full text-xs font-bold", side === "buy" ? "bg-brand-accent text-[#05201A] hover:bg-brand-accent/90" : "bg-brand-danger text-white hover:bg-brand-danger/90")}
           >
             {side === "buy" ? `${t("Long")} ${selectedMarket?.base_asset ?? ""}` : `${t("Short")} ${selectedMarket?.base_asset ?? ""}`}
           </Button>
@@ -841,7 +839,6 @@ export function ContractPage() {
       </CardContent>
     </Card>
   );
-
 
   // Mobile-only compact order entry (Binance futures style). Kept separate from
   // `orderEntryCard` so the desktop layout stays untouched.
