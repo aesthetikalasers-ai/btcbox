@@ -1091,10 +1091,10 @@ export function ContractPage() {
   const historyCard = (
     <Card className="border-brand-border bg-brand-surface">
       <CardHeader className="border-b border-brand-border/60 pb-0">
-        <div className="flex flex-wrap gap-4" role="tablist" aria-label={t("Orders and history")}>
+        <div className="flex flex-wrap gap-3" role="tablist" aria-label={t("Orders and history")}>
           {tabs.map(([key, label]) => (
             <button key={key} type="button" role="tab" aria-selected={tab === key} onClick={() => setTab(key)}
-              className={cn("relative pb-3 text-xs font-bold transition-colors", tab === key ? "text-brand-text" : "text-brand-text-muted hover:text-brand-text-secondary")}>
+              className={cn("relative pb-3 text-[11px] font-bold transition-colors", tab === key ? "text-brand-text" : "text-brand-text-muted hover:text-brand-text-secondary")}>
               {label}
               {tab === key ? <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-brand-accent" /> : null}
             </button>
@@ -1131,7 +1131,7 @@ export function ContractPage() {
                 <ChevronDown className="h-4 w-4 shrink-0 text-brand-text-muted" aria-hidden="true" />
               </button>
             </div>
-            <Badge variant="outline" className="shrink-0 border-brand-violet/30 bg-brand-violet/10 px-1.5 py-0.5 text-[11px] leading-none text-brand-violet">{t("Perpetual")}</Badge>
+            <Badge variant="outline" className="shrink-0 border-brand-violet/30 bg-brand-violet/10 px-1.5 py-0.5 text-[10px] leading-none text-brand-violet">{t("Perpetual")}</Badge>
             <div className="ml-auto flex shrink-0 items-center gap-1">
               <Button type="button" variant="ghost" size="icon" aria-label={t("Chart")} className="h-8 w-8 text-brand-text-muted" onClick={() => setDialogOpen(true)}>
                 <BarChart3 className="h-4 w-4" aria-hidden="true" />
@@ -1141,14 +1141,14 @@ export function ContractPage() {
           {/* 币安式：涨跌幅紧跟交易对名下方（红绿醒目） */}
           <div className="flex min-w-0 items-baseline gap-2">
             <span className="shrink-0 text-[10px] text-brand-text-muted">{displayPriceLabel}</span>
-            <span className={cn("bf-tabular font-mono text-2xl font-semibold leading-none", displayChg !== null ? (displayChg >= 0 ? "text-brand-success" : "text-brand-danger") : "text-brand-text")}>{displayPrice !== null && displayPrice !== undefined ? money(displayPrice, locale) : EM_DASH}</span>
+            <span className={cn("bf-tabular font-mono text-[22px] font-semibold leading-none", displayChg !== null ? (displayChg >= 0 ? "text-brand-success" : "text-brand-danger") : "text-brand-text")}>{displayPrice !== null && displayPrice !== undefined ? money(displayPrice, locale) : EM_DASH}</span>
             {/* 无行情时不再渲染孤立的“—”涨跌幅占位 */}
             {displayChg !== null ? (
-              <span className={cn("bf-tabular font-mono text-[12px] font-semibold", displayChg >= 0 ? "text-brand-success" : "text-brand-danger")}>
+              <span className={cn("bf-tabular font-mono text-[11px] font-semibold", displayChg >= 0 ? "text-brand-success" : "text-brand-danger")}>
                 {`${displayChg >= 0 ? "+" : ""}${displayChg.toFixed(2)}%`}
               </span>
             ) : null}
-            <div className="ml-auto hidden min-w-0 shrink-0 items-center gap-2 text-right text-[11px] text-brand-text-muted xl:flex">
+            <div className="ml-auto hidden min-w-0 shrink-0 items-center gap-2 text-right text-[10px] text-brand-text-muted xl:flex">
               <span className="flex items-center gap-1"><span>{t("Mark")}</span><span className="bf-tabular font-mono text-brand-text-secondary">{money(markPrice, locale)}</span></span>
               <span className="flex items-center gap-1"><span>{t("Index")}</span><span className="bf-tabular font-mono text-brand-text-secondary">{money(indexPrice, locale)}</span></span>
             </div>
