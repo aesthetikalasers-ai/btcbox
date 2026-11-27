@@ -93,7 +93,7 @@ export function OrderBookDepth({ mid, book, streamState, baseAsset = "BTC", leve
   );
 
   return (
-    <Card className="flex h-full flex-col border-brand-border bg-brand-surface">
+    <Card className={cn("border-brand-border bg-brand-surface", compact ? "flex h-full flex-col" : "")}>
       <CardHeader className={cn("flex flex-row items-center justify-between gap-2 pb-2", compact ? "px-3 pt-3" : "")}>
         <div className="flex min-w-0 items-center gap-2">
           <CardTitle className="text-sm font-semibold tracking-normal">{t("Order book")}</CardTitle>
