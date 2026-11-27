@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { RefreshCw, TrendingUp, TrendingDown, Clock3, ShieldAlert, ArrowLeft, ChevronRight, ChevronDown, ChevronsLeft, ChevronsRight, KeyRound, Copy, Check, Plus, Minus, History, WifiOff, Search } from "lucide-react";
 import { ApiError, getAccount, getOrders, getMarkets, getSpotMarketPairs, getKlines, getOrderBook, getUsdtUsdRate, getTradingStatus, submitSpotOrder, cancelSpotOrder, getDepositAddress, getSavedCryptoAddresses, getWithdrawalConfig, getWithdrawalHistoryPage, submitWithdrawal, getInternalConversionQuote, submitInternalConversion, getEarnCatalog, submitEarnAction, getSupportUnread, getPublicConfig, type EarnProduct, type EarnPosition, type SavedCryptoAddress, type AccountBalance, type AccountSnapshot, type DepositRecord, type OrderRecord, type MarketTicker, type SpotMarketPair, type MarketCandle, type OrderBookSnapshot, type TradingStatus, type WithdrawalConfig, type WithdrawalRecord, submitKyc } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
-import { DEV_OPEN_ACCOUNT_PAGES } from "../../lib/devAccess";
+import { DEV_ACCOUNT_PLACEHOLDER, DEV_OPEN_ACCOUNT_PAGES } from "../../lib/devAccess";
 import { useAuthDialog } from "../../lib/auth-dialog";
 import { ChartDrawer } from "../trade/ChartDrawer";
 
