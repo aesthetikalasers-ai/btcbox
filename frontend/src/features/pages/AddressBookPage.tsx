@@ -173,12 +173,6 @@ export function AddressBookPage() {
                       <input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} inputMode="text" placeholder={t("Local account number (if no IBAN)")} className={inputCls} />
                     </label>
 
-                    <label className="space-y-1.5 text-sm sm:col-span-2"><span className="text-brand-text-muted">{t("IBAN (if applicable)")}</span>
-                      <input value={iban} onChange={(e) => setIban(e.target.value.toUpperCase())} autoComplete="off" placeholder={t("Enter IBAN for international accounts")} className={inputCls} />
-                    </label>
-                    <label className="space-y-1.5 text-sm"><span className="text-brand-text-muted">{t("Country code (optional)")}</span>
-                      <input value={country} onChange={(e) => setCountry(e.target.value.toUpperCase().slice(0,2))} maxLength={2} placeholder="US / GB / DE" className={inputCls} />
-                    </label>
                     {/* Grouped & collapsible international wire fields */}
                     <div className="overflow-hidden rounded-xl border border-brand-border/70 bg-brand-surface-2/40 sm:col-span-2">
                       <button
@@ -199,6 +193,14 @@ export function AddressBookPage() {
                       {showWireDetails && (
                         <div className="space-y-3 border-t border-brand-border/70 p-3 sm:p-4">
                           <div className="grid gap-3 sm:grid-cols-2">
+                            <label className="space-y-1 text-xs sm:col-span-2">
+                              <span className="text-brand-text-muted">{t("IBAN (if applicable)")}</span>
+                              <input value={iban} onChange={(e) => setIban(e.target.value.toUpperCase())} autoComplete="off" placeholder={t("Enter IBAN for international accounts")} className="h-10 w-full rounded-lg border border-brand-border bg-brand-surface px-3 text-sm text-brand-text outline-none focus:border-brand-accent/60" />
+                            </label>
+                            <label className="space-y-1 text-xs">
+                              <span className="text-brand-text-muted">{t("Country code (optional)")}</span>
+                              <input value={country} onChange={(e) => setCountry(e.target.value.toUpperCase().slice(0,2))} maxLength={2} placeholder="US / GB / DE" className="h-10 w-full rounded-lg border border-brand-border bg-brand-surface px-3 text-sm text-brand-text outline-none focus:border-brand-accent/60" />
+                            </label>
                             <label className="space-y-1 text-xs">
                               <span className="text-brand-text-muted">{t("Routing number")}</span>
                               <input value={routingNumber} onChange={(e) => setRoutingNumber(e.target.value)} inputMode="numeric" placeholder={t("US routing number (optional)")} className="h-10 w-full rounded-lg border border-brand-border bg-brand-surface px-3 text-sm text-brand-text outline-none focus:border-brand-accent/60" />
