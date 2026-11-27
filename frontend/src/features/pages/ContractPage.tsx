@@ -748,7 +748,7 @@ export function ContractPage() {
                 side === "buy" ? "bg-brand-accent text-[#05201A]" : "border border-brand-border bg-brand-surface-2 text-brand-text-secondary hover:border-brand-border-strong",
               )}
             >
-              <TrendingUp className="h-3.5 w-3.5" aria-hidden="true" />{t("Long")}
+              {t("Long")}
             </button>
             <button
               type="button"
@@ -759,7 +759,7 @@ export function ContractPage() {
                 side === "sell" ? "bg-brand-danger text-white" : "border border-brand-border bg-brand-surface-2 text-brand-text-secondary hover:border-brand-border-strong",
               )}
             >
-              <TrendingDown className="h-3.5 w-3.5" aria-hidden="true" />{t("Short")}
+              {t("Short")}
             </button>
           </div>
 
@@ -833,7 +833,7 @@ export function ContractPage() {
             loading={busy}
             className={cn("min-h-10 w-full text-xs font-bold", side === "buy" ? "bg-brand-accent text-[#05201A] hover:bg-brand-accent/90" : "bg-brand-danger text-white hover:bg-brand-danger/90")}
           >
-            {side === "buy" ? `${t("Long")} ${selectedMarket?.base_asset ?? ""}` : `${t("Short")} ${selectedMarket?.base_asset ?? ""}`}
+            {side === "buy" ? t("Long") : t("Short")}
           </Button>
         </form>
       </CardContent>
