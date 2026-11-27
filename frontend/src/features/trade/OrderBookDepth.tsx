@@ -50,7 +50,7 @@ function decimalsFor(precision: number): number {
  * Order-book depth panel. It renders only backend/provider depth levels.
  * Missing or stale depth is an unavailable state, never a synthetic book.
  */
-export function OrderBookDepth({ mid, book, streamState, baseAsset = "BTC", levels = 6, compact = false, onPriceSelect }: { mid?: number; book: DepthLevels | null; streamState?: "idle" | "connecting" | "live" | "degraded" | "closed"; baseAsset?: string; levels?: number; compact?: boolean; onPriceSelect?: (price: number, side?: "buy" | "sell") => void }) {
+export function OrderBookDepth({ mid, book, streamState, baseAsset = "BTC", levels = 6, compact = false, midLabel, sourceLabel, onPriceSelect }: { mid?: number; book: DepthLevels | null; streamState?: "idle" | "connecting" | "live" | "degraded" | "closed"; baseAsset?: string; levels?: number; compact?: boolean; midLabel?: string; sourceLabel?: string; onPriceSelect?: (price: number, side?: "buy" | "sell") => void }) {
   const { t, language } = useI18n();
   const numberLocale = localeTags[language] || "en-US";
   const [precision, setPrecision] = useState<number>(0.01);
@@ -95,7 +95,10 @@ export function OrderBookDepth({ mid, book, streamState, baseAsset = "BTC", leve
   return (
     <Card className="border-brand-border bg-brand-surface">
       <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-        <CardTitle className="text-sm font-semibold tracking-normal">{t("Market depth")}</CardTitle>
+        <div className="flex min-w-0 items-center gap-2">
+          <CardTitle className="text-sm font-semibold tracking-normal">{t("Market depth")}</CardTitle>
+          {sourceLabel ? <span className="shrink-0 rounded border border-brand-border/70 px-1.5 py-0.5 text-[9px] font-medium leading-none text-brand-text-muted">{sourceLabel}</span> : null}
+        </div>
         <div className="flex items-center gap-1">
           {/* Precision selector — compact segmented control, touch-friendly. */}
           <div className="flex items-center rounded-md border border-brand-border/60 bg-brand-surface-2/60 p-0.5" role="group" aria-label={t("Order book precision")}>
@@ -154,7 +157,7 @@ export function OrderBookDepth({ mid, book, streamState, baseAsset = "BTC", leve
         ) : null}
         {view === "both" ? (
           <div className="flex items-center justify-between border-y border-brand-border-subtle py-2">
-            <span className="text-[11px] font-medium text-brand-text-muted">{t("Mid price")}</span>
+            <span className="text-[11px] font-medium text-brand-text-muted">{midLabel ?? t("Mid price")}</span>
             <button type="button" disabled={!onPriceSelect || !Number.isFinite(mid) || Number(mid) <= 0} onClick={() => { if (mid && mid > 0) onPriceSelect?.(mid); }} className="font-mono text-lg font-semibold tabular-nums text-brand-success disabled:cursor-default hover:brightness-110 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-accent/60">{midText} <span className="text-xs font-medium">USDT</span></button>
           </div>
         ) : null}
