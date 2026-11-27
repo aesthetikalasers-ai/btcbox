@@ -755,7 +755,7 @@ export function ContractPage() {
               aria-pressed={side === "sell"}
               onClick={() => setSide("sell")}
               className={cn(
-                "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-md text-xs font-bold transition-colors",
+                "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md text-[11px] font-bold transition-colors",
                 side === "sell" ? "bg-brand-danger text-white" : "border border-brand-border bg-brand-surface-2 text-brand-text-secondary hover:border-brand-border-strong",
               )}
             >
@@ -780,16 +780,16 @@ export function ContractPage() {
             <div>
               <label className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-brand-text-muted">{t("Price")} <span>(USDT)</span></label>
               <div className="flex items-center gap-1">
-                <button type="button" aria-label={t("Decrease price")} onClick={() => stepPrice(-1)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-brand-border bg-brand-surface-2 text-brand-text-muted hover:border-brand-accent hover:text-brand-text"><Minus className="h-3.5 w-3.5" /></button>
+                <button type="button" aria-label={t("Decrease price")} onClick={() => stepPrice(-1)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-brand-border bg-brand-surface-2 text-brand-text-muted hover:border-brand-accent hover:text-brand-text"><Minus className="h-3.5 w-3.5" /></button>
                 <input
                   inputMode="decimal"
                   value={price}
                   onChange={(e) => setPrice(sanitizeDecimal(e.target.value, priceDecimals))}
                   placeholder={markPrice === null ? "0.00" : money(markPrice, "en-US", 2)}
                   aria-label={t("Price")}
-                  className="bf-tabular h-8.5 min-w-0 flex-1 rounded border border-brand-border bg-brand-surface-2 px-2 font-mono text-sm text-brand-text outline-none transition-colors focus:border-brand-accent"
+                  className="bf-tabular h-9 min-w-0 flex-1 rounded border border-brand-border bg-brand-surface-2 px-2 font-mono text-sm text-brand-text outline-none transition-colors focus:border-brand-accent"
                 />
-                <button type="button" aria-label={t("Increase price")} onClick={() => stepPrice(1)} className="flex h-9 w-8 shrink-0 items-center justify-center rounded border border-brand-border bg-brand-surface-2 text-brand-text-muted hover:border-brand-accent hover:text-brand-text"><Plus className="h-3.5 w-3.5" /></button>
+                <button type="button" aria-label={t("Increase price")} onClick={() => stepPrice(1)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-brand-border bg-brand-surface-2 text-brand-text-muted hover:border-brand-accent hover:text-brand-text"><Plus className="h-3.5 w-3.5" /></button>
               </div>
             </div>
           ) : null}
@@ -804,7 +804,7 @@ export function ContractPage() {
               onChange={(e) => setQuantity(sanitizeDecimal(e.target.value, quantityDecimals))}
               placeholder={selectedMarket ? String(selectedMinQuantity ?? "0.0000") : "0.0000"}
               aria-label={t("Quantity")}
-              className="bf-tabular h-8.5 w-full rounded border border-brand-border bg-brand-surface-2 px-2 font-mono text-sm text-brand-text outline-none transition-colors focus:border-brand-accent"
+              className="bf-tabular h-9 w-full rounded border border-brand-border bg-brand-surface-2 px-2 font-mono text-sm text-brand-text outline-none transition-colors focus:border-brand-accent"
             />
           </div>
 
