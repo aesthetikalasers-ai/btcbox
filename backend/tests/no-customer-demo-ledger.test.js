@@ -246,7 +246,7 @@ test("perpetual page labels spot data and funding caps honestly", () => {
   assert.ok(!page.includes("Math.ceil(now / (interval * 1000))"));
   assert.ok(page.includes("estimatedMargin === null ? EM_DASH"));
   const depth = fs.readFileSync(path.join(root, "features/trade/OrderBookDepth.tsx"), "utf8");
-  assert.ok(depth.includes('t("Market depth")'));
+  assert.ok(depth.includes('t("Order book")'));
   assert.ok(depth.includes('baseAsset = "BTC", levels = 6, compact = false, midLabel, sourceLabel, onPriceSelect'));
   assert.ok(depth.includes('t("Size")} ({baseAsset})'));
   assert.ok(!depth.includes('t("Spot reference only — not the perpetual execution book.")'));
