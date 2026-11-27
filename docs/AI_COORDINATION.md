@@ -1,4 +1,4 @@
-# BTCBOXCDT AI 協作規則（2026-11-23 更新）
+# BTCBOXCDT AI 協作規則（2026-11-27 更新）
 
 > 本文件是目前整合分支的有效協作規則。若舊 issue、舊測試、舊交接文件與本文衝突，以使用者在 2026-11-23 明確確認的產品要求及本文件為準；不得用過期說明阻止已確認功能。
 
@@ -70,6 +70,7 @@
 ### 7.1 Branch / PR 狀態
 - main HEAD：40f9363772b53f274f29c886d6353162c9dc3140。
 - 本輪分支：integration/btcbox-mainline-consolidation-20261127，建立基點為 main 的上述 SHA；本輪提交僅更新本協調文件，不包含應用程式、SQL、Auth、Vercel 或資料庫變更。
+- 本輪第一筆協調文件提交（整合證據更新）：6d6ff75dd3e0e0b900af6a1775e59fa6d5cadeb5；最終文件提交 SHA 以本分支最新 HEAD 為準，並在本輪交接報告列明。
 - 舊分支 integration/btcbox-mainline-consolidation-20261126 HEAD：987f15eac36ccf035206cd4f40fabeecea8dc45d；相對最新 main 為 ahead 2 / behind 33，兩個獨有提交僅修改 docs/AI_COORDINATION.md。該 SHA 的 Actions workflow runs 為 0；唯一 check run 是 Supabase Preview 139681273990，結果 skipped。不要將它當作最新整合基礎。
 - integration/btcbox-acceptance-20261123 HEAD：92a32c2d2c40ad8bfd1d53785411d4cdc67424ca；PR #102 已合併至 main。
 - integration/btcbox-mainline-consolidation-20261108：ref 不存在。
