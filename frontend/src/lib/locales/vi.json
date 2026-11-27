@@ -1908,5 +1908,6 @@
   "The order was rejected. Check the price, quantity, margin and position mode, then submit again.": "Lệnh đã bị từ chối. Hãy kiểm tra giá, số lượng, ký quỹ và chế độ vị thế rồi gửi lại.",
   "We couldn't confirm whether this order was accepted. Check Open orders and Positions before placing another order.": "Không thể xác nhận lệnh đã được chấp nhận hay chưa. Hãy kiểm tra «Lệnh mở» và «Vị thế» trước khi gửi lệnh mới.",
   "Technical details": "Thông tin kỹ thuật",
-  "Request reference": "Mã tham chiếu yêu cầu"
+  "Request reference": "Mã tham chiếu yêu cầu",
+  "Reference depth": "Độ sâu tham chiếu"
 }
