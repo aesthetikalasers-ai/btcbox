@@ -436,13 +436,23 @@ async function assertPageAtWidth(
         return {
           text: label?.textContent?.trim() ?? "",
           fits: !!label && label.scrollWidth <= label.clientWidth,
+          labelClientWidth: label?.clientWidth ?? 0,
+          labelScrollWidth: label?.scrollWidth ?? 0,
           insideGrid: linkRect.left >= gridRect.left - 1 && linkRect.right <= gridRect.right + 1,
+          hitAreaHeight: linkRect.height,
+          linkLeft: linkRect.left,
+          linkRight: linkRect.right,
+          gridLeft: gridRect.left,
+          gridRight: gridRect.right,
         };
       });
       return { columns, labels };
     });
     expect(actionMetrics.columns, "Asset actions must use two columns below 400px and four columns from 400px.").toBe(width < 400 ? 2 : 4);
-    expect(actionMetrics.labels.every((label) => label.fits && label.insideGrid), "Asset action labels and hit areas must remain inside the grid without clipping.").toBe(true);
+    expect(
+      actionMetrics.labels.every((label) => label.fits && label.insideGrid && label.hitAreaHeight >= 44),
+      `Asset action labels must fit, remain inside the grid, and retain 44px hit areas at ${width}px: ${JSON.stringify(actionMetrics.labels)}`,
+    ).toBe(true);
     await expect(page.getByText(/— USDT \(—%\)/)).toHaveCount(0);
     const style = await list.evaluate((element) => {
       const css = getComputedStyle(element);
