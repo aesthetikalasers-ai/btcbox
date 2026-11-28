@@ -424,6 +424,19 @@ async function assertPageAtWidth(
     await expect(list).toBeVisible();
     await expect(list.locator(":scope > div > div")).toHaveCount(3);
     for (const coin of ["BTC", "ETH", "USDT"]) await expect(list.getByText(coin, { exact: true })).toBeVisible();
+    const actions = page.getByTestId("asset-primary-actions");
+    await expect(actions).toBeVisible();
+    const actionMetrics = await actions.evaluate((element) => {
+      const columns = getComputedStyle(element).gridTemplateColumns.split(" ").length;
+      const labels = Array.from(element.querySelectorAll("a span")).map((label) => ({
+        text: label.textContent?.trim() ?? "",
+        fits: label.scrollWidth <= label.clientWidth,
+      }));
+      return { columns, labels };
+    });
+    expect(actionMetrics.columns, "Asset actions must use two columns below 400px and four columns from 400px.").toBe(width < 400 ? 2 : 4);
+    expect(actionMetrics.labels.every((label) => label.fits), "Asset action labels must not be clipped.").toBe(true);
+    await expect(page.getByText(/— USDT \(—%\)/)).toHaveCount(0);
     const style = await list.evaluate((element) => {
       const css = getComputedStyle(element);
       return { borderWidth: css.borderTopWidth, background: css.backgroundColor, shadow: css.boxShadow, radius: css.borderRadius };
