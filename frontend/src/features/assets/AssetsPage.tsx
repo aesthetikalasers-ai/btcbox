@@ -163,10 +163,10 @@ export function AssetsPage() {
               primary pair (filled + outline) and convert/earn sit in the same row
               at the same height, so the four money movements read as one flow. */}
           <div data-testid="asset-primary-actions" className="relative grid w-full min-w-0 grid-cols-2 gap-2 min-[400px]:grid-cols-4 min-[400px]:gap-1.5">
-            <Button asChild className="min-h-11 w-full min-w-0 gap-1.5 px-2 text-[12px] font-bold"><Link to="/deposit"><ArrowDownToLine className="h-4 w-4 shrink-0"/><span className="min-w-0 flex-1 truncate">{t("Deposit")}</span></Link></Button>
-            <Button asChild variant="outline" className="min-h-11 w-full min-w-0 gap-1.5 px-2 text-[12px] font-bold"><Link to="/withdraw"><ArrowUpFromLine className="h-4 w-4 shrink-0"/><span className="min-w-0 flex-1 truncate">{t("Withdraw")}</span></Link></Button>
-            <Button asChild variant="secondary" className="min-h-11 w-full min-w-0 gap-1.5 px-2 text-[12px] font-semibold"><Link to="/convert"><ArrowLeftRight className="h-4 w-4 shrink-0"/><span className="min-w-0 flex-1 truncate">{t("Convert")}</span></Link></Button>
-            <Button asChild variant="secondary" className="min-h-11 w-full min-w-0 gap-1.5 px-2 text-[12px] font-semibold"><Link to="/earn"><Sprout className="h-4 w-4 shrink-0"/><span className="min-w-0 flex-1 truncate">{t("Earn")}</span></Link></Button>
+            <Button asChild className="min-h-11 w-full min-w-0 gap-1.5 px-2 text-[12px] font-bold min-[400px]:gap-1 min-[400px]:px-1"><Link to="/deposit"><ArrowDownToLine className="h-4 w-4 shrink-0 min-[400px]:h-3.5 min-[400px]:w-3.5"/><span className="min-w-0 flex-1 truncate">{t("Deposit")}</span></Link></Button>
+            <Button asChild variant="outline" className="min-h-11 w-full min-w-0 gap-1.5 px-2 text-[12px] font-bold min-[400px]:gap-1 min-[400px]:px-1"><Link to="/withdraw"><ArrowUpFromLine className="h-4 w-4 shrink-0 min-[400px]:h-3.5 min-[400px]:w-3.5"/><span className="min-w-0 flex-1 truncate">{t("Withdraw")}</span></Link></Button>
+            <Button asChild variant="secondary" className="min-h-11 w-full min-w-0 gap-1.5 px-2 text-[12px] font-semibold min-[400px]:gap-1 min-[400px]:px-1"><Link to="/convert"><ArrowLeftRight className="h-4 w-4 shrink-0 min-[400px]:h-3.5 min-[400px]:w-3.5"/><span className="min-w-0 flex-1 truncate">{t("Convert")}</span></Link></Button>
+            <Button asChild variant="secondary" className="min-h-11 w-full min-w-0 gap-1.5 px-2 text-[12px] font-semibold min-[400px]:gap-1 min-[400px]:px-1"><Link to="/earn"><Sprout className="h-4 w-4 shrink-0 min-[400px]:h-3.5 min-[400px]:w-3.5"/><span className="min-w-0 flex-1 truncate">{t("Earn")}</span></Link></Button>
           </div>
         </CardContent>
       </Card>
