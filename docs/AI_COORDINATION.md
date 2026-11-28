@@ -1,13 +1,14 @@
-# BTCBOXCDT AI 協作規則（2026-11-23 更新）
+# BTCBOXCDT AI 協作規則（2026-11-28 更新）
 
 > 本文件是目前整合分支的有效協作規則。若舊 issue、舊測試、舊交接文件與本文衝突，以使用者在 2026-11-23 明確確認的產品要求及本文件為準；不得用過期說明阻止已確認功能。
 
 ## 1. 當前工作狀態
 - Repository: `avali9308-code/btcboxcdt`
-- 整合分支：`integration/btcbox-acceptance-20261123`
-- 整合 PR：#102（目標 `main`）
+- 整合分支：`integration/btcbox-acceptance-20261128`
+- 整合 PR：本輪 Draft PR（目標 `main`；建立後以 GitHub 實際狀態為準）
+- PR #102 已於 2026-11-23 合併；其歷史驗收紀錄不得代替本輪最新 HEAD 驗證。
 - 本階段：處理既有整合缺陷、CI 失敗、說明文件過期及驗收；不是新增產品功能階段。
-- PR 未通過必要 CI、review 和驗收前不得合併。
+- 新 Draft PR 未通過必要 CI、review 和驗收前不得合併。
 - 不得由本階段觸發正式環境部署、正式資料庫遷移或正式資料修改。生產環境有真實使用者。
 
 ## 2. 產品功能邊界（不可用舊文件反向封鎖）
@@ -52,7 +53,7 @@
 - 不刪除歷史分支，不直接修改 `main`。
 
 ## 5. 合併與部署閘門
-PR #102 只有在下列項目全部完成後才可提出合併：
+PR #102 已合併。任何後續整合 PR 只有在下列項目全部完成後才可提出合併：
 - 前端 lint、build、單元測試及 Playwright desktop/mobile 必要測試通過。
 - 後端測試、PostgreSQL schema CI、Change Guard 通過。
 - Codex review / PR review 中的有效問題已處理。
@@ -75,3 +76,44 @@ PR #102 只有在下列項目全部完成後才可提出合併：
 - Auth rate-limit errors (`over_email_send_rate_limit`) must be translated to a clear wait/check-inbox message. Do not disable email confirmation or raise live rate limits just to make tests pass.
 - Read-only Supabase log audit on 2026-11-23 found 7 confirmation-mail send events and 18 email-send rate-limit events (13 confirmation, 5 recovery). No Supabase settings were changed.
 - Feature branches run the full frontend/backend checks through their PR; push-triggered CI is restricted to `main` to avoid running the same suite twice for each PR commit.
+
+
+## 2026-11-28 latest-main integration run
+
+### Coordination and branch facts
+- The requested ref `chore/shared-ai-coordination` does not exist: GitHub returned 404 (no commit for that ref). The current coordination source was therefore read from `main`, file `docs/AI_COORDINATION.md`, blob `0ae2655558aaf361e15ace049645ffddb48d80ac`.
+- Exact main base for this run: `d4a4b63e63fa9fe2be08bf4d6f34f219832ff7df`.
+- PR #67 is CLOSED / MERGED, head `c53fa948a599b560c1319726adfb57be6828b0fa`, merge commit `fbf301f88c5c19db94ea1546c590667a8818e842`. It cannot be kept Draft after merge. Its old head branch `integration/btcbox-mainline-consolidation-20261108` is no longer listed among repository branches.
+- PR #102 is CLOSED / MERGED, head `92a32c2d2c40ad8bfd1d53785411d4cdc67424ca`, merge commit `f6d62d21e94a234044221320158eeab0d230e1f4`.
+- Previous branch `integration/btcbox-mainline-consolidation-20261127` is at `6f047b74acf98bc3c26787e51d1750528f95f365`, 2 commits ahead and 38 behind current main; do not use it as the current integration base.
+- This run's branch is `integration/btcbox-acceptance-20261128`, created directly from the exact main SHA above.
+
+### Exact-main CI evidence
+For `d4a4b63e63fa9fe2be08bf4d6f34f219832ff7df`:
+- Backend CI run `46099148255`: success.
+- Change Guard run `46099148174`: success.
+- Frontend CI run `46099148319`: failure, job `140837380602`; lint, locale, visual-standard, decimal, and production build steps passed, but production-bundle critical SPA/responsive E2E failed.
+- The failed E2E assertion is `frontend/e2e/responsive-visual-qa.spec.ts` around line 445: asset action labels must fit their grid cells. The mobile fixed-width sequence passes 320/360/375/390 then fails at 414px; the desktop continuous sweep fails at the same 414px four-column breakpoint. This is a real responsive regression, not a CI infrastructure failure.
+- The failing workflow uploaded artifact `15244462914` (`btcbox-mobile-responsive-qa`). The 320px screenshot shows the two-column controls visually inside the card; the failing 414px assertion is about label width/geometry.
+- Combined commit status has Vercel success only; this does not override the failed Frontend Actions run.
+
+### AI 2 Web App/Admin fix in this branch
+- File `frontend/src/features/assets/AssetsPage.tsx`: keep two columns below 400px and four columns from 400px; for the compact four-column layout, reduce horizontal button padding and icon/gap dimensions while retaining the 44px minimum hit-area height.
+- File `frontend/e2e/responsive-visual-qa.spec.ts`: keep the no-clipping/no-overflow assertion, add explicit 44px hit-area verification, and include label width and bounding-box measurements in failure output. The test is strengthened, not weakened.
+- Code/test commit after the two frontend updates: `9b68ccced283412a84f59a46d737a0f99cdd2488`.
+- No local checkout was available; local npm/Playwright execution was not performed. The exact-head PR CI is the required verification and remains pending until GitHub reports it.
+- The branch's coordination-document update records this run's evidence and the unresolved cross-team risks. The final branch HEAD is reported in the run summary.
+
+### Cross-team unresolved risks retained
+- Perpetual close-position: API/DB owner must fix full-close and partial-fill replay ordering, stable close intent, atomic position snapshot, and dedicated shared rate limiting; AI 2 does not modify route/SQL implementation.
+- Admin Perpetual market configuration: Admin UI/API/DB owners must define request_id, canonical request hash, exact replay and atomic audit/upsert; do not add a frontend-only field.
+- Core/Backend owner must add `FINANCIAL_PERPETUAL_WORKERS_READY=0` to `backend/.env.example` and preserve fail-closed defaults.
+- Hosted Supabase schema parity, real staging Email/Google authentication, SMTP, Worker deployment/monitoring, and owner visual sign-off remain NOT VERIFIED.
+- PR #136 is CLOSED / NOT MERGED; its prior mocked Auth E2E evidence does not establish hosted provider behavior. Its review noted an auth-config-unavailable path where provider buttons may remain enabled without a restored server session; Web/Auth owner should confirm whether this is already fixed on current main before reusing the patch.
+
+### Next actions and release state
+1. Run exact-head Frontend CI on the new Draft PR; inspect the 414px mobile and continuous responsive tests and the uploaded screenshots.
+2. If the 414px check passes, verify the rest of the responsive and route suite on that exact SHA; do not infer visual owner acceptance from CI.
+3. Hand the Perpetual close replay/rate-limit, Admin request-id, and Worker readiness items to their designated owners.
+4. Keep the new PR Draft until all required CI, independent review, visual acceptance, hosted staging checks, and explicit owner approval are satisfied.
+5. Release readiness remains NOT READY. No production deployment, Vercel mutation, hosted Supabase write/DDL/RLS/Auth/flag change, database reset, real financial operation, real user/session inspection, or locked trading-page layout change was performed.
