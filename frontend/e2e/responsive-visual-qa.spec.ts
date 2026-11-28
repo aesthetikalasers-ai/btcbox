@@ -393,7 +393,7 @@ async function assertPageAtWidth(
     const links = productNav.locator(":scope > div > a");
     await expect(links, "All four trading products must remain reachable on narrow phones.").toHaveCount(4);
     const bounds = await links.evaluateAll((items) => {
-      const nav = items[0]?.parentElement?.getBoundingClientRect();
+      const nav = items[0]?.closest("nav")?.getBoundingClientRect();
       return items.map((item) => {
         const rect = item.getBoundingClientRect();
         return { left: rect.left, right: rect.right, navLeft: nav?.left ?? 0, navRight: nav?.right ?? 0 };
