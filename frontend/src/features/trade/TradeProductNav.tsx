@@ -56,7 +56,7 @@ export function TradeProductNav({ leftIndent = "px-3.5 sm:px-4 md:px-6 lg:px-8" 
         className="pointer-events-none absolute -top-6 right-10 h-36 w-36 rounded-full bg-brand-accent/20 blur-[45px]"
       />
 
-      <div className={cn("relative flex min-w-full items-stretch gap-5 overflow-x-auto no-scrollbar", leftIndent)}>
+      <div className={cn("relative flex min-w-full items-stretch gap-1 min-[360px]:gap-2 sm:gap-5 overflow-x-auto no-scrollbar", leftIndent)}>
         {PRODUCTS.map(({ key, label, to, icon: Icon }) => {
           const isActive = active === key;
           return (
