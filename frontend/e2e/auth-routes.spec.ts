@@ -492,21 +492,34 @@ test("valid BTCBOX session cookie restores the account when Supabase Auth config
 });
 
 test("account page waits for session restoration before showing sign-in", async ({ page }) => {
+  await page.context().addCookies([{
+    name: "session_token",
+    value: "e2e-server-session-cookie",
+    url: "http://127.0.0.1:4173",
+    httpOnly: true,
+    sameSite: "Lax",
+  }]);
   let releaseConfig!: () => void;
+  let releaseAccount!: () => void;
   const configReady = new Promise<void>(resolve => { releaseConfig = resolve; });
+  const accountReady = new Promise<void>(resolve => { releaseAccount = resolve; });
   await page.route("**/api/auth-client-config", async route => {
     await configReady;
     await route.fulfill({ status: 200, json: { ok: true, supabase_url: "https://btcbox-e2e.invalid", publishable_key: "e2e-anon-key-not-valid-for-production", google_enabled: false, wallet_enabled: false } });
   });
-  await page.route("**/api/account", route => route.fulfill({ status: 200, json: authenticatedAccountFixture }));
+  await page.route("**/api/account", async route => {
+    await accountReady;
+    await route.fulfill({ status: 200, json: authenticatedAccountFixture });
+  });
   await page.goto("/me");
   await expect(page.getByText("Loading account profile…")).toBeVisible();
   await expect(page.getByText("Sign in to continue")).toHaveCount(0);
-  releaseConfig();
+  releaseAccount();
   await expect(page.getByRole("heading", { name: "My account" })).toBeVisible();
   await expect(page.getByText("qa_user", { exact: true })).toBeVisible();
   await expect(page.getByText("e2e-user-001", { exact: true })).toBeVisible();
   await expect(page.getByText("Sign in to your account")).toHaveCount(0);
+  releaseConfig();
 });
 
 test("authenticated My account keeps profile hierarchy concise", async ({ page }) => {
