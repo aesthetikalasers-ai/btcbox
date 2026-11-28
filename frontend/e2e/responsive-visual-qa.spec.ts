@@ -428,14 +428,21 @@ async function assertPageAtWidth(
     await expect(actions).toBeVisible();
     const actionMetrics = await actions.evaluate((element) => {
       const columns = getComputedStyle(element).gridTemplateColumns.split(" ").length;
-      const labels = Array.from(element.querySelectorAll("a span")).map((label) => ({
-        text: label.textContent?.trim() ?? "",
-        fits: label.scrollWidth <= label.clientWidth,
-      }));
+      const links = Array.from(element.querySelectorAll("a"));
+      const labels = links.map((link) => {
+        const label = link.querySelector("span");
+        const linkRect = link.getBoundingClientRect();
+        const gridRect = element.getBoundingClientRect();
+        return {
+          text: label?.textContent?.trim() ?? "",
+          fits: !!label && label.scrollWidth <= label.clientWidth,
+          insideGrid: linkRect.left >= gridRect.left - 1 && linkRect.right <= gridRect.right + 1,
+        };
+      });
       return { columns, labels };
     });
     expect(actionMetrics.columns, "Asset actions must use two columns below 400px and four columns from 400px.").toBe(width < 400 ? 2 : 4);
-    expect(actionMetrics.labels.every((label) => label.fits), "Asset action labels must not be clipped.").toBe(true);
+    expect(actionMetrics.labels.every((label) => label.fits && label.insideGrid), "Asset action labels and hit areas must remain inside the grid without clipping.").toBe(true);
     await expect(page.getByText(/— USDT \(—%\)/)).toHaveCount(0);
     const style = await list.evaluate((element) => {
       const css = getComputedStyle(element);
