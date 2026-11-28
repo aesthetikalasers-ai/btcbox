@@ -159,20 +159,13 @@ export function AssetsPage() {
           <p className="relative text-xs text-brand-text-muted">
             {loading ? "" : !balanceVisible ? "" : account?.valuation_complete ? `≈ $${formatDecimalAmount(account.totalUsdt, numberLocale)}` : ""}
           </p>
-          {/* 行 4：今日盈亏（无盈亏数据时隐藏） */}
-          {!loading && balanceVisible && (
-            <div className="relative flex items-center gap-2 text-sm">
-              <span className="text-brand-text-secondary">{t("Today's PnL")}</span>
-              <span className="font-mono font-semibold tabular-nums text-brand-text-muted">— USDT (—%)</span>
-            </div>
-          )}
           {/* One funding group instead of two toolbars: deposit/withdraw stay the
               primary pair (filled + outline) and convert/earn sit in the same row
               at the same height, so the four money movements read as one flow. */}
-          <div className="relative grid w-full grid-cols-4 gap-1.5">
-            <Button asChild className="min-h-11 gap-1.5 px-2 text-[12px] font-bold"><Link to="/deposit"><ArrowDownToLine className="h-4 w-4 shrink-0"/><span className="truncate">{t("Deposit")}</span></Link></Button>
+          <div data-testid="asset-primary-actions" className="relative grid w-full grid-cols-2 gap-2 min-[400px]:grid-cols-4 min-[400px]:gap-1.5">
+            <Button asChild className="min-h-11 min-w-0 gap-1.5 px-2 text-[12px] font-bold"><Link to="/deposit"><ArrowDownToLine className="h-4 w-4 shrink-0"/><span className="truncate">{t("Deposit")}</span></Link></Button>
             <Button asChild variant="outline" className="min-h-11 gap-1.5 px-2 text-[12px] font-bold"><Link to="/withdraw"><ArrowUpFromLine className="h-4 w-4 shrink-0"/><span className="truncate">{t("Withdraw")}</span></Link></Button>
-            <Button asChild variant="secondary" className="min-h-11 gap-1.5 px-2 text-[12px] font-semibold"><Link to="/convert"><ArrowLeftRight className="h-4 w-4 shrink-0"/><span className="truncate">{t("Convert")}</span></Link></Button>
+            <Button asChild variant="secondary" className="min-h-11 min-w-0 gap-1.5 px-2 text-[12px] font-semibold"><Link to="/convert"><ArrowLeftRight className="h-4 w-4 shrink-0"/><span className="truncate">{t("Convert")}</span></Link></Button>
             <Button asChild variant="secondary" className="min-h-11 gap-1.5 px-2 text-[12px] font-semibold"><Link to="/earn"><Sprout className="h-4 w-4 shrink-0"/><span className="truncate">{t("Earn")}</span></Link></Button>
           </div>
         </CardContent>
