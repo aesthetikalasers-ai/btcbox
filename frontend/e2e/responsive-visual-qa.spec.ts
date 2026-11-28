@@ -387,6 +387,24 @@ async function assertPageAtWidth(
     await expect(page.getByRole("link", { name: "Back" })).toBeVisible();
   }
 
+  if (route.path === "/contract" && width < 360) {
+    const productNav = page.locator('nav[aria-label="Trade products"]:visible');
+    await expect(productNav, "Narrow phones must show the product navigation.").toHaveCount(1);
+    const links = productNav.locator(":scope > div > a");
+    await expect(links, "All four trading products must remain reachable on narrow phones.").toHaveCount(4);
+    const bounds = await links.evaluateAll((items) => {
+      const nav = items[0]?.parentElement?.getBoundingClientRect();
+      return items.map((item) => {
+        const rect = item.getBoundingClientRect();
+        return { left: rect.left, right: rect.right, navLeft: nav?.left ?? 0, navRight: nav?.right ?? 0 };
+      });
+    });
+    for (const item of bounds) {
+      expect(item.left, "Product navigation item must not be clipped on the left.").toBeGreaterThanOrEqual(item.navLeft - 1);
+      expect(item.right, "Product navigation item must fit fully inside the visible navigation width.").toBeLessThanOrEqual(item.navRight + 1);
+    }
+  }
+
   if (route.path === "/markets") {
     await expect(page.getByRole("heading", {
       name: "Explore the market. Trade with confidence.",
