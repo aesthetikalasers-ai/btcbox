@@ -143,6 +143,22 @@ test("Google sign-in button is shown when the public auth config enables Google"
   await expect(page.getByRole("button", { name: "Sign in with email" })).toHaveCount(0);
 });
 
+test("auth client config failure disables provider sign-in actions", async ({ page }) => {
+  await page.route("**/api/auth-client-config", route => route.fulfill({
+    status: 503,
+    contentType: "application/json",
+    body: JSON.stringify({ ok: false, msg: "Auth config is temporarily unavailable." }),
+  }));
+
+  await page.goto("/login");
+
+  await expect(page.getByRole("alert")).toContainText("Auth config is temporarily unavailable.");
+  await expect(page.getByRole("button", { name: "Google" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Wallet" })).toBeDisabled();
+  await expect(page.getByText("Google sign-in is temporarily unavailable.")).toBeVisible();
+  await expect(page.getByText("Wallet sign-in is temporarily unavailable.")).toBeVisible();
+});
+
 test("wallet sign-in failures remain visible and never create a BTCBOX session without a wallet provider", async ({ page }) => {
   const btcboxSessionExchanges: string[] = [];
   page.on("request", request => {
@@ -272,7 +288,7 @@ test("confirmed email registration exchanges the Supabase identity and provision
   let accountReady = false;
   await page.route("**/api/supabase-login", async route => {
     exchangeCalls += 1;
-    exchangedAccessToken = String(route.request().postDataJSON()?.access_token || "");
+    exchangedAccessToken = String(route.request().postDataJSON()?.supabase_access_token || "");
     accountReady = true;
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) });
   });
@@ -443,6 +459,37 @@ const authenticatedAccountFixture = {
   kyc: { status: "not_submitted" },
   twofa_enabled: false,
 };
+
+test("valid BTCBOX session cookie restores the account when Supabase Auth config is unavailable", async ({ page }) => {
+  await page.context().addCookies([{
+    name: "session_token",
+    value: "e2e-server-session-cookie",
+    url: "http://127.0.0.1:4173",
+    httpOnly: true,
+    sameSite: "Lax",
+  }]);
+  let accountCookie = "";
+  await page.route("**/api/auth-client-config", route => route.fulfill({
+    status: 503,
+    contentType: "application/json",
+    body: JSON.stringify({ ok: false, msg: "Auth config is temporarily unavailable." }),
+  }));
+  await page.route("**/api/account", async route => {
+    accountCookie = route.request().headers()["cookie"] || "";
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(authenticatedAccountFixture),
+    });
+  });
+
+  await page.goto("/me");
+
+  await expect(page.getByRole("heading", { name: "My account", exact: true })).toBeVisible();
+  await expect(page.getByText("qa_user", { exact: true })).toBeVisible();
+  expect(accountCookie).toContain("session_token=e2e-server-session-cookie");
+  await expect(page.getByRole("alert")).toHaveCount(0);
+});
 
 test("account page waits for session restoration before showing sign-in", async ({ page }) => {
   let releaseConfig!: () => void;
