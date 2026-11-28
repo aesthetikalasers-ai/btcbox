@@ -888,7 +888,8 @@ test("perpetual desktop depth renders eight levels and hands prices to the order
   const terminal = page.getByTestId("perp-desktop-terminal");
   await expect(terminal).toBeVisible();
   const book = terminal.locator('section[aria-label="Order book"]');
-  await expect(book.getByText("Reference depth")).toBeVisible();
+  await expect(book.getByText("Spot reference depth")).toBeVisible();
+  await expect(book.getByText("Spot reference only — not the perpetual execution book.")).toBeVisible();
   await expect(book.getByText(/^(Mark price|Index price)$/)).toBeVisible();
   const asks = book.locator('button[aria-label^="Sell "]');
   const bids = book.locator('button[aria-label^="Buy "]');
@@ -934,6 +935,7 @@ test("perpetual mobile depth remains six levels without changing the compact wor
 
   const workspace = page.getByTestId("perp-mobile-workspace");
   await expect(workspace).toBeVisible();
+  await expect(workspace.getByText("Spot reference only — not the perpetual execution book.")).toBeVisible();
   const asks = workspace.locator('[data-side="ask"]');
   const bids = workspace.locator('[data-side="bid"]');
   await expect(asks).toHaveCount(6);
