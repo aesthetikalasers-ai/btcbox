@@ -1188,6 +1188,7 @@ export function ContractPage() {
                 {/* 右：Binance 紧凑盘口（顶部对齐；底部预留 36px 折叠条 + 32px 呼吸间距，
                     精度/视图控件在首屏即可点击，不被常驻 K 线折叠条盖住；右侧保留 12px 呼吸边距） */}
                 <div className="flex min-w-0 flex-col justify-start pr-3 pb-[68px] text-[11px] tabular-nums">
+                  <p className="mb-1 text-[9px] leading-tight text-brand-text-muted">{t("Spot reference only — not the perpetual execution book.")}</p>
                   {/* 顶部：资金费率 + 倒计时（禁止折行） */}
                   <div className="flex items-center justify-between gap-1 whitespace-nowrap pb-1">
                     <span className="shrink-0 text-[11px] text-brand-text-muted">{t("Funding rate cap")}</span>
@@ -1311,7 +1312,8 @@ export function ContractPage() {
                 <KlinePanel symbol={selectedMarket?.symbol ?? symbol ?? "BTCUSDT"} height={468} />
               </section>
               <section aria-label={t("Order book")} className="min-w-[300px] overflow-hidden rounded-xl">
-                <div className="h-full min-h-[500px]"><OrderBookDepth mid={depthMid} book={displayBook} streamState={liveDepth.state} baseAsset={baseAsset} levels={8} compact midLabel={displayPriceLabel} sourceLabel={t("Reference depth")} onPriceSelect={(selectedPrice, selectedSide) => { setOrderType("limit"); if (selectedSide) setSide(selectedSide); setPrice(String(selectedPrice)); }} /></div>
+                <p className="mb-1 px-1 text-[10px] leading-tight text-brand-text-muted">{t("Spot reference only — not the perpetual execution book.")}</p>
+                <div className="h-full min-h-[500px]"><OrderBookDepth mid={depthMid} book={displayBook} streamState={liveDepth.state} baseAsset={baseAsset} levels={8} compact midLabel={displayPriceLabel} sourceLabel={t("Spot reference depth")} onPriceSelect={(selectedPrice, selectedSide) => { setOrderType("limit"); if (selectedSide) setSide(selectedSide); setPrice(String(selectedPrice)); }} /></div>
               </section>
               <section aria-label={t("Place order")} className="min-w-[350px] overflow-hidden rounded-xl border border-brand-border bg-brand-surface">
                 <div className="max-h-[500px] overflow-y-auto overscroll-contain">{orderEntryCard}</div>
